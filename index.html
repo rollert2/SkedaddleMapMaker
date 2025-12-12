@@ -8,11 +8,10 @@
 <!-- Added jsPDF for PDF generation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<!-- --- NEW: GOOGLE DRIVE LIBRARIES (REMOVED ASYNC DEFER) --- -->
+<!-- --- NEW: GOOGLE DRIVE LIBRARIES (CRITICAL FIX: NO ASYNC DEFER) --- -->
 <!-- 1. Google Identity Services (for Auth) -->
 <script src="https://accounts.google.com/gsi/client"></script> 
 <!-- 2. Google Platform Library (for APIs, Picker/Drive) -->
-<!-- CRITICAL FIX: Removed async/defer to use global callback -->
 <script src="https://apis.google.com/js/api.js"></script>
 <!-- ----------------------------------- -->
 
@@ -1645,7 +1644,6 @@ cv.addEventListener('pointerup',e=>{
     // Vertex/Icon drag release fix (1st priority)
     if (pointers.size === 1 && !wasGesture) { // Check size=1 to ensure the *last* pointerup is handled correctly
         if (draggingPoint) {
-            // Only release draggingPoint if this was the last pointer (size 1 after delete)
             draggingPoint = null;
             markPowerDirty();
             requestRender();
@@ -3559,18 +3557,20 @@ document.getElementById('gMap').onchange=e=>{
 
 // 1. Initialization and Authorization
 function handleAuthResult(authResult) {
+    console.log('[Drive Auth] Result:', authResult);
     if (authResult && !authResult.error) {
-        // Authorization successful, token acquired
-        // The Drive API is now authorized to use this token for subsequent calls
+        console.log('[Drive Auth] Authorization successful. Attempting to open Picker...');
         createPicker();
     } else {
-        // Authorization failed or user cancelled
-        showAlert('Google Drive authorization failed. Please sign in again.');
+        // Log the specific error if available
+        if (authResult.error) console.error('[Drive Auth] Error:', authResult.error);
+        showAlert('Google Drive authorization failed. Please sign in again. (Check console for details)');
     }
 }
 
 function authDriveAndOpenPicker() {
     if (!isDriveApiReady) {
+        console.warn('[Drive Auth] API not ready when button clicked.');
         showAlert('Google Drive API is still loading. Please wait a moment and try again.');
         return;
     }
@@ -3578,20 +3578,23 @@ function authDriveAndOpenPicker() {
     // Request token via the configured client
     const token = gAuthClient.getAccessToken();
     if (token) {
-        // Token exists, proceed directly
+        console.log('[Drive Auth] Token already exists, proceeding to Picker.');
         createPicker();
     } else {
-        // Request token
+        console.log('[Drive Auth] Requesting new access token...');
+        // This initiates the pop-up/redirect flow for the user to sign in
         gAuthClient.requestAccessToken();
     }
 }
 
-function initGoogleDrive() {
-    // 1. Initialize GAPI client for API calls
+// Global function required by the gapi load script
+window.gapiLoaded = function() {
+    console.log('[GAPI] Client Library loaded. Initializing Drive client...');
     gapi.client.init({
         apiKey: API_KEY,
         discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
     }).then(() => {
+        console.log('[GAPI] Drive client initialized.');
         // 2. Initialize Google Identity Services for OAuth
         gAuthClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
@@ -3603,22 +3606,18 @@ function initGoogleDrive() {
             }
         });
         isDriveApiReady = true;
-        
-        // Setup button handler after initialization is COMPLETE
-        document.getElementById('gPickDrive').onclick = authDriveAndOpenPicker;
-
+        console.log('[GAPI] API Ready. Drive function enabled.');
     }, (error) => {
-        console.error('GAPI Client Load Error:', error);
-        showAlert('Failed to load Google APIs.');
+        console.error('[GAPI] Client Load Error:', error);
+        showAlert('Failed to initialize Google APIs.');
     });
 }
 
-
 // 2. Google Picker Logic
 function createPicker() {
-    // Check if the required API components are loaded
-    if (!gapi.client.drive || !google.picker) {
-        showAlert("Google Picker/Drive libraries failed to load.");
+    // CRITICAL: Check for Picker before use, if it fails, it might be a pop-up blocker
+    if (!google.picker) {
+        showAlert("Error: Google Picker not loaded. Check for pop-up blockers or authorization errors in the console.");
         return;
     }
 
@@ -3626,21 +3625,29 @@ function createPicker() {
     view.setMimeTypes('application/json,text/plain'); // Filter for JSON/text files (includes .skmap)
     view.setQuery('*.skmap'); // Optional search query
 
-    const picker = new google.picker.PickerBuilder()
-        .setAppId(CLIENT_ID) 
-        .setOAuthToken(gAuthClient.getAccessToken())
-        .setDeveloperKey(API_KEY)
-        .setCallback(pickerCallback)
-        .addView(view)
-        .enableFeature(google.picker.Feature.NAV_HIDDEN) // Hide navigation panel (optional)
-        .build();
+    try {
+        const picker = new google.picker.PickerBuilder()
+            .setAppId(CLIENT_ID) 
+            .setOAuthToken(gAuthClient.getAccessToken())
+            .setDeveloperKey(API_KEY)
+            .setCallback(pickerCallback)
+            .addView(view)
+            .enableFeature(google.picker.Feature.NAV_HIDDEN) // Hide navigation panel (optional)
+            .build();
 
-    picker.setVisible(true);
+        picker.setVisible(true);
+        console.log('[Picker] Picker window attempting to open.');
+
+    } catch (e) {
+        console.error('[Picker] Failed to build/show picker:', e);
+        showAlert("Failed to open Google Drive file picker. This is often caused by pop-up blockers.");
+    }
 }
 
 function pickerCallback(data) {
     if (data.action === google.picker.Action.PICKED) {
         const fileId = data.docs[0].id;
+        console.log('[Picker Callback] File picked:', fileId);
         fetchDriveFileContent(fileId);
     }
 }
@@ -3664,7 +3671,7 @@ function fetchDriveFileContent(fileId) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP error! status: ${response.status} (File access denied or missing)`);
         }
         return response.blob();
     })
@@ -4303,28 +4310,14 @@ function initializeUI() {
     updateArrowFreqUI();
 }
 
-// Load the Google API client library
-// The initialization is now tied to DOMContentLoaded for better timing control
-// if (window.gapi) {
-//     gapi.load('client:picker', initGoogleDrive);
-// } else {
-//     // Fallback/ensure async load handler runs
-//     window.addEventListener('load', () => {
-//          // Check if GAPI is available after page load
-//          if (window.gapi) gapi.load('client:picker', initGoogleDrive);
-//     });
-// }
+// Load the Google API client library callback
+gapi.load('client:picker', window.gapiLoaded);
 
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
     initializeAndSizeContext();
     
-    // Start GAPI loading after DOM is ready
-    if (window.gapi) {
-        gapi.load('client:picker', initGoogleDrive);
-    }
-
     // Default back button trap setup.
     document.getElementById('btnStay').onclick = () => { document.getElementById('modalBack').style.display = 'none'; history.pushState(null, null, location.href); };
     document.getElementById('btnLeave').onclick = () => { document.getElementById('modalBack').style.display = 'none'; history.back(); };
