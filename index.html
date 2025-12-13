@@ -408,7 +408,7 @@ input[type=range].input:active::-webkit-slider-thumb {
   <button id="btnSelect" class="btn">🖱️</button>
   
   <!-- Undo (Icon Only) -->
-  <button id="btnUndo" class="btn" title="Undo">↩️</button>
+  <button id="btnUndo" class="btn" disabled title="Undo">↩️</button>
 
   <!-- Swag Toggle (Tool-specific, moved left of Finish Line for Garland) -->
   <button id="btnSwag" class="btn" title="Toggle Swag/Curves (Garland Only)" style="display:none">〰️ Swag</button>
@@ -1513,7 +1513,7 @@ function mergeLines(L, keepLine, mergeLine) {
     keepLine.cps = newCps;
     const idx = data[L].indexOf(mergeLine);
     if(idx > -1) data[L].splice(idx, 1);
-    markPowerDirty(); refreshTable();
+    refreshTable(); markPowerDirty();
 }
 
 cv.addEventListener('pointermove',e=>{
@@ -1933,8 +1933,7 @@ function splitLine(L, originalLine, segIndex, splitX, splitY) {
         isSplit: true,
         clip: originalLine.clip, // Copy clip type
         fra: originalLine.fra || false, // Copy FRA state
-        gguard: originalLine.gguard || false, // Copy Gutter Guard state
-        isPillarMode: originalLine.isPillarMode || false // NEW: Copy Pillar state
+        gguard: originalLine.gguard || false // Copy Gutter Guard state
     };
     data[L].push(newLine);
     refreshTable(); markPowerDirty();
@@ -1965,10 +1964,8 @@ function getNewItemData(L){
         const pWreath = pfx.wreath || 'WR'; // Use generic WR prefix
         const indexWreath = nextIndex(pWreath);
         label = pWreath + indexWreath;
-    } else if (L === 'label') { // Simple labels use LBL prefix
-        label = pfx.label + nextIndex(pfx.label);
     } else {
-        label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow') ? '' : p + nextIndex(p);
+        label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow' || L === 'label') ? '' : p + nextIndex(p);
     }
     
     return {label, index: actionCounter};
@@ -2009,8 +2006,7 @@ document.getElementById('btnRedo').onclick = () => {
 let sketch=null; 
 function startNewSketch(){
     const data = getNewItemData(currLayer);
-    // NEW: Include Pillar Mode state in the sketch
-    sketch={points:[],cps:[],layer:currLayer,label:data.label, index: data.index, firstHost:null, isPillarMode: chkPillar.checked}; 
+    sketch={points:[],cps:[],layer:currLayer,label:data.label, index: data.index, firstHost:null};
     document.getElementById('btnComplete').disabled=true;
 }
 
@@ -2494,6 +2490,7 @@ function drawBow(x, y, scale, itemScale){
     // Draw center
     ctx.beginPath(); ctx.arc(x, y, s*0.25, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     
+    // Draw loops
     ctx.beginPath(); ctx.ellipse(x-s*0.5, y-s*0.15, s*0.5, s*0.35, -0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.ellipse(x+s*0.5, y-s*0.15, s*0.5, s*0.35, 0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     
@@ -2974,25 +2971,29 @@ function draw(){
     if (width !== lastWidth || height !== lastHeight) { initializeAndSizeContext(); return; }
     
     const cw = cv.width / DPR; const ch = cv.height / DPR;
-    ctx.fillStyle='#000000'; ctx.fillRect(0,0,cw,ch);
-    ctx.fillStyle='#0b0f19'; ctx.fillRect(0,0,cw,ch);
     
-    // --- NIGHT MODE AERIAL IMAGE FILTERING ---
-    let imageFilter = 'none';
-    if(imgReady && isNightMode) {
-        // Darken and slightly desaturate the image to simulate night/dusk
-        imageFilter = 'brightness(0.25) grayscale(0.2)'; 
-    }
-    
+    // --- 1. Draw Background ---
     if(imgReady){ 
+        // Draw Image
+        let imageFilter = 'none';
+        if(isNightMode) {
+            // Darken and slightly desaturate the image to simulate night/dusk
+            imageFilter = 'brightness(0.25) grayscale(0.2)'; 
+        }
         ctx.filter = imageFilter;
         ctx.drawImage(bg, panX, panY, bg.width*scale, bg.height*scale); 
         ctx.filter = 'none'; // Reset filter before drawing lines/icons
     } else {
-        ctx.fillStyle='#151b2b'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.font='16px system-ui'; ctx.fillStyle='#456';
-        ctx.fillText('Load an image to start', cw/2, ch/2);
+        // FIX: Draw white background for blank map
+        ctx.fillStyle='#ffffff'; 
+        ctx.fillRect(0,0,cw,ch);
+        
+        // Draw informational text
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.font='16px system-ui'; ctx.fillStyle='#888';
+        ctx.fillText('Start Drawing on a Blank Canvas', cw/2, ch/2);
     }
+    // --- END CANVAS BACKGROUND ---
 
     // --- DRAW LINES (Cords, Lines, Garland, Shrub, Windows) ---
     // Cords layer: drawCord calls drawContinuousLine where color is enforced black
@@ -3239,7 +3240,7 @@ function draw(){
     if(sketch && sketch.points.length>0){
         const cursor = cv._mx!=null ? toWorld(cv._mx, cv._my) : null;
         const pts = [...sketch.points]; if(cursor) pts.push(cursor);
-        const skObj = {points: pts, cps: sketch.cps || [], L: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode}; // Pass layer and color info
+        const skObj = {points: pts, cps: sketch.cps || [], L: sketch.layer, col: sketch.col, isPillarMode: chkPillar.checked}; // Pass layer and color info
         
         // Pass the actual color value/default color
         const sketchColor = getColorCode(sketch.col) || colorOf(sketch.layer);
