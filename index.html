@@ -343,6 +343,7 @@ input[type=range].input:active::-webkit-slider-thumb {
   <div class="gcard">
     <!-- NEW CLOSE BUTTON -->
     <button class="close-btn" id="closeGateBtn" onclick="unlock()" title="Continue Editing">&times;</button>
+    <img src="https://i.imgur.com/zdJfkpg.png" alt="logo" style="width:84px;height:84px;border-radius:16px;margin-bottom:16px; border: 2px solid var(--festive-gold);"/>
     <h2>Skedaddle Christmas Map Maker</h2>
     <!-- REMOVED: <span class="version-tag">Beta</span> -->
     <p style="margin-top:12px">Upload a photo, load a saved map, or connect to Google Drive.</p>
@@ -3571,6 +3572,10 @@ function handleAuthResult(authResult) {
 function authDriveAndOpenPicker() {
     if (!isDriveApiReady) {
         console.warn('[Drive Auth] API not ready when button clicked.');
+        // Re-attempt manual load if the flag is still false
+        if (window.gapi && window.gapi.load) {
+            gapi.load('client:picker', window.gapiLoaded); 
+        }
         showAlert('Google Drive API is still loading. Please wait a moment and try again.');
         return;
     }
@@ -3582,8 +3587,14 @@ function authDriveAndOpenPicker() {
         createPicker();
     } else {
         console.log('[Drive Auth] Requesting new access token...');
-        // This initiates the pop-up/redirect flow for the user to sign in
-        gAuthClient.requestAccessToken();
+        // CRITICAL CHECK: Ensure the OAuth client object exists before calling requestAccessToken()
+        if (gAuthClient && gAuthClient.requestAccessToken) {
+            // This initiates the pop-up/redirect flow for the user to sign in
+            gAuthClient.requestAccessToken();
+        } else {
+            console.error('[Drive Auth] gAuthClient is not initialized correctly.');
+            showAlert('Initialization error. Please check your OAuth Client ID setup.');
+        }
     }
 }
 
@@ -4342,6 +4353,31 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             authDriveAndOpenPicker();
         }
+    };
+    
+    // FIX: Add logic for Start Blank Map
+    document.getElementById('gPickBlank').onclick = () => {
+        // Reset all data and settings to default/blank state
+        Object.keys(data).forEach(k => {
+            data[k] = [];
+        });
+        imgDataUrl = null;
+        imgReady = false;
+        scale = 1; panX = 0; panY = 0;
+        selectedItem = null;
+        draggingPoint = null;
+        actionCounter = 0;
+        redoStack = [];
+        startNewSketch(); // Resets sketch and ensures completion button is disabled
+        document.getElementById('customer').value = '';
+        document.getElementById('address').value = '';
+        document.getElementById('jobNotes').value = '';
+        
+        // Reset zoom/pan (optional, but good for starting blank)
+        resetView(); 
+        
+        refreshTable();
+        unlock(); // Unlock the splash screen
     };
 });
 })();
