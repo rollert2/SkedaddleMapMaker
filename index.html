@@ -27,7 +27,8 @@ body{margin:0;color:var(--text);font:14px/1.35 system-ui,-apple-system,Segoe UI,
 body.blurred #app{filter:blur(18px);pointer-events:none}
 
 /* Gate / Landing - Restored Festive Styles */
-#gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:999;background:rgba(5,7,10,.85);backdrop-filter:blur(24px);transition:opacity .35s,visibility .35s;padding:16px}
+/* FIX: Ensure the gate explicitly receives pointer events */
+#gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:999;background:rgba(5,7,10,.85);backdrop-filter:blur(24px);transition:opacity .35s,visibility .35s;padding:16px;pointer-events: auto;} 
 #gate.hide{opacity:0;visibility:hidden;pointer-events:none;}
 .gcard{
     background:#0e1421;
@@ -3530,7 +3531,7 @@ function handleAuthResult(authResult) {
 
 function authDriveAndOpenPicker() {
     if (!isDriveApiReady) {
-        console.warn('[Drive Auth] API not ready when button clicked. Retrying load and alerting user.');
+        console.warn('[Click] API not ready when button clicked. Retrying load and alerting user.');
         // Re-attempt manual load if the flag is still false
         if (window.gapi && window.gapi.load) {
             // No need to call gapiLoaded directly, just alert the user to wait for the ongoing load process
@@ -4330,6 +4331,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Add Google Drive Load listener
     document.getElementById('gPickDrive').onclick = () => {
+        console.log('[DEBUG] Load from Drive button clicked.');
         if (!isDriveApiReady) {
             console.warn('[Click] API not ready, forcing auth check.');
             showAlert('Google Drive API is still loading. Please wait a moment and try again.');
@@ -4341,6 +4343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // FIX: Add logic for Start Blank Map
     document.getElementById('gPickBlank').onclick = () => {
+        console.log('[DEBUG] Start Blank Map clicked.');
         // Reset all data and settings to default/blank state
         Object.keys(data).forEach(k => {
             data[k] = [];
