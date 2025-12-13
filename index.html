@@ -8,7 +8,7 @@
 <!-- Added jsPDF for PDF generation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<!-- --- NEW: GOOGLE DRIVE LIBRARIES (CRITICAL FIX: NO ASYNC DEFER) --- -->
+<!-- --- NEW: GOOGLE DRIVE LIBRARIES --- -->
 <!-- 1. Google Identity Services (for Auth) -->
 <script src="https://accounts.google.com/gsi/client"></script> 
 <!-- 2. Google Platform Library (for APIs, Picker/Drive) -->
@@ -1512,7 +1512,7 @@ function mergeLines(L, keepLine, mergeLine) {
     keepLine.cps = newCps;
     const idx = data[L].indexOf(mergeLine);
     if(idx > -1) data[L].splice(idx, 1);
-    refreshTable(); markPowerDirty();
+    markPowerDirty(); refreshTable();
 }
 
 cv.addEventListener('pointermove',e=>{
@@ -4311,7 +4311,11 @@ function initializeUI() {
 }
 
 // Load the Google API client library callback
-gapi.load('client:picker', window.gapiLoaded);
+// CRITICAL: We need to define this callback globally so the script tag knows where to go.
+// The GAPI load call should fire as soon as the script tag is executed.
+if (window.gapi) {
+    gapi.load('client:picker', window.gapiLoaded);
+}
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -4329,6 +4333,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // This handler remains, but the initialization flow ensures it runs only when ready
     document.getElementById('gPickDrive').onclick = () => {
         if (!isDriveApiReady) {
+            console.warn('[Click] API not ready, forcing auth check.');
+            // Attempt a manual check if the flag is still false, as the error may happen later in the flow
+            if (window.gapi && window.gapi.load) {
+                 gapi.load('client:picker', window.gapiLoaded); // Re-trigger load if necessary
+            }
             showAlert('Google Drive API is still loading. Please wait a moment and try again.');
         } else {
             authDriveAndOpenPicker();
