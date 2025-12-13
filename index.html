@@ -10,9 +10,9 @@
 
 <!-- --- NEW: GOOGLE DRIVE LIBRARIES --- -->
 <!-- 1. Google Identity Services (for Auth) -->
-<script src="https://accounts.google.com/gsi/client" async defer></script> 
+<script src="https://accounts.google.com/gsi/client"></script> 
 <!-- 2. Google Platform Library (for APIs, Picker/Drive) -->
-<script src="https://apis.google.com/js/api.js" async defer></script>
+<script src="https://apis.google.com/js/api.js"></script>
 <!-- ----------------------------------- -->
 
 <style>
@@ -27,8 +27,7 @@ body{margin:0;color:var(--text);font:14px/1.35 system-ui,-apple-system,Segoe UI,
 body.blurred #app{filter:blur(18px);pointer-events:none}
 
 /* Gate / Landing - Restored Festive Styles */
-/* FIX: Ensure the gate explicitly receives pointer events */
-#gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:999;background:rgba(5,7,10,.85);backdrop-filter:blur(24px);transition:opacity .35s,visibility .35s;padding:16px;pointer-events: auto;} 
+#gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:999;background:rgba(5,7,10,.85);backdrop-filter:blur(24px);transition:opacity .35s,visibility .35s;padding:16px}
 #gate.hide{opacity:0;visibility:hidden;pointer-events:none;}
 .gcard{
     background:#0e1421;
@@ -81,8 +80,7 @@ body.blurred #app{filter:blur(18px);pointer-events:none}
 /* REMOVED .version-tag STYLE */
 
 /* App Layout */
-/* REMOVED: background:#05070a; to allow canvas to define background */
-#app{display:flex;flex-direction:column;height:100;} 
+#app{display:flex;flex-direction:column;height:100%;background:#05070a;}
 header{flex:0 0 60px;display:flex;align-items:center;gap:8px;padding:8px;background:#0a0f18;border-bottom:1px solid var(--border2);overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 header::-webkit-scrollbar{display:none}
 
@@ -216,6 +214,9 @@ textarea.input{resize:vertical;min-height:80px}
     align-items: center; /* Vertically align items */
     gap: 4px; /* Small space between dropdown and checkbox */
     flex-wrap: wrap; /* Allow wrap for small screen sizes */
+}
+.clip-fra-container label {
+    margin-right: 8px; /* Space between FRA and Gutter Guard */
 }
 .fra-checkbox-label, .gg-checkbox-label {
     font-size: 12px;
@@ -580,14 +581,9 @@ input[type=range].input:active::-webkit-slider-thumb {
 <script>
 (()=>{
 /* --- GOOGLE DRIVE AUTH CONFIGURATION --- */
-// CRITICAL: Updated CLIENT_ID and API_KEY to use placeholders. 
-// Note: These must be actual values for a real Google Drive API app.
-// For this environment, we use the values already defined in the code, but I'll add a comment about proper security practice.
-// In a real application, these should be securely managed.
 const CLIENT_ID = '746571343552-88ogvei1lvtq9ojq3te7fn06d1rlgut4.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0';
-// Added readonly scope for easier browsing of existing files
-const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly'; 
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
 let gAuthClient; // Google Authentication client object
 let isDriveApiReady = false;
@@ -695,8 +691,6 @@ function unlock(){
     // Push state for back button trap
     history.pushState(null, null, location.href);
 }
-// FIX: Expose unlock to global scope so onclick="unlock()" works
-window.unlock = unlock;
 
 
 const lenWrap = document.getElementById('lenWrap');
@@ -1142,24 +1136,15 @@ function initializeAndSizeContext() {
     requestRender();
 }
 function resetView(){
-  if(!imgReady) {
-    // For a blank map, set a sensible default view (e.g., scale to show a 1000x1000 area centered)
-    const r = canvasWrap.getBoundingClientRect();
-    const targetW = 1000, targetH = 1000;
-    scale = Math.min(r.width / targetW, r.height / targetH) * 0.9;
-    panX = (r.width - targetW * scale) / 2;
-    panY = (r.height - targetH * scale) / 2;
-  } else {
-    // For an image map, fit the image
-    const r = canvasWrap.getBoundingClientRect();
-    const imgW = bg.naturalWidth || bg.width || 1000;
-    const imgH = bg.naturalHeight || bg.height || 1000;
-    const targetWidth = r.width * 0.9; 
-    scale = targetWidth / imgW;
-    if(!isFinite(scale) || scale <= 0) scale = 0.1;
-    panX = (r.width - imgW * scale) / 2;
-    panY = (r.height - imgH * scale) / 2;
-  }
+  if(!imgReady) return;
+  const r = canvasWrap.getBoundingClientRect();
+  const imgW = bg.naturalWidth || bg.width || 1000;
+  const imgH = bg.naturalHeight || bg.height || 1000;
+  const targetWidth = r.width * 0.9; 
+  scale = targetWidth / imgW;
+  if(!isFinite(scale) || scale <= 0) scale = 0.1;
+  panX = (r.width - imgW * scale) / 2;
+  panY = (r.height - imgH * scale) / 2;
   requestRender();
 }
 document.getElementById('btnFit').onclick=resetView;
@@ -1184,7 +1169,7 @@ function buildTools(){
           btn.onclick=()=>selectTool('tree',t); toolBtn[k]=btn;
       } else if(k.startsWith('wreath')){
           btn.textContent=k==='wreath32'?'Wr 32"':'Wr 42"';
-          btn.onclick=()=>selectTool('wreath', k==='wreath32'?'32"'':'42"'); toolBtn[k]=btn;
+          btn.onclick=()=>selectTool('wreath', k==='wreath32'?'32"':'42"'); toolBtn[k]=btn;
       } else {
           btn.textContent=pretty[k]||k;
           btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
@@ -2017,7 +2002,7 @@ document.getElementById('btnRedo').onclick = () => {
     if(redoStack.length === 0) return;
     const record = redoStack.pop();
     if(redoStack.length === 0) document.getElementById('btnRedo').disabled = true;
-    data[targetLayer].push(record.item);
+    data[record.layer].push(record.item);
     markPowerDirty(); requestRender(); refreshTable();
 };
 
@@ -2455,6 +2440,68 @@ function drawTreeIcon(ctx, p, kind, size, scale, itemScale) { // Added itemScale
     } else {
         ctx.fillStyle = '#2aa36e'; ctx.beginPath(); ctx.arc(p.x, p.y, 10*scale, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     }
+}
+
+function requestRender(){ 
+    window.requestAnimationFrame(draw); 
+}
+
+function drawArrow(p, dir, color){
+    // Scale size by settings.lineScale AND scale (zoom)
+    const L = 10 * settings.lineScale * scale; 
+    const ang = Math.atan2(dir.y, dir.x); 
+    const baseWidth = 4 * settings.lineScale * scale;
+    const colorWidth = 2 * settings.lineScale * scale;
+    
+    // Draw standard power arrow (fixed colors)
+    ctx.beginPath(); 
+    ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang-Math.PI/6), p.y - L*Math.sin(ang-Math.PI/6));
+    ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang+Math.PI/6), p.y - L*Math.sin(ang+Math.PI/6));
+    ctx.strokeStyle = 'black'; ctx.lineWidth = baseWidth; ctx.stroke();
+    ctx.beginPath(); 
+    ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang-Math.PI/6), p.y - L*Math.sin(ang-Math.PI/6));
+    ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang+Math.PI/6), p.y - L*Math.sin(ang+Math.PI/6));
+    ctx.strokeStyle = '#ff3b3b'; // Default red for power flow
+    ctx.lineWidth = colorWidth; ctx.stroke();
+}
+
+function drawDeadEnd(p, neighbor, color){
+    // R1: Dead end size scaled by settings.lineScale AND scale (zoom)
+    const capLen = 7.5 * settings.lineScale * scale; // Was 5
+    const sP = toScr(p); 
+    const sN = toScr(neighbor);
+    const dx = sP.x - sN.x, dy = sP.y - sN.y; 
+    const ang = Math.atan2(dy, dx); 
+    const baseWidth = 4 * settings.lineScale * scale; // Was 3
+    const colorWidth = 2 * settings.lineScale * scale; // Was 1
+    
+    const px = Math.cos(ang + Math.PI/2) * capLen; 
+    const py = Math.sin(ang + Math.PI/2) * capLen;
+    
+    ctx.beginPath(); ctx.moveTo(sP.x - px, sP.y - py); ctx.lineTo(sP.x + px, sP.y + py);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = baseWidth; ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = colorWidth; ctx.stroke();
+}
+function drawBow(x, y, scale, itemScale){
+    // UPDATED: Scale factor changed from 0.05 to 0.4 to make the bow larger (approx 50% of tree size)
+    const baseBowSize = 20; 
+    const s = baseBowSize * itemScale * scale * 0.4; 
+    
+    ctx.fillStyle = '#ff3b3b'; 
+    ctx.strokeStyle='black'; 
+    ctx.lineWidth=1 * itemScale * scale;
+    
+    // Draw center
+    ctx.beginPath(); ctx.arc(x, y, s*0.25, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    
+    ctx.beginPath(); ctx.ellipse(x-s*0.5, y-s*0.15, s*0.5, s*0.35, -0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x+s*0.5, y-s*0.15, s*0.5, s*0.35, 0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    
+    // Draw tails
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x-s*0.5, y+s*0.8, x-s*0.6, y+s*1.2); ctx.lineTo(x-s*0.3, y+s*1.2); ctx.quadraticCurveTo(x-s*0.2, y+s*0.8, x,y); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x+s*0.5, y+s*0.8, x+s*0.6, y+s*1.2); ctx.lineTo(x+s*0.3, y+s*1.2); ctx.quadraticCurveTo(x+s*0.2, y+s*0.8, x,y); ctx.fill();
+    
+    ctx.stroke(); // Stroke the tails
 }
 
 // Function to calculate the length of a single segment (straight line or quadratic curve)
@@ -2927,17 +2974,9 @@ function draw(){
     if (width !== lastWidth || height !== lastHeight) { initializeAndSizeContext(); return; }
     
     const cw = cv.width / DPR; const ch = cv.height / DPR;
+    ctx.fillStyle='#000000'; ctx.fillRect(0,0,cw,ch);
+    ctx.fillStyle='#0b0f19'; ctx.fillRect(0,0,cw,ch);
     
-    // --- FIX 1: Set white background for blank map, dark background for map with image ---
-    if (imgReady) {
-        ctx.fillStyle='#000000'; ctx.fillRect(0,0,cw,ch); // Background for image container
-        ctx.fillStyle='#0b0f19'; ctx.fillRect(0,0,cw,ch);
-    } else {
-        // User requested a white canvas for blank map
-        ctx.fillStyle='#FFFFFF'; 
-        ctx.fillRect(0,0,cw,ch);
-    }
-
     // --- NIGHT MODE AERIAL IMAGE FILTERING ---
     let imageFilter = 'none';
     if(imgReady && isNightMode) {
@@ -2950,9 +2989,9 @@ function draw(){
         ctx.drawImage(bg, panX, panY, bg.width*scale, bg.height*scale); 
         ctx.filter = 'none'; // Reset filter before drawing lines/icons
     } else {
-        ctx.fillStyle='#456'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.font='16px system-ui';
-        ctx.fillText('Start Drawing on Blank White Canvas', cw/2, ch/2);
+        ctx.fillStyle='#151b2b'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.font='16px system-ui'; ctx.fillStyle='#456';
+        ctx.fillText('Load an image to start', cw/2, ch/2);
     }
 
     // --- DRAW LINES (Cords, Lines, Garland, Shrub, Windows) ---
@@ -3505,7 +3544,14 @@ document.getElementById('btnCustomerControlled').onclick = () => {
 
 
 // UPDATED LISTENERS: Reset target value to allow re-uploading same file
-// MOVED TO DOMContentLoaded
+document.getElementById('gPickImg').onclick=()=>document.getElementById('gImg').click();
+document.getElementById('gPickMap').onclick=()=>document.getElementById('gMap').click();
+document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.target.value=''; };
+document.getElementById('gMap').onchange=e=>{ 
+    if(!e.target.files[0]) return;
+    handleMap(e.target.files[0]); 
+    e.target.value=''; 
+};
 
 
 // --- GOOGLE DRIVE INTEGRATION FUNCTIONS ---
@@ -3515,63 +3561,40 @@ function handleAuthResult(authResult) {
     console.log('[Drive Auth] Result:', authResult);
     if (authResult && !authResult.error) {
         console.log('[Drive Auth] Authorization successful. Attempting to open Picker...');
-        // The Picker needs to be initialized AFTER successful auth, so we call its initialization now
-        google.load('picker', '1', { 'callback': createPicker });
+        createPicker();
     } else {
         // Log the specific error if available
-        if (authResult && authResult.error) {
-            console.error('[Drive Auth] Error:', authResult.error);
-            if (authResult.error === 'popup_closed_by_user') {
-                 // User closed it intentionally, no alert needed generally, or small toast
-                 console.log('User closed popup.');
-            } else if (authResult.error === 'access_denied') {
-                 showAlert('Access denied. Please grant permission to view files.');
-            } else if (authResult.error.includes('origin_mismatch')) {
-                 showAlert('Configuration Error: Origin Mismatch. The current domain is not authorized in Google Cloud Console.');
-            } else {
-                 showAlert(`Google Sign-in Error: ${authResult.error}`);
-            }
-        } else {
-            showAlert('Google Drive authorization failed. Please sign in again. (Check console for details)');
-        }
-        
-        // Reset button state
-        const btn = document.getElementById('gPickDrive');
-        if(btn) btn.innerText = '☁️ Load from Drive';
+        if (authResult.error) console.error('[Drive Auth] Error:', authResult.error);
+        showAlert('Google Drive authorization failed. Please sign in again. (Check console for details)');
     }
 }
 
 function authDriveAndOpenPicker() {
     if (!isDriveApiReady) {
-        console.warn('[Click] API not ready when button clicked.');
-        // Re-attempt check or alert
-        if (window.gapi && window.google) {
-            // It might be ready but flag wasn't set?
-             showAlert('Google Drive API is initializing... please wait 2 seconds and try again.');
-             return;
+        console.warn('[Drive Auth] API not ready when button clicked.');
+        // Re-attempt manual load if the flag is still false
+        if (window.gapi && window.gapi.load) {
+            gapi.load('client:picker', window.gapiLoaded); 
         }
-        showAlert('Google Drive API failed to load. Please check your ad-blocker or network settings.');
+        showAlert('Google Drive API is still loading. Please wait a moment and try again.');
         return;
     }
     
     // Request token via the configured client
-    try {
-        const token = gAuthClient.getAccessToken();
-        if (token) {
-            console.log('[Drive Auth] Token already exists, proceeding to Picker initialization.');
-            google.load('picker', '1', { 'callback': createPicker });
+    const token = gAuthClient.getAccessToken();
+    if (token) {
+        console.log('[Drive Auth] Token already exists, proceeding to Picker.');
+        createPicker();
+    } else {
+        console.log('[Drive Auth] Requesting new access token...');
+        // CRITICAL CHECK: Ensure the OAuth client object exists before calling requestAccessToken()
+        if (gAuthClient && gAuthClient.requestAccessToken) {
+            // This initiates the pop-up/redirect flow for the user to sign in
+            gAuthClient.requestAccessToken();
         } else {
-            console.log('[Drive Auth] Requesting new access token...');
-            if (gAuthClient && gAuthClient.requestAccessToken) {
-                gAuthClient.requestAccessToken();
-            } else {
-                console.error('[Drive Auth] gAuthClient is not initialized correctly.');
-                showAlert('Initialization error. Please check your OAuth Client ID setup.');
-            }
+            console.error('[Drive Auth] gAuthClient is not initialized correctly.');
+            showAlert('Initialization error. Please check your OAuth Client ID setup.');
         }
-    } catch (e) {
-        console.error('Auth Error:', e);
-        showAlert('Authentication Logic Failed: ' + e.message);
     }
 }
 
@@ -3590,7 +3613,6 @@ window.gapiLoaded = function() {
             callback: handleAuthResult,
             error_callback: (error) => {
                  console.error('Google Auth Error:', error);
-                 if (error.type === 'popup_closed') return; // Ignore simple closes
                  showAlert('Google sign-in failed. Check console for details.');
             }
         });
@@ -3598,43 +3620,38 @@ window.gapiLoaded = function() {
         console.log('[GAPI] API Ready. Drive function enabled.');
     }, (error) => {
         console.error('[GAPI] Client Load Error:', error);
-        // Do not alert immediately on load, only if user tries to use it.
+        showAlert('Failed to initialize Google APIs.');
     });
 }
 
 // 2. Google Picker Logic
 function createPicker() {
-    // CRITICAL: The Picker is guaranteed to be loaded here if handleAuthResult was successful
+    // CRITICAL: Check for Picker before use, if it fails, it might be a pop-up blocker
     if (!google.picker) {
-        showAlert("Error: Google Picker library failed to load.");
+        showAlert("Error: Google Picker not loaded. Check for pop-up blockers or authorization errors in the console.");
         return;
     }
 
     const view = new google.picker.View(google.picker.ViewId.DOCS);
-    // Filter for files with .skmap extension or general JSON mime type
-    view.setMimeTypes('application/json,text/plain'); 
-    
-    // Optional: set a default search query for skmap files
-    // view.setQuery('*.skmap'); 
+    view.setMimeTypes('application/json,text/plain'); // Filter for JSON/text files (includes .skmap)
+    view.setQuery('*.skmap'); // Optional search query
 
     try {
         const picker = new google.picker.PickerBuilder()
-            .setAppId(CLIENT_ID.split('-')[0]) // Use only the client ID part before the hyphen
+            .setAppId(CLIENT_ID) 
             .setOAuthToken(gAuthClient.getAccessToken())
             .setDeveloperKey(API_KEY)
             .setCallback(pickerCallback)
             .addView(view)
-            // Show only files on the view (My Drive is default starting point)
-            .enableFeature(google.picker.Feature.NAV_HIDDEN) 
+            .enableFeature(google.picker.Feature.NAV_HIDDEN) // Hide navigation panel (optional)
             .build();
 
-        // This line attempts to open the pop-up. If it fails, it's likely a blocker.
         picker.setVisible(true);
         console.log('[Picker] Picker window attempting to open.');
 
     } catch (e) {
-        console.error('[Picker] Failed to build/show picker (likely pop-up blocker):', e);
-        showAlert("Failed to open Google Drive file picker. This is often caused by pop-up blockers or a missing App ID.");
+        console.error('[Picker] Failed to build/show picker:', e);
+        showAlert("Failed to open Google Drive file picker. This is often caused by pop-up blockers.");
     }
 }
 
@@ -3643,8 +3660,6 @@ function pickerCallback(data) {
         const fileId = data.docs[0].id;
         console.log('[Picker Callback] File picked:', fileId);
         fetchDriveFileContent(fileId);
-    } else if (data.action === google.picker.Action.CANCEL) {
-        console.log('[Picker Callback] User cancelled selection.');
     }
 }
 
@@ -3657,11 +3672,7 @@ function fetchDriveFileContent(fileId) {
     }
 
     // Direct fetch using the Drive V3 API to get content as a Blob
-    // Use fields parameter to get required metadata
-    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=name,mimeType`;
-
-    // Visual feedback
-    document.getElementById('gPickDrive').innerText = 'Downloading...';
+    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
 
     fetch(downloadUrl, {
         method: 'GET',
@@ -3671,28 +3682,22 @@ function fetchDriveFileContent(fileId) {
     })
     .then(response => {
         if (!response.ok) {
-            // Check for 401/403 which usually means invalid token or permission denied
-            if (response.status === 401 || response.status === 403) {
-                 throw new Error(`Permission Denied. Please ensure the app has access to this file and try signing in again.`);
-            }
-            throw new Error(`HTTP error! status: ${response.status} (File access failed)`);
+            throw new Error(`HTTP error! status: ${response.status} (File access denied or missing)`);
         }
         return response.blob();
     })
     .then(blob => {
-        // The blob type check is important, but handleMap takes precedence for content parsing
-        if (blob.size === 0) {
-            showAlert('Selected file is empty.');
-            return;
+        if (blob.type !== 'application/json' && blob.type !== 'text/plain') {
+             // Handle case where user somehow selected a non-map file
+             showAlert(`Selected file type (${blob.type}) is not a valid map file.`);
+             return;
         }
         // Use handleMap function to process the Blob/File object
         handleMap(blob); 
-        document.getElementById('gPickDrive').innerText = '☁️ Load from Drive';
     })
     .catch(error => {
         console.error('Error fetching file from Drive:', error);
-        showAlert(`Failed to download file content from Google Drive: ${error.message}`);
-        document.getElementById('gPickDrive').innerText = '☁️ Load from Drive';
+        showAlert('Failed to download file content from Google Drive.');
     });
 }
 
@@ -3885,8 +3890,7 @@ async function performDualSave() {
 
 // Helper function to capture the final exported PNG data (as implemented in btnExport)
 function captureCanvasData() {
-    // If no image is loaded, we still want to capture the canvas content
-    if(!imgReady && Object.keys(data).every(k => data[k].length === 0)) return null; 
+    if(!imgReady) return null;
     
     // 1. Calculate Bounding Box of all drawn items (in World Coordinates)
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -3912,23 +3916,14 @@ function captureCanvasData() {
         });
     });
 
-    if(!hasItems && imgReady) {
+    if(!hasItems) {
         minX = 0; minY = 0; maxX = bg.width; maxY = bg.height;
-    } else if (!hasItems && !imgReady) {
-        // If blank map with no items, just capture the visible area based on current pan/zoom
-        const r = canvasWrap.getBoundingClientRect();
-        const w = r.width / scale;
-        const h = r.height / scale;
-        minX = -panX / scale;
-        minY = -panY / scale;
-        maxX = minX + w;
-        maxY = minY + h;
     } else {
         const pad = 50;
-        minX = Math.max(imgReady ? 0 : minX - pad, minX - pad);
-        minY = Math.max(imgReady ? 0 : minY - pad, minY - pad);
-        maxX = Math.min(imgReady ? bg.width : maxX + pad, maxX + pad);
-        maxY = Math.min(imgReady ? bg.height : maxY + pad, maxY + pad);
+        minX = Math.max(0, minX - pad);
+        minY = Math.max(0, minY - pad);
+        maxX = Math.min(bg.width, maxX + pad);
+        maxY = Math.min(bg.height, maxY + pad);
     }
     
     const cropW = maxX - minX;
@@ -4009,16 +4004,10 @@ function captureCanvasData() {
         o.fillText(timerText, OUT_W - 12, 12 + 10);
         o.textBaseline = 'alphabetic';
 
-        // 4. Draw Map Body (Original image or white canvas)
-        if(imgReady) {
-            o.drawImage(bg, 
-                minX, minY, cropW, cropH, 
-                0, HEADER_H, OUT_W, MAP_H_PX);
-        } else {
-             // Draw white canvas background for the map area
-             o.fillStyle = '#FFFFFF';
-             o.fillRect(0, HEADER_H, OUT_W, MAP_H_PX);
-        }
+        // 4. Draw Map Body (Original image, no night mode filter)
+        o.drawImage(bg, 
+            minX, minY, cropW, cropH, 
+            0, HEADER_H, OUT_W, MAP_H_PX); 
 
         const originalCtx = ctx;
         ctx = o; 
@@ -4341,14 +4330,8 @@ if (window.gapi) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- CRITICAL SAFE INITIALIZATION ---
-    // Wrap startup in try-catch to ensure splash listeners attach even if settings/drive logic fails
-    try {
-        initializeUI();
-        initializeAndSizeContext();
-    } catch (e) {
-        console.error('Initialization Error:', e);
-    }
+    initializeUI();
+    initializeAndSizeContext();
     
     // Default back button trap setup.
     document.getElementById('btnStay').onclick = () => { document.getElementById('modalBack').style.display = 'none'; history.pushState(null, null, location.href); };
@@ -4357,49 +4340,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add relabeling listener
     document.getElementById('btnRelabelIDs').onclick = relabelIds;
     
-    // --- SPLASH SCREEN LISTENERS (MOVED HERE FOR SAFETY) ---
-    // Moving these here ensures the DOM is ready and the script hasn't crashed before this point
-    document.getElementById('gPickImg').onclick=()=>document.getElementById('gImg').click();
-    document.getElementById('gPickMap').onclick=()=>document.getElementById('gMap').click();
-    document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.target.value=''; };
-    document.getElementById('gMap').onchange=e=>{ 
-        if(!e.target.files[0]) return;
-        handleMap(e.target.files[0]); 
-        e.target.value=''; 
-    };
-
-    // Add Google Drive Load listener with fallback
+    // Add Google Drive Load listener
+    // This handler remains, but the initialization flow ensures it runs only when ready
     document.getElementById('gPickDrive').onclick = () => {
-        console.log('[DEBUG] Load from Drive button clicked.');
-        // If Google script failed to load (adblocker/network), gapi will be undefined.
-        if (typeof gapi === 'undefined') {
-             showAlert('Google Scripts failed to load. This is often caused by an Ad-Blocker or Privacy Extension. Please disable it for this site and refresh.');
-             return;
-        }
-
         if (!isDriveApiReady) {
             console.warn('[Click] API not ready, forcing auth check.');
-            // Add visual feedback
-            document.getElementById('gPickDrive').innerText = 'Checking API...';
-            // Wait briefly then try auth
-            setTimeout(() => {
-                authDriveAndOpenPicker();
-            }, 500);
+            // Attempt a manual check if the flag is still false, as the error may happen later in the flow
+            if (window.gapi && window.gapi.load) {
+                 gapi.load('client:picker', window.gapiLoaded); // Re-trigger load if necessary
+            }
+            showAlert('Google Drive API is still loading. Please wait a moment and try again.');
         } else {
-            // This is the trigger that initiates auth or goes straight to the Picker load.
             authDriveAndOpenPicker();
         }
     };
     
-    // Logic for Start Blank Map
+    // FIX: Add logic for Start Blank Map
     document.getElementById('gPickBlank').onclick = () => {
-        console.log('[DEBUG] Start Blank Map clicked.');
         // Reset all data and settings to default/blank state
         Object.keys(data).forEach(k => {
             data[k] = [];
         });
         imgDataUrl = null;
-        imgReady = false; // CRITICAL: Sets the flag for white canvas drawing
+        imgReady = false;
         scale = 1; panX = 0; panY = 0;
         selectedItem = null;
         draggingPoint = null;
@@ -4410,7 +4373,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('address').value = '';
         document.getElementById('jobNotes').value = '';
         
-        // Reset zoom/pan to show a standard 1000x1000 white area centered
+        // Reset zoom/pan (optional, but good for starting blank)
         resetView(); 
         
         refreshTable();
