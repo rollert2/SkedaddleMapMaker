@@ -10,9 +10,9 @@
 
 <!-- --- NEW: GOOGLE DRIVE LIBRARIES --- -->
 <!-- 1. Google Identity Services (for Auth) -->
-<script src="https://accounts.google.com/gsi/client"></script> 
+<script src="https://accounts.google.com/gsi/client" async defer></script> 
 <!-- 2. Google Platform Library (for APIs, Picker/Drive) -->
-<script src="https://apis.google.com/js/api.js"></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
 <!-- ----------------------------------- -->
 
 <style>
@@ -695,6 +695,8 @@ function unlock(){
     // Push state for back button trap
     history.pushState(null, null, location.href);
 }
+// FIX: Expose unlock to global scope so onclick="unlock()" works
+window.unlock = unlock;
 
 
 const lenWrap = document.getElementById('lenWrap');
@@ -2015,7 +2017,7 @@ document.getElementById('btnRedo').onclick = () => {
     if(redoStack.length === 0) return;
     const record = redoStack.pop();
     if(redoStack.length === 0) document.getElementById('btnRedo').disabled = true;
-    data[record.layer].push(record.item);
+    data[targetLayer].push(record.item);
     markPowerDirty(); requestRender(); refreshTable();
 };
 
@@ -3503,14 +3505,7 @@ document.getElementById('btnCustomerControlled').onclick = () => {
 
 
 // UPDATED LISTENERS: Reset target value to allow re-uploading same file
-document.getElementById('gPickImg').onclick=()=>document.getElementById('gImg').click();
-document.getElementById('gPickMap').onclick=()=>document.getElementById('gMap').click();
-document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.target.value=''; };
-document.getElementById('gMap').onchange=e=>{ 
-    if(!e.target.files[0]) return;
-    handleMap(e.target.files[0]); 
-    e.target.value=''; 
-};
+// MOVED TO DOMContentLoaded
 
 
 // --- GOOGLE DRIVE INTEGRATION FUNCTIONS ---
@@ -3524,38 +3519,59 @@ function handleAuthResult(authResult) {
         google.load('picker', '1', { 'callback': createPicker });
     } else {
         // Log the specific error if available
-        if (authResult && authResult.error) console.error('[Drive Auth] Error:', authResult.error);
-        showAlert('Google Drive authorization failed. Please sign in again. (Check console for details)');
+        if (authResult && authResult.error) {
+            console.error('[Drive Auth] Error:', authResult.error);
+            if (authResult.error === 'popup_closed_by_user') {
+                 // User closed it intentionally, no alert needed generally, or small toast
+                 console.log('User closed popup.');
+            } else if (authResult.error === 'access_denied') {
+                 showAlert('Access denied. Please grant permission to view files.');
+            } else if (authResult.error.includes('origin_mismatch')) {
+                 showAlert('Configuration Error: Origin Mismatch. The current domain is not authorized in Google Cloud Console.');
+            } else {
+                 showAlert(`Google Sign-in Error: ${authResult.error}`);
+            }
+        } else {
+            showAlert('Google Drive authorization failed. Please sign in again. (Check console for details)');
+        }
+        
+        // Reset button state
+        const btn = document.getElementById('gPickDrive');
+        if(btn) btn.innerText = '☁️ Load from Drive';
     }
 }
 
 function authDriveAndOpenPicker() {
     if (!isDriveApiReady) {
-        console.warn('[Click] API not ready when button clicked. Retrying load and alerting user.');
-        // Re-attempt manual load if the flag is still false
-        if (window.gapi && window.gapi.load) {
-            // No need to call gapiLoaded directly, just alert the user to wait for the ongoing load process
+        console.warn('[Click] API not ready when button clicked.');
+        // Re-attempt check or alert
+        if (window.gapi && window.google) {
+            // It might be ready but flag wasn't set?
+             showAlert('Google Drive API is initializing... please wait 2 seconds and try again.');
+             return;
         }
-        showAlert('Google Drive API is still loading. Please wait a moment and try again.');
+        showAlert('Google Drive API failed to load. Please check your ad-blocker or network settings.');
         return;
     }
     
     // Request token via the configured client
-    const token = gAuthClient.getAccessToken();
-    if (token) {
-        console.log('[Drive Auth] Token already exists, proceeding to Picker initialization.');
-        // If we have a token, we can skip the auth pop-up and go straight to loading the Picker library
-        google.load('picker', '1', { 'callback': createPicker });
-    } else {
-        console.log('[Drive Auth] Requesting new access token...');
-        if (gAuthClient && gAuthClient.requestAccessToken) {
-            // This initiates the pop-up/redirect flow for the user to sign in
-            // The result is handled by handleAuthResult, which then calls createPicker
-            gAuthClient.requestAccessToken();
+    try {
+        const token = gAuthClient.getAccessToken();
+        if (token) {
+            console.log('[Drive Auth] Token already exists, proceeding to Picker initialization.');
+            google.load('picker', '1', { 'callback': createPicker });
         } else {
-            console.error('[Drive Auth] gAuthClient is not initialized correctly.');
-            showAlert('Initialization error. Please check your OAuth Client ID setup.');
+            console.log('[Drive Auth] Requesting new access token...');
+            if (gAuthClient && gAuthClient.requestAccessToken) {
+                gAuthClient.requestAccessToken();
+            } else {
+                console.error('[Drive Auth] gAuthClient is not initialized correctly.');
+                showAlert('Initialization error. Please check your OAuth Client ID setup.');
+            }
         }
+    } catch (e) {
+        console.error('Auth Error:', e);
+        showAlert('Authentication Logic Failed: ' + e.message);
     }
 }
 
@@ -3574,6 +3590,7 @@ window.gapiLoaded = function() {
             callback: handleAuthResult,
             error_callback: (error) => {
                  console.error('Google Auth Error:', error);
+                 if (error.type === 'popup_closed') return; // Ignore simple closes
                  showAlert('Google sign-in failed. Check console for details.');
             }
         });
@@ -3581,7 +3598,7 @@ window.gapiLoaded = function() {
         console.log('[GAPI] API Ready. Drive function enabled.');
     }, (error) => {
         console.error('[GAPI] Client Load Error:', error);
-        showAlert('Failed to initialize Google APIs.');
+        // Do not alert immediately on load, only if user tries to use it.
     });
 }
 
@@ -3643,6 +3660,9 @@ function fetchDriveFileContent(fileId) {
     // Use fields parameter to get required metadata
     const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=name,mimeType`;
 
+    // Visual feedback
+    document.getElementById('gPickDrive').innerText = 'Downloading...';
+
     fetch(downloadUrl, {
         method: 'GET',
         headers: {
@@ -3667,10 +3687,12 @@ function fetchDriveFileContent(fileId) {
         }
         // Use handleMap function to process the Blob/File object
         handleMap(blob); 
+        document.getElementById('gPickDrive').innerText = '☁️ Load from Drive';
     })
     .catch(error => {
         console.error('Error fetching file from Drive:', error);
         showAlert(`Failed to download file content from Google Drive: ${error.message}`);
+        document.getElementById('gPickDrive').innerText = '☁️ Load from Drive';
     });
 }
 
@@ -4319,8 +4341,14 @@ if (window.gapi) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    initializeUI();
-    initializeAndSizeContext();
+    // --- CRITICAL SAFE INITIALIZATION ---
+    // Wrap startup in try-catch to ensure splash listeners attach even if settings/drive logic fails
+    try {
+        initializeUI();
+        initializeAndSizeContext();
+    } catch (e) {
+        console.error('Initialization Error:', e);
+    }
     
     // Default back button trap setup.
     document.getElementById('btnStay').onclick = () => { document.getElementById('modalBack').style.display = 'none'; history.pushState(null, null, location.href); };
@@ -4329,19 +4357,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add relabeling listener
     document.getElementById('btnRelabelIDs').onclick = relabelIds;
     
-    // Add Google Drive Load listener
+    // --- SPLASH SCREEN LISTENERS (MOVED HERE FOR SAFETY) ---
+    // Moving these here ensures the DOM is ready and the script hasn't crashed before this point
+    document.getElementById('gPickImg').onclick=()=>document.getElementById('gImg').click();
+    document.getElementById('gPickMap').onclick=()=>document.getElementById('gMap').click();
+    document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.target.value=''; };
+    document.getElementById('gMap').onchange=e=>{ 
+        if(!e.target.files[0]) return;
+        handleMap(e.target.files[0]); 
+        e.target.value=''; 
+    };
+
+    // Add Google Drive Load listener with fallback
     document.getElementById('gPickDrive').onclick = () => {
         console.log('[DEBUG] Load from Drive button clicked.');
+        // If Google script failed to load (adblocker/network), gapi will be undefined.
+        if (typeof gapi === 'undefined') {
+             showAlert('Google Scripts failed to load. This is often caused by an Ad-Blocker or Privacy Extension. Please disable it for this site and refresh.');
+             return;
+        }
+
         if (!isDriveApiReady) {
             console.warn('[Click] API not ready, forcing auth check.');
-            showAlert('Google Drive API is still loading. Please wait a moment and try again.');
+            // Add visual feedback
+            document.getElementById('gPickDrive').innerText = 'Checking API...';
+            // Wait briefly then try auth
+            setTimeout(() => {
+                authDriveAndOpenPicker();
+            }, 500);
         } else {
             // This is the trigger that initiates auth or goes straight to the Picker load.
             authDriveAndOpenPicker();
         }
     };
     
-    // FIX: Add logic for Start Blank Map
+    // Logic for Start Blank Map
     document.getElementById('gPickBlank').onclick = () => {
         console.log('[DEBUG] Start Blank Map clicked.');
         // Reset all data and settings to default/blank state
