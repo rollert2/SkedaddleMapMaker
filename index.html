@@ -172,7 +172,7 @@ aside{
 .input{width:100%;background:#0b1222;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-size:14px;font-family:inherit}
 textarea.input{resize:vertical;min-height:80px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.lbl-row{display:grid;grid-template-columns:1fr 1fr;gap:8px; margin-bottom:4px; font-size:11px; color:#8b9bb4; padding-left:4px;}
+.lbl-row{display:grid;grid-template-columns:1fr 1fr;gap:8px; margin-bottom:4px; font-size:11px; color:#8b9bb4; padding-left:44px;}
 .acc{border:1px solid var(--border);border-radius:12px;background:#11182a;margin-bottom:8px}
 .accHead{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px}
 .accHead b{color:#9fc3ff;font-size:14px}.accBody{display:none;padding:10px;border-top:1px solid var(--border)}.acc.open .accBody{display:block}
@@ -446,102 +446,6 @@ input[type=range].input:active::-webkit-slider-thumb {
 
 <div class="wrap">
   <div id="overlay" class="overlay"></div>
-  <aside id="side">
-    <div class="group">
-      <h3>Tools</h3>
-      <div id="accWrap"></div>
-    </div>
-    
-    <div class="group">
-      <h3>Job Details</h3>
-      <input id="customer" class="input" placeholder="Customer Name"/>
-      <input id="address" class="input" placeholder="Address" style="margin-top:8px"/>
-      <textarea id="jobNotes" class="input" placeholder="Job site notes..." style="margin-top:8px"></textarea>
-      <!-- Toggles removed from here -->
-    </div>
-    
-    <div class="group">
-        <h3>Timers</h3>
-        <div id="timerInputs">
-            <div class="lbl-row"><span>On</span><span>Off</span></div>
-            <div class="row2"><input id="on1" type="time" class="input"/><input id="off1" type="time" class="input"/></div>
-            <div class="lbl-row" style="margin-top:8px"><span>On</span><span>Off</span></div>
-            <div class="row2"><input id="on2" type="time" class="input"/><input id="off2" type="time" class="input"/></div>
-            <button id="btnStd" class="btn" style="width:100%;margin-top:8px">Set Standard Times</button>
-        </div>
-        
-        <!-- Customer Controlled Toggle -->
-        <button id="btnCustomerControlled" class="btn" style="width:100%;margin-top:8px">Customer Controlled</button>
-    </div>
-    
-    <!-- MOVED SCALE & SIZE SECTION HERE -->
-    <div class="group">
-      <h3>Scale & Size</h3>
-      
-      <!-- Line Scale Slider -->
-      <div style="font-size:12px; margin-bottom:8px;">Line/Path Scale</div>
-      <div class="slider-container" id="lineScaleContainer">
-          <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.5"/>
-          <div style="font-size:11px; color:#8b9bb4; display:flex; justify-content:space-between; margin-top: -10px;">
-              <span>Thin</span><span id="lineScaleValue">1.5x</span><span>Thick</span>
-          </div>
-      </div>
-      
-      <!-- NEW Power Direction Arrow Frequency Slider -->
-      <div style="font-size:12px; margin-top:12px; margin-bottom:8px;">Power Direction Arrow Frequency</div>
-      <div class="slider-container" id="arrowFreqContainer">
-          <input id="arrowFreqInput" type="range" class="input" min="0.5" max="2.0" step="0.1" value="1.0"/>
-          <div style="font-size:11px; color:#8b9bb4; display:flex; justify-content:space-between; margin-top: -10px;">
-              <span>Less Arrows</span><span id="arrowFreqValue">1.0x</span><span>More Arrows</span>
-          </div>
-      </div>
-
-      <!-- Icon Scale Slider (Wreaths, Trees, Bows) -->
-      <div style="font-size:12px; margin-top:12px; margin-bottom:8px;">Decorations Scale (Wreaths, Trees, Bows)</div>
-      <div class="slider-container" id="iconScaleContainer">
-          <!-- UPDATED MAX TO 5.0 -->
-          <input id="iconScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.5"/>
-          <div style="font-size:11px; color:#8b9bb4; display:flex; justify-content:space-between; margin-top: -10px;">
-              <span>Small</span><span id="iconScaleValue">1.5x</span><span>Huge</span>
-          </div>
-      </div>
-      
-      <!-- Junction Scale Slider (Power, 3-Way) -->
-      <div style="font-size:12px; margin-top:12px; margin-bottom:8px;">Junctions Scale (Power, 3-Way)</div>
-      <div class="slider-container" id="junctionScaleContainer">
-          <input id="junctionScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-          <div style="font-size:11px; color:#8b9bb4; display:flex; justify-content:space-between; margin-top: -10px;">
-              <span>Small</span><span id="junctionScaleValue">1.0x</span><span>Large</span>
-          </div>
-      </div>
-
-      <!-- Label Scale Slider (NEW) -->
-      <div style="font-size:12px; margin-top:12px; margin-bottom:8px;">Label Scale</div>
-      <div class="slider-container" id="labelScaleContainer">
-          <!-- UPDATED: Set default value to maximum (3.0) -->
-          <input id="labelScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="3.0"/>
-          <div style="font-size:11px; color:#8b9bb4; display:flex; justify-content:space-between; margin-top: -10px;">
-              <span>Small</span><span id="labelScaleValue">3.0x</span><span>Large</span>
-          </div>
-      </div>
-    </div>
-    
-    <!-- Clip Legend added back below Timer section -->
-    <div class="group">
-        <h3>Clip Types</h3>
-        <dl class="clip-legend">
-            <dt>ST:</dt><dd>Shingle Tab (Eaves/Ridges)</dd>
-            <dt>T:</dt><dd>Tuff Clip (Fascia)</dd>
-            <dt>Mag:</dt><dd>Magnetic Clip</dd>
-            <dt>FRA:</dt><dd>Flat Roof Adapter (Used with ST)</dd>
-            <dt>GG:</dt><dd>Gutter Guard (Used with T/ST on Fascia)</dd>
-        </dl>
-    </div>
-    
-    <!-- Settings section removed from here -->
-
-  </aside>
-
   <main>
     <div class="canvasWrap"><canvas id="cv"></canvas></div>
     <div id="lenWrap">
@@ -2975,24 +2879,29 @@ function draw(){
     
     const cw = cv.width / DPR; const ch = cv.height / DPR;
     ctx.fillStyle='#000000'; ctx.fillRect(0,0,cw,ch);
-    ctx.fillStyle='#0b0f19'; ctx.fillRect(0,0,cw,ch);
     
-    // --- NIGHT MODE AERIAL IMAGE FILTERING ---
-    let imageFilter = 'none';
-    if(imgReady && isNightMode) {
-        // Darken and slightly desaturate the image to simulate night/dusk
-        imageFilter = 'brightness(0.25) grayscale(0.2)'; 
-    }
-    
+    // --- CANVAS BACKGROUND ---
     if(imgReady){ 
+        // Draw Image
+        let imageFilter = 'none';
+        if(isNightMode) {
+            // Darken and slightly desaturate the image to simulate night/dusk
+            imageFilter = 'brightness(0.25) grayscale(0.2)'; 
+        }
         ctx.filter = imageFilter;
         ctx.drawImage(bg, panX, panY, bg.width*scale, bg.height*scale); 
         ctx.filter = 'none'; // Reset filter before drawing lines/icons
     } else {
-        ctx.fillStyle='#151b2b'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.font='16px system-ui'; ctx.fillStyle='#456';
-        ctx.fillText('Load an image to start', cw/2, ch/2);
+        // FIX: Draw white background for blank map
+        ctx.fillStyle='#ffffff'; 
+        ctx.fillRect(0,0,cw,ch);
+        
+        // Draw informational text
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.font='16px system-ui'; ctx.fillStyle='#888';
+        ctx.fillText('Start Drawing on a Blank Canvas', cw/2, ch/2);
     }
+    // --- END CANVAS BACKGROUND ---
 
     // --- DRAW LINES (Cords, Lines, Garland, Shrub, Windows) ---
     // Cords layer: drawCord calls drawContinuousLine where color is enforced black
@@ -3576,7 +3485,7 @@ function authDriveAndOpenPicker() {
         if (window.gapi && window.gapi.load) {
             gapi.load('client:picker', window.gapiLoaded); 
         }
-        showAlert('Google Drive API is still loading. Please wait a moment and try again.');
+        showAlert('Google Drive API is still loading. Please wait a moment and try again. (Disable Pop-up Blocker!)');
         return;
     }
     
