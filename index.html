@@ -393,6 +393,7 @@ input[type=range].input:active::-webkit-slider-thumb {
 <!-- Move/Delete Popup (Always fixed to the window) -->
 <div id="movePop" class="pop" style="display: none; flex-direction: row; gap: 8px;">
   <button id="moveToolBtn" title="Move Object">✋ Move</button>
+  <button id="moveLabelToolBtn" title="Move Label">↔️ Move Label</button>
   <button id="deleteToolBtn" title="Delete Object">🗑️ Delete</button>
 </div>
 
@@ -408,11 +409,15 @@ input[type=range].input:active::-webkit-slider-thumb {
   
   <!-- Undo (Icon Only) -->
   <button id="btnUndo" class="btn" title="Undo">↩️</button>
+
   <!-- Swag Toggle (Tool-specific, moved left of Finish Line for Garland) -->
   <button id="btnSwag" class="btn" title="Toggle Swag/Curves (Garland Only)" style="display:none">〰️ Swag</button>
   
   <!-- Finish Line -->
   <button id="btnComplete" class="btn" disabled>✅ Finish Line</button>
+
+  <!-- NEW Pillar Garland Toggle (Tool-specific) -->
+  <button id="btnPillar" class="btn" title="Toggle Pillar Garland (Dotted every 2nd line)" style="display:none">🏛️ Pillar</button>
 
   <!-- Redo (Icon Only) -->
   <button id="btnRedo" class="btn" disabled title="Redo">↪️</button>
@@ -479,6 +484,15 @@ input[type=range].input:active::-webkit-slider-thumb {
           <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.5"/>
           <div style="font-size:11px; color:#8b9bb4; display:flex; justify-content:space-between; margin-top: -10px;">
               <span>Thin</span><span id="lineScaleValue">1.5x</span><span>Thick</span>
+          </div>
+      </div>
+      
+      <!-- NEW Power Direction Arrow Frequency Slider -->
+      <div style="font-size:12px; margin-top:12px; margin-bottom:8px;">Power Direction Arrow Frequency</div>
+      <div class="slider-container" id="arrowFreqContainer">
+          <input id="arrowFreqInput" type="range" class="input" min="0.5" max="2.0" step="0.1" value="1.0"/>
+          <div style="font-size:11px; color:#8b9bb4; display:flex; justify-content:space-between; margin-top: -10px;">
+              <span>Less Arrows</span><span id="arrowFreqValue">1.0x</span><span>More Arrows</span>
           </div>
       </div>
 
@@ -1104,6 +1118,7 @@ let tapDownX = 0, tapDownY = 0;
 const TAP_THRESHOLD = 25; 
 let activeLabelTarget = null; 
 let dragStartPt = null; // New: For dragging the whole object
+let isMovingLabel = false; // NEW: State for moving a label, not the object
 
 function initializeAndSizeContext() {
     const r = canvasWrap.getBoundingClientRect();
@@ -1182,8 +1197,17 @@ function selectTool(L, variant=null){
 
     mode='draw'; updateModeTag(); startNewSketch();
     
-    if(currLayer === 'garland') document.getElementById('btnSwag').style.display = 'inline-flex';
-    else document.getElementById('btnSwag').style.display = 'none';
+    // Toggle visibility and state for Garland-specific buttons
+    if(currLayer === 'garland') {
+        document.getElementById('btnSwag').style.display = 'inline-flex';
+        document.getElementById('btnPillar').style.display = 'inline-flex'; // NEW: Show Pillar button
+    } else {
+        document.getElementById('btnSwag').style.display = 'none';
+        document.getElementById('btnPillar').style.display = 'none'; // NEW: Hide Pillar button
+        // Reset state when leaving Garland
+        chkPillar.checked = false;
+        btnPillar.classList.remove('toggled');
+    }
     redoStack = []; document.getElementById('btnRedo').disabled = true;
 }
 document.getElementById('btnDraw').onclick=()=>{mode='draw';updateModeTag()};
@@ -1214,6 +1238,10 @@ function updateModeTag(){
          t.textContent = 'Move';
          t.style.borderColor = '#ff3b3b';
          t.style.color = '#ff3b3b';
+    } else if (mode === 'move-label') { // NEW: Label Move Mode
+         t.textContent = 'Move Label';
+         t.style.borderColor = '#4a90e2';
+         t.style.color = '#4a90e2';
     }
     
     // --- Emergency Scale Visibility Check (Added Fix) ---
@@ -1230,7 +1258,7 @@ function updateModeTag(){
     updateLabelScaleUI();
     // --- End Emergency Fix ---
 
-    selectedItem = null; draggingPoint = null; requestRender();
+    selectedItem = null; draggingPoint = null; isMovingLabel = false; requestRender();
 }
 
 /* ---------- POWER LOGIC ---------- */
@@ -1248,8 +1276,9 @@ function analyzePower(){
     return nodes.push({x:p.x, y:p.y, dist:Infinity, adj:[]}) - 1;
   }
   
+  // Track connections for Garland/Stakes for the single-arrow-per-object logic
   const singlePathLayers = ['garland', 'groundstakes']; 
-  const singlePathEdges = new Map(); 
+  const singlePathEdges = new Map(); // Map line object to its total path length and segments
   
   ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'].forEach(L => {
     data[L].forEach(it => {
@@ -1292,6 +1321,7 @@ function analyzePower(){
       const worldPos = {x:n.x, y:n.y};
       let isDecoration = false;
       
+      // Check if this dead end point is occupied by a decoration icon
       ['wreath', 'tree', 'bow'].forEach(L => {
         data[L].forEach(item => {
           if (item.pt && Math.hypot(item.pt.x - worldPos.x, item.pt.y - worldPos.y) < TOL_SQR) {
@@ -1300,6 +1330,7 @@ function analyzePower(){
         });
       });
       
+      // Also check if the line attached to this node is garland or shrub (greenery)
       let isGarlandOrShrub = false;
       edges.forEach(e => {
         if (['garland', 'shrub'].includes(e.type) && (e.u === i || e.v === i)) {
@@ -1307,17 +1338,19 @@ function analyzePower(){
         }
       });
       
+      // R2: If it's a dead end, and not a decoration, and NOT garland/shrub, draw the cap
       if (!isDecoration && !isGarlandOrShrub) {
         deadTips.push(i); 
       }
     } 
   });
   
+  // NEW: Process single-path layers to find where the single arrow should go
   const singleArrowEdges = [];
   singlePathEdges.forEach((pathInfo, line) => {
       const totalLength = pathInfo.totalLength;
       if (totalLength < 0.1) return;
-      const targetDist = totalLength * 0.5;
+      const targetDist = totalLength * 0.5; // Place arrow at midpoint
       
       let bestSegment = null;
       for (const seg of pathInfo.segments) {
@@ -1331,10 +1364,12 @@ function analyzePower(){
           const edge = bestSegment.edge;
           const distInSegment = targetDist - bestSegment.startDist;
           
+          // Determine flow direction (power is always at start, so flow is start to end)
           const uNode = nodes[edge.u]; 
           const vNode = nodes[edge.v];
           let isReversed = false;
           if (uNode.dist > vNode.dist) {
+              // The line is connected backwards to the power source, reverse direction
               isReversed = true; 
           }
           
@@ -1342,7 +1377,7 @@ function analyzePower(){
       }
   });
 
-  powerGraph = {nodes, edges, deadTips, singleArrowEdges};
+  powerGraph = {nodes, edges, deadTips, singleArrowEdges}; // Add new info
   powerDirty = false;
   return powerGraph;
 }
@@ -1361,7 +1396,7 @@ const toScr=p=>({x:p.x*scale+panX,y:p.y*scale+panY});
 
 let selectedItem = null, draggingPoint = null;
 let currentSnapLine = null; 
-let draggedLabelTarget = null; // NEW: For dragging the whole object
+let draggedLabelTarget = null; // NEW: Label currently being dragged
 
 let dragStartX=0, dragStartY=0, dragPanStartX=0, dragPanStartY=0;
 
@@ -1385,7 +1420,7 @@ cv.addEventListener('pointerdown',e=>{
              dragStartPt = { x: selectedItem.obj.pt ? selectedItem.obj.pt.x : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).x : 0),
                              y: selectedItem.obj.pt ? selectedItem.obj.pt.y : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).y : 0) };
              return;
-        } else if (mode === 'move-label' && selectedItem) {
+        } else if (mode === 'move-label' && selectedItem) { // NEW: Initiate label drag
              const target = checkLabelClick(ex, ey, selectedItem.obj, selectedItem.type);
              if (target) {
                  draggedLabelTarget = target;
@@ -1478,7 +1513,7 @@ function mergeLines(L, keepLine, mergeLine) {
     keepLine.cps = newCps;
     const idx = data[L].indexOf(mergeLine);
     if(idx > -1) data[L].splice(idx, 1);
-    refreshTable(); markPowerDirty();
+    markPowerDirty(); refreshTable();
 }
 
 cv.addEventListener('pointermove',e=>{
@@ -1502,7 +1537,7 @@ cv.addEventListener('pointermove',e=>{
     }
     
     // Pan logic (Draw Mode OR Select/Label Mode when dragging empty space)
-    if(pointers.size === 1 && (!draggingPoint) && mode !== 'label' && mode !== 'move') { // Label/Move mode explicitly blocks panning on tap/drag
+    if(pointers.size === 1 && (!draggingPoint) && mode !== 'label' && mode !== 'move' && mode !== 'move-label') { // Label/Move mode explicitly blocks panning on tap/drag
          const dx = x - dragStartX; const dy = y - dragStartY;
          if(Math.hypot(dx, dy) > TAP_THRESHOLD){
             isTapCandidate = false; 
@@ -1580,14 +1615,35 @@ cv.addEventListener('pointermove',e=>{
         return;
     }
     
+    // NEW: Handle label drag in 'move-label' mode
+    if (mode === 'move-label' && draggedLabelTarget) {
+        const w = toWorld(x, y);
+        const obj = draggedLabelTarget.item;
+        const index = draggedLabelTarget.index;
+        const type = draggedLabelTarget.type;
+
+        if (type === 'point') {
+             if(!obj.ptLabelPos) obj.ptLabelPos = {};
+             obj.ptLabelPos[index] = {x: w.x, y: w.y};
+        } else if (type === 'seg') {
+             if(!obj.segLabelPos) obj.segLabelPos = {};
+             obj.segLabelPos[index] = {x: w.x, y: w.y};
+        } else if (type === 'simple') {
+             obj.pt.x = w.x;
+             obj.pt.y = w.y;
+        }
+        requestRender();
+        return;
+    }
+    
     requestRender();
 });
 
 cv.addEventListener('pointerup',e=>{
     const wasGesture = gesture;
     
-    // Vertex/Icon drag release fix
-    if (pointers.size <= 1 && !wasGesture) {
+    // Vertex/Icon drag release fix (1st priority)
+    if (pointers.size === 1 && !wasGesture) { // Check size=1 to ensure the *last* pointerup is handled correctly
         if (draggingPoint) {
             draggingPoint = null;
             markPowerDirty();
@@ -1595,12 +1651,14 @@ cv.addEventListener('pointerup',e=>{
         }
     }
     
-    // Full object drag release fix
+    // Full object drag release fix (2nd priority)
     if (mode === 'move' && dragStartPt) {
         dragStartPt = null;
-        // Optionally switch back to select mode after move is complete, or keep in move mode
-        // For now, let's keep it in 'move' mode until the user clicks select/draw/label
-        // Or if the user lifts the finger/mouse, the drag stops, but the mode remains 'move'
+    }
+    
+    // Label drag release fix (3rd priority)
+    if (mode === 'move-label' && draggedLabelTarget) {
+        draggedLabelTarget = null;
     }
 
     pointers.delete(e.pointerId);
@@ -1630,7 +1688,7 @@ cv.addEventListener('pointerup',e=>{
              } else if (mode === 'label') {
                  // Activation of label editor moved here
                  checkCordLabelClick(ex, ey);
-             } else if (mode === 'select' || mode === 'move') {
+             } else if (mode === 'select' || mode === 'move' || mode === 'move-label') {
                  // Re-check selection in case a click/tap selected an item but didn't drag
                  handleSelectDown(ex, ey);
              }
@@ -1661,6 +1719,15 @@ document.getElementById('moveToolBtn').onclick = () => {
     }
 };
 
+// NEW: Move Label Tool button handler
+document.getElementById('moveLabelToolBtn').onclick = () => {
+    if (selectedItem && selectedItem.obj.points) { // Only available for line objects
+        mode = 'move-label';
+        document.getElementById('movePop').style.display = 'none';
+        updateModeTag();
+    }
+};
+
 // NEW: Delete Tool button handler
 document.getElementById('deleteToolBtn').onclick = () => {
     if (selectedItem) {
@@ -1674,67 +1741,107 @@ document.getElementById('deleteToolBtn').onclick = () => {
 
 function checkCordLabelClick(sx, sy) {
     const w = toWorld(sx, sy);
-    let bestPt = null;
-    let bestSeg = null;
+    
+    // Check for Simple Labels first (highest priority for a clean tap)
+    for (const item of data.label) {
+        const s = toScr(item.pt);
+        // Use a fixed size tap area around the point for simple labels
+        if(Math.hypot(s.x - sx, s.y - sy) < 40) {
+            showLabelEditor({ item: item, type: 'simple', index: -1, x: sx, y: sy });
+            return;
+        }
+    }
+    
+    // Then check for Segment/Point Labels
+    let best = checkLabelClick(sx, sy);
+    if (best) {
+        showLabelEditor(best);
+        return;
+    }
+    
+    // If nothing hit, create a new simple label
+    const {label, index} = getNewItemData('label');
+    if (!data.label) data.label = []; 
+    data.label.push({pt: w, label: label, index: index, text: ''});
+    // Immediately try to show label editor on the newly created item
+    showLabelEditor({ item: data.label[data.label.length - 1], type: 'simple', index: -1, x: sx, y: sy });
+}
 
-    // Search for point labels
-    Object.keys(data).forEach(L => {
-        data[L].forEach(item => {
-            if (item.points) {
-                item.points.forEach((p, i) => {
-                    const sc = toScr(p);
+function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
+    const w = toWorld(sx, sy);
+    let best = null;
+    
+    const search = (item, L) => {
+        if (item.points) {
+            // Point Labels
+            if(item.ptLabels) {
+                Object.keys(item.ptLabels).forEach(idx => {
+                    const i = parseInt(idx);
+                    const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
+                    const sc = toScr(labelPos);
                     if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
-                        // Prioritize closer points, or choose this one if it's the first hit
-                        if (!bestPt || Math.hypot(sc.x - sx, sc.y - sy) < Math.hypot(toScr(bestPt.item.points[bestPt.index]).x - sx, toScr(bestPt.item.points[bestPt.index]).y - sy)) {
-                            bestPt = { item: item, type: 'point', index: i, x: sc.x, y: sc.y };
+                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) {
+                            best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                         }
                     }
                 });
             }
-        });
-    });
-
-    // If a point was hit, prioritize that.
-    if(bestPt) { showLabelEditor(bestPt); return; }
-    
-    // Search for segment labels
-    Object.keys(data).forEach(L => {
-        data[L].forEach(item => {
-            if (item.points) {
-                for(let i=0; i<item.points.length-1; i++) {
-                    const p = projOnSeg(w, item.points[i], item.points[i+1]);
-                    const s = toScr(p.q);
-                    if(p.t>=0 && p.t<=1 && Math.hypot(s.x - sx, s.y - sy) < 20) {
-                        // Prioritize closer segments
-                         if (!bestSeg || Math.hypot(s.x - sx, s.y - sy) < Math.hypot(toScr(projOnSeg(w, bestSeg.item.points[bestSeg.index], bestSeg.item.points[bestSeg.index+1]).q).x - sx, toScr(projOnSeg(w, bestSeg.item.points[bestSeg.index], bestSeg.item.points[bestSeg.index+1]).q).y - sy)) {
-                            bestSeg = { item: item, type: 'seg', index: i, x: s.x, y: s.y };
-                         }
+            // Segment Labels
+            if(item.segLabels) {
+                Object.keys(item.segLabels).forEach(idx => {
+                    const i = parseInt(idx);
+                    // Use stored position if available, otherwise project to get a default screen position
+                    let labelPos;
+                    if (item.segLabelPos && item.segLabelPos[i]) {
+                         labelPos = item.segLabelPos[i];
+                    } else {
+                         const mid = getPolylineMidpoint([item.points[i], item.points[i+1]]);
+                         labelPos = mid;
                     }
-                }
+
+                    const sc = toScr(labelPos);
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) {
+                           best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
+                        }
+                    }
+                });
             }
-        });
-    });
-    
-    if(bestSeg) { showLabelEditor(bestSeg); }
-    
-    // If nothing hit, try simple position label
-    if (!bestPt && !bestSeg) {
-        // Simple label creation (no point/segment association)
-        const w = toWorld(sx, sy);
-        const {label, index} = getNewItemData('label');
-        // Ensure data.label array exists (for backwards compatibility if needed, though it should be initialized)
-        if (!data.label) data.label = []; 
-        data.label.push({pt: w, label: label, index: index, text: ''});
-        // Immediately try to show label editor on the newly created item
-        showLabelEditor({ item: data.label[data.label.length - 1], type: 'simple', index: -1, x: sx, y: sy });
+        }
     }
+    
+    if (specificItem) {
+        search(specificItem, specificType);
+    } else {
+        Object.keys(data).forEach(L => {
+            if (L === 'label') return; // Skip simple labels here, they are checked first
+            data[L].forEach(item => search(item, L));
+        });
+    }
+
+    return best;
 }
+
 
 function showLabelEditor(target) {
     activeLabelTarget = target;
     const el = document.getElementById('lblEditor');
     const inp = document.getElementById('lblInput');
     let val = '';
+    
+    // Determine the world position to calculate screen position for editor placement.
+    let worldPos;
+    if (target.type === 'simple') {
+        worldPos = target.item.pt;
+    } else if (target.type === 'point') {
+        // Use stored label position or fall back to point location
+        worldPos = target.item.ptLabelPos && target.item.ptLabelPos[target.index] ? target.item.ptLabelPos[target.index] : target.item.points[target.index];
+    } else if (target.type === 'seg') {
+        // Use stored label position or fall back to segment midpoint
+        worldPos = target.item.segLabelPos && target.item.segLabelPos[target.index] ? target.item.segLabelPos[target.index] : getPolylineMidpoint([target.item.points[target.index], target.item.points[target.index+1]]);
+    }
+    const s = toScr(worldPos);
+
 
     if (target.type === 'point') {
         if(!target.item.ptLabels) target.item.ptLabels = {};
@@ -1750,8 +1857,9 @@ function showLabelEditor(target) {
     }
     
     inp.value = val;
-    el.style.left = target.x + 'px';
-    el.style.top = target.y + 'px';
+    // CRITICAL: Use the calculated screen coordinates for positioning
+    el.style.left = s.x + 'px';
+    el.style.top = s.y + 'px';
     el.style.display = 'block';
     inp.focus();
 }
@@ -1763,8 +1871,18 @@ document.getElementById('lblInput').onchange = (e) => {
     
     if(activeLabelTarget.type === 'point') {
         item.ptLabels[activeLabelTarget.index] = val;
+        // If label is set/changed, reset stored position to default point location
+        if(val) {
+            if(!item.ptLabelPos) item.ptLabelPos = {};
+            item.ptLabelPos[activeLabelTarget.index] = null;
+        }
     } else if (activeLabelTarget.type === 'seg') {
         item.segLabels[activeLabelTarget.index] = val;
+        // If label is set/changed, reset stored position to default midpoint
+        if(val) {
+            if(!item.segLabelPos) item.segLabelPos = {};
+            item.segLabelPos[activeLabelTarget.index] = null;
+        }
     } else if (activeLabelTarget.type === 'simple') {
         item.text = val;
         // If text is cleared, delete the simple label
@@ -1815,7 +1933,8 @@ function splitLine(L, originalLine, segIndex, splitX, splitY) {
         isSplit: true,
         clip: originalLine.clip, // Copy clip type
         fra: originalLine.fra || false, // Copy FRA state
-        gguard: originalLine.gguard || false // Copy Gutter Guard state
+        gguard: originalLine.gguard || false, // Copy Gutter Guard state
+        isPillarMode: originalLine.isPillarMode || false // NEW: Copy Pillar state
     };
     data[L].push(newLine);
     refreshTable(); markPowerDirty();
@@ -1846,8 +1965,10 @@ function getNewItemData(L){
         const pWreath = pfx.wreath || 'WR'; // Use generic WR prefix
         const indexWreath = nextIndex(pWreath);
         label = pWreath + indexWreath;
+    } else if (L === 'label') { // Simple labels use LBL prefix
+        label = pfx.label + nextIndex(pfx.label);
     } else {
-        label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow' || L === 'label') ? '' : p + nextIndex(p);
+        label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow') ? '' : p + nextIndex(p);
     }
     
     return {label, index: actionCounter};
@@ -1888,7 +2009,8 @@ document.getElementById('btnRedo').onclick = () => {
 let sketch=null; 
 function startNewSketch(){
     const data = getNewItemData(currLayer);
-    sketch={points:[],cps:[],layer:currLayer,label:data.label, index: data.index, firstHost:null};
+    // NEW: Include Pillar Mode state in the sketch
+    sketch={points:[],cps:[],layer:currLayer,label:data.label, index: data.index, firstHost:null, isPillarMode: chkPillar.checked}; 
     document.getElementById('btnComplete').disabled=true;
 }
 
@@ -2117,6 +2239,9 @@ document.getElementById('btnComplete').onclick=()=>{
     // Copy clip type if applicable (for C9s)
     if (isC9(currLayer) && sketch.clip) obj.clip = sketch.clip;
     
+    // NEW: Copy pillar mode state
+    if (currLayer === 'garland') obj.isPillarMode = chkPillar.checked;
+
     data[currLayer].push(obj);
     markPowerDirty(); startNewSketch(); requestRender(); refreshTable();
     
@@ -2127,6 +2252,7 @@ document.getElementById('btnComplete').onclick=()=>{
 function handleSelectDown(sx, sy){
     // Hide move popup immediately
     document.getElementById('movePop').style.display = 'none';
+    isMovingLabel = false; // Disable label moving on general selection check
 
     // 1. Try to set dragging point first (vertex or icon)
     let hitPoint = null;
@@ -2147,10 +2273,10 @@ function handleSelectDown(sx, sy){
                     }
                 });
             } else if (obj.pt) {
-                // Check Icons/Single Points (Wreath, Tree, Power, 3Way, Bow)
+                // Check Icons/Single Points (Wreath, Tree, Power, 3Way, Bow, Simple Label)
                 // Hitting Icons relies on the actual visual size scaled by its setting
                 const scaleFactor = (type === 'threeway' || type === 'powersource') ? settings.junctionScale : settings.iconScale;
-                const scaledHitbox = 30 * scaleFactor; // Scale hitbox by icon size
+                const scaledHitbox = (type === 'label') ? 40 : 30 * scaleFactor; // Simple labels use fixed 40px hitbox
                 
                 const d = Math.hypot(sx - toScr(obj.pt).x, sy - toScr(obj.pt).y);
                 if (d < scaledHitbox) {
@@ -2164,7 +2290,7 @@ function handleSelectDown(sx, sy){
     // Use a large default hitbox for initial sweep to ensure we catch large decorations
     Object.keys(data).forEach(k => searchPoints(data[k], k, bestPointDist)); 
 
-    if (hitPoint) {
+    if (hitPoint && hitPoint.type !== 'label') { // Prevent dragging simple labels as vertices
         draggingPoint = hitPoint; // Initiate vertex/point dragging directly
         selectedItem = { type: hitPoint.type, obj: hitPoint.obj };
         document.getElementById('movePop').style.display = 'none';
@@ -2172,54 +2298,37 @@ function handleSelectDown(sx, sy){
         return;
     }
 
-    // 2. If no point hit, check if we clicked a selected item's move/delete button area (not the main popup buttons yet)
-    if (selectedItem) {
-        // Check for Delete Button Click before clearing selection
-        const c = getItemCenter(selectedItem.obj); 
-        const sc = toScr(c); 
-        const deleteBaseSize = 18; // Fixed size in pixels
-        const deleteOffset = 30;  // Fixed offset in pixels
-        
-        const tx = sc.x + deleteOffset, ty = sc.y;
-        if(Math.hypot(sx - tx, sy - ty) < deleteBaseSize) {
-            deleteItem(selectedItem); 
-            selectedItem = null; 
-            requestRender(); 
-            return;
-        }
-    }
-    
-    // 3. Try to select an entire line segment (for selecting the *object*)
-    let bestSegment = null;
-    let bestSegmentDist = 30; 
+    // 2. Try to select an entire line segment or object (for selecting the *object*)
+    let bestObject = null;
+    let bestObjectDist = 30; 
     const w = toWorld(sx, sy);
 
-    const searchSegments = (list, type) => {
+    const searchObjects = (list, type) => {
         list.forEach(obj => {
             if (obj.points) {
                 for (let i = 0; i < obj.points.length - 1; i++) {
                     const p = projOnSeg(w, obj.points[i], obj.points[i + 1]);
                     const s = toScr(p.q);
                     const d = Math.hypot(sx - s.x, sy - s.y);
-                    if (p.t >= 0 && p.t <= 1 && d < bestSegmentDist) {
-                        bestSegmentDist = d;
-                        bestSegment = { type, obj };
+                    if (p.t >= 0 && p.t <= 1 && d < bestObjectDist) {
+                        bestObjectDist = d;
+                        bestObject = { type, obj };
                     }
                 }
             } else if (obj.pt) {
-                 // Icons: Check if clicking near enough to select the whole icon object (Fallback/Confirmation click)
+                 // Icons/Simple Labels: Check if clicking near enough to select the whole icon object (Fallback/Confirmation click)
                  const d = Math.hypot(sx - toScr(obj.pt).x, sy - toScr(obj.pt).y);
-                 if (d < bestSegmentDist) {
-                     bestSegmentDist = d;
-                     bestSegment = { type, obj };
+                 if (d < bestObjectDist) {
+                     bestObjectDist = d;
+                     bestObject = { type, obj };
                  }
             }
         });
     };
-    Object.keys(data).forEach(k => searchSegments(data[k], k));
+    Object.keys(data).forEach(k => searchObjects(data[k], k));
 
-    if (bestSegment) {
-        selectedItem = bestSegment;
+    if (bestObject) {
+        selectedItem = bestObject;
         
         // Show the move/delete popup buttons
         const c = getItemCenter(selectedItem.obj);
@@ -2229,6 +2338,14 @@ function handleSelectDown(sx, sy){
         popEl.style.top = `${sc.y + 20}px`; // Offset below the icon
         popEl.style.transform = 'translate(-50%, 0)';
         popEl.style.display = 'flex';
+        
+        // Show/Hide Move Label button based on object type
+        const btnMoveLabel = document.getElementById('moveLabelToolBtn');
+        if (selectedItem.obj.points) {
+             btnMoveLabel.style.display = 'flex';
+        } else {
+             btnMoveLabel.style.display = 'none';
+        }
     } else {
         selectedItem = null;
     }
@@ -2315,6 +2432,11 @@ function drawTreeIcon(ctx, p, kind, size, scale, itemScale) { // Added itemScale
             const yBase = startY - (i * triH * 0.6); 
             ctx.beginPath(); ctx.moveTo(p.x - triW * (1 - i*0.1), yBase); ctx.lineTo(p.x + triW * (1 - i*0.1), yBase); ctx.lineTo(p.x, yBase - triH); ctx.closePath(); ctx.stroke();
         }
+    } else if (kind === 'ToL') {
+        const h = (size || 9) * 3 * scale; const w = 8 * scale;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y - h); ctx.lineTo(p.x - w, p.y); ctx.lineTo(p.x + w, p.y); ctx.closePath();
+        ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.stroke();
+        ctx.fillStyle = '#2aa36e'; ctx.fill(); ctx.lineWidth = 2; ctx.stroke();
     } else {
         ctx.fillStyle = '#2aa36e'; ctx.beginPath(); ctx.arc(p.x, p.y, 10*scale, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     }
@@ -2325,11 +2447,13 @@ function requestRender(){
 }
 
 function drawArrow(p, dir, color){
+    // Scale size by settings.lineScale AND scale (zoom)
     const L = 10 * settings.lineScale * scale; 
     const ang = Math.atan2(dir.y, dir.x); 
     const baseWidth = 4 * settings.lineScale * scale;
     const colorWidth = 2 * settings.lineScale * scale;
     
+    // Draw standard power arrow (fixed colors)
     ctx.beginPath(); 
     ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang-Math.PI/6), p.y - L*Math.sin(ang-Math.PI/6));
     ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang+Math.PI/6), p.y - L*Math.sin(ang+Math.PI/6));
@@ -2337,18 +2461,19 @@ function drawArrow(p, dir, color){
     ctx.beginPath(); 
     ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang-Math.PI/6), p.y - L*Math.sin(ang-Math.PI/6));
     ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang+Math.PI/6), p.y - L*Math.sin(ang+Math.PI/6));
-    ctx.strokeStyle = '#ff3b3b'; 
+    ctx.strokeStyle = '#ff3b3b'; // Default red for power flow
     ctx.lineWidth = colorWidth; ctx.stroke();
 }
 
 function drawDeadEnd(p, neighbor, color){
-    const capLen = 7.5 * settings.lineScale * scale;
+    // R1: Dead end size scaled by settings.lineScale AND scale (zoom)
+    const capLen = 7.5 * settings.lineScale * scale; // Was 5
     const sP = toScr(p); 
     const sN = toScr(neighbor);
     const dx = sP.x - sN.x, dy = sP.y - sN.y; 
     const ang = Math.atan2(dy, dx); 
-    const baseWidth = 4 * settings.lineScale * scale;
-    const colorWidth = 2 * settings.lineScale * scale;
+    const baseWidth = 4 * settings.lineScale * scale; // Was 3
+    const colorWidth = 2 * settings.lineScale * scale; // Was 1
     
     const px = Math.cos(ang + Math.PI/2) * capLen; 
     const py = Math.sin(ang + Math.PI/2) * capLen;
@@ -2358,6 +2483,7 @@ function drawDeadEnd(p, neighbor, color){
     ctx.strokeStyle = color; ctx.lineWidth = colorWidth; ctx.stroke();
 }
 function drawBow(x, y, scale, itemScale){
+    // UPDATED: Scale factor changed from 0.05 to 0.4 to make the bow larger (approx 50% of tree size)
     const baseBowSize = 20; 
     const s = baseBowSize * itemScale * scale * 0.4; 
     
@@ -2368,7 +2494,6 @@ function drawBow(x, y, scale, itemScale){
     // Draw center
     ctx.beginPath(); ctx.arc(x, y, s*0.25, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     
-    // Draw loops
     ctx.beginPath(); ctx.ellipse(x-s*0.5, y-s*0.15, s*0.5, s*0.35, -0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.ellipse(x+s*0.5, y-s*0.15, s*0.5, s*0.35, 0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     
@@ -2757,6 +2882,88 @@ function drawLabels(ctx, isExport=false) {
             ctx.fillText(labelText, s.x, s.y + offY);
         }));
     }
+
+    // --- Draw Cord Labels (Segment/Point) ---
+    const nominalCordFontSize = 12;
+    const cordFontScaleFactor = Math.min(1, scale * settings.labelScale);
+    const currentCordFontSize = nominalCordFontSize * cordFontScaleFactor;
+    
+    if (currentCordFontSize > 5) { // Only draw if font is reasonably sized
+        ctx.font=`bold ${currentCordFontSize}px system-ui`; 
+        ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        
+        // Helper to draw a generic label box
+        const drawLabelBox = (s, txt, scaleFactor) => {
+             const metrics = ctx.measureText(txt);
+             const textWidth = metrics.width;
+             
+             const padX = 4 * scaleFactor; 
+             const padY = 3 * scaleFactor;
+             const currentHeight = nominalCordFontSize * scaleFactor;
+             const boxWidth = textWidth + (2 * padX);
+             const boxHeight = currentHeight + (2 * padY);
+             const radius = 4 * scaleFactor;
+             
+             const boxX = s.x - boxWidth/2;
+             const boxY = s.y - boxHeight/2;
+
+             ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'; 
+             roundRect(ctx, boxX, boxY, boxWidth, boxHeight, radius);
+             ctx.fill();
+
+             ctx.fillStyle='white'; ctx.fillText(txt, s.x, s.y);
+        };
+
+        // Lines/Cords: Segment and Point Labels
+        const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
+        lineLayers.forEach(lineLayer => {
+            data[lineLayer].forEach(line => {
+                // Segment Labels
+                if(line.segLabels) {
+                    Object.keys(line.segLabels).forEach(idx => {
+                        const i = parseInt(idx);
+                        if(i < line.points.length - 1) {
+                            // Use stored position or calculate midpoint world position
+                            const wPos = line.segLabelPos && line.segLabelPos[i] ? line.segLabelPos[i] : getPolylineMidpoint([line.points[i], line.points[i+1]]);
+                            const s = toScr(wPos);
+                            const txt = line.segLabels[idx];
+                            if(txt) drawLabelBox(s, txt, cordFontScaleFactor);
+                        }
+                    });
+                }
+                // Point Labels
+                if(line.ptLabels) {
+                    Object.keys(line.ptLabels).forEach(idx => {
+                        const i = parseInt(idx);
+                        if(i < line.points.length) {
+                            // Use stored position or calculate default offset screen position (for drawing)
+                            const point = line.points[i];
+                            let s; // Screen position
+                            
+                            if (line.ptLabelPos && line.ptLabelPos[i]) {
+                                s = toScr(line.ptLabelPos[i]);
+                            } else {
+                                // Default offset position (based on point, slightly up-left on screen)
+                                const offset = 15 * cordFontScaleFactor;
+                                const defaultScreenPos = toScr(point);
+                                s = {x: defaultScreenPos.x + offset, y: defaultScreenPos.y - offset};
+                            }
+
+                            const txt = line.ptLabels[idx];
+                            if(txt) drawLabelBox(s, txt, cordFontScaleFactor);
+                        }
+                    });
+                }
+            });
+        });
+        
+        // Simple Labels
+        data.label.forEach(it => {
+            if (!it.text) return; 
+            const s = toScr(it.pt);
+            drawLabelBox(s, it.text, cordFontScaleFactor);
+        });
+    }
 }
 
 
@@ -2767,35 +2974,27 @@ function draw(){
     if (width !== lastWidth || height !== lastHeight) { initializeAndSizeContext(); return; }
     
     const cw = cv.width / DPR; const ch = cv.height / DPR;
+    ctx.fillStyle='#000000'; ctx.fillRect(0,0,cw,ch);
+    ctx.fillStyle='#0b0f19'; ctx.fillRect(0,0,cw,ch);
     
-    // --- 1. Draw Background ---
-    ctx.fillStyle='#0b0f19'; ctx.fillRect(0,0,cw,ch); // Default background color
+    // --- NIGHT MODE AERIAL IMAGE FILTERING ---
+    let imageFilter = 'none';
+    if(imgReady && isNightMode) {
+        // Darken and slightly desaturate the image to simulate night/dusk
+        imageFilter = 'brightness(0.25) grayscale(0.2)'; 
+    }
     
     if(imgReady){ 
-        // Draw Image
-        let imageFilter = 'none';
-        if(isNightMode) {
-            // Darken and slightly desaturate the image to simulate night/dusk
-            imageFilter = 'brightness(0.25) grayscale(0.2)'; 
-        }
         ctx.filter = imageFilter;
         ctx.drawImage(bg, panX, panY, bg.width*scale, bg.height*scale); 
         ctx.filter = 'none'; // Reset filter before drawing lines/icons
     } else {
-        // FIX: Draw white background for blank map ONLY if no image is ready
-        ctx.fillStyle='#ffffff'; 
-        ctx.fillRect(0,0,cw,ch);
-        
-        // Draw informational text
-        ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.font='16px system-ui'; ctx.fillStyle='#888';
-        ctx.fillText('Start Drawing on a Blank Canvas', cw/2, ch/2);
+        ctx.fillStyle='#151b2b'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.font='16px system-ui'; ctx.fillStyle='#456';
+        ctx.fillText('Load an image to start', cw/2, ch/2);
     }
-    // --- END CANVAS BACKGROUND ---
 
     // --- DRAW LINES (Cords, Lines, Garland, Shrub, Windows) ---
-    // Lines and drawing must happen regardless of imgReady so you can draw on blank canvas.
-    
     // Cords layer: drawCord calls drawContinuousLine where color is enforced black
     data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); }); 
     
@@ -3040,7 +3239,7 @@ function draw(){
     if(sketch && sketch.points.length>0){
         const cursor = cv._mx!=null ? toWorld(cv._mx, cv._my) : null;
         const pts = [...sketch.points]; if(cursor) pts.push(cursor);
-        const skObj = {points: pts, cps: sketch.cps || [], L: sketch.layer, col: sketch.col, isPillarMode: chkPillar.checked}; // Pass layer and color info
+        const skObj = {points: pts, cps: sketch.cps || [], L: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode}; // Pass layer and color info
         
         // Pass the actual color value/default color
         const sketchColor = getColorCode(sketch.col) || colorOf(sketch.layer);
@@ -3528,7 +3727,7 @@ document.addEventListener('click', (e) => {
     if (movePop.style.display === 'flex' && !movePop.contains(e.target) && e.target !== cv) {
         movePop.style.display = 'none';
         // When clicking outside, reset mode to select
-        if (mode === 'move') {
+        if (mode === 'move' || mode === 'move-label') {
             mode = 'select';
             updateModeTag();
         }
@@ -3755,11 +3954,11 @@ function captureCanvasData() {
     const oldPanY = panY;
     
     // --- IMPORTANT: Capture current settings BEFORE manipulation ---
-    const currentIconScale = settings.iconScale; 
-    const currentJunctionScale = settings.junctionScale;
-    const currentLineScale = settings.lineScale; 
-    const currentLabelScale = settings.labelScale; 
-    const currentLineThickness = settings.lineThickness; // Capture Line Thickness
+    const originalSettings = settings; // Keep reference to original settings object
+    
+    // Create temporary settings object for drawing
+    const tempSettings = { ...originalSettings };
+    settings = tempSettings; // Temporarily use local settings for accurate export draw
     
     // Temporarily disable Night Mode for export to ensure original colors/no glow is captured
     const originalNightMode = isNightMode;
@@ -3774,21 +3973,6 @@ function captureCanvasData() {
         scale = renderScale;
         panX = renderPanX;
         panY = renderPanY;
-        
-        // CREATE TEMPORARY SETTINGS OBJECT FOR DRAWING - ENSURE THESE ARE USED FOR DRAWING CALLS
-        const tempSettings = {
-            iconScale: currentIconScale, 
-            junctionScale: currentJunctionScale, // Use live junction scale
-            lineScale: currentLineScale, 
-            labelScale: currentLabelScale, 
-            lineThickness: currentLineThickness
-        };
-        const originalSettings = settings; // Keep reference to original settings object
-        settings = tempSettings; // Temporarily use local settings for accurate export draw
-        
-        // FIX: Override drawContinuousLine helper function for export context 
-        // to ensure line scale is only applied to base width and not multiplied by the already applied global scale in draw()
-        // NOTE: We need a temporary wrapper here to ensure the core drawContinuousLine uses the global scope 'settings' object which we have temporarily swapped.
         
         // 3. Draw Header
         o.fillStyle = '#0a0f18';
@@ -3828,9 +4012,7 @@ function captureCanvasData() {
         const originalCtx = ctx;
         ctx = o; 
         
-        // --- DRAWING LINES (Using updated settings structure) ---
-        // We call drawContinuousLine/drawCord, which reads from the *live* (temp) settings object, 
-        // which now has the correct scales.
+        // --- DRAWING LINES ---
         data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
         ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ 
             data[L].forEach(it=>{ 
@@ -3838,8 +4020,7 @@ function captureCanvasData() {
             }); 
         });
         
-        // --- DRAWING ICONS ---
-        // Power flow arrows (still fine as they use drawArrow, which uses settings.lineScale)
+        // --- DRAWING POWER ARROWS (Before Icons, After Lines) ---
         const pg = analyzePower();
         if(pg){
              pg.edges.forEach(e => {
@@ -3854,8 +4035,8 @@ function captureCanvasData() {
                      
                      const cp = e.cps ? toScr(e.cps) : null;
                      const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y);
-                     let count = Math.floor(dist/150); 
-                     if (e.type !== 'cords' && count === 0) count = 1; 
+                     let count = Math.floor(dist/150 * settings.arrowFreqFactor); 
+                     if (e.type !== 'cords' && count === 0 && settings.arrowFreqFactor > 0.5) count = 1; 
 
                      if(cp) {
                          for(let k=1; k<=count; k++){
@@ -3878,12 +4059,24 @@ function captureCanvasData() {
                      }
                  }
              });
+             // Draw single arrows
+             pg.singleArrowEdges.forEach(a => {
+                const edge = a.edge;
+                const uPos = toScr(edge.line.points[edge.index]); 
+                const vPos = toScr(edge.line.points[edge.index+1]);
+                const segDist = segmentLength(uPos, vPos, edge.cps ? toScr(edge.cps) : null);
+                const ptObj = getPointOnSegmentAtDist(uPos, vPos, segDist, a.distInSegment * scale, edge.cps ? toScr(edge.cps) : null);
+                let dir = {x: ptObj.dx, y: ptObj.dy};
+                if (a.isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
+                drawArrow({x: ptObj.x, y: ptObj.y}, dir, '#ff3b3b');
+             });
              pg.deadTips.forEach(nodeIdx => {
                  const n = pg.nodes[nodeIdx]; const neighborIdx = n.adj[0]; 
                  if(neighborIdx !== undefined){ drawDeadEnd(n, pg.nodes[neighborIdx], '#fffdf0'); }
              });
         }
         
+        // --- DRAWING ICONS ---
         data.wreath.forEach(w=>{
             const s=toScr(w.pt); 
             const r=(w.size==='42"'?12.5:8.75)*scale * settings.iconScale; 
@@ -3986,7 +4179,7 @@ function captureCanvasData() {
                 // Color
                 let displayCol = r.col || '-';
                 // FIX 1: Use normalized/processed color logic
-                const normalizedRCol = r.col.toLowerCase().replace(/\s/g, '/').replace(/,/g, '/');
+                const normalizedRCol = r.col ? r.col.toLowerCase().replace(/\s/g, '/').replace(/,/g, '/') : '';
 
                 if (r.L === 'garland' || r.L === 'wreath' || (r.L === 'shrub' && !r.col)) {
                     displayCol = 'Green';
@@ -4010,6 +4203,10 @@ function captureCanvasData() {
             });
         }
 
+    } catch (error) {
+        console.error("Export Drawing Error:", error);
+        return null;
+    } finally {
         // --- Restore user's original settings (critical step) ---
         scale = oldScale;
         panX = oldPanX;
@@ -4017,25 +4214,16 @@ function captureCanvasData() {
         settings = originalSettings; // Restore original global settings object
         isNightMode = originalNightMode;
 
-        // Return Data URL for PDF conversion in next step
-        return { url: out.toDataURL('image/png'), width: OUT_W * DPI, height: OUT_H * DPI };
-
-    } catch (error) {
-        console.error("Export Drawing Error:", error);
-        // Restore user's original settings on error
-        scale = oldScale;
-        panX = oldPanX;
-        panY = oldPanY;
-        settings = originalSettings; // Restore original global settings object
-        isNightMode = originalNightMode;
-        return null;
-    } finally {
         // Ensure UI is refreshed regardless of success or failure in the try block
         updateLineScaleUI();
         updateIconScaleUI();
-        updateJunctionScaleUI(); // NEW
+        updateJunctionScaleUI(); 
         updateLabelScaleUI();
+        updateArrowFreqUI();
     }
+    
+    // Return Data URL for PDF conversion in next step
+    return { url: out.toDataURL('image/png'), width: OUT_W * DPI, height: OUT_H * DPI };
 }
 
 function collectRows() {
@@ -4077,8 +4265,8 @@ function initializeUI() {
 
         Object.keys(data).forEach(k => { 
             data[k].forEach(it => { 
-                // Only set bulk color for items that are NOT Garland, Shrub, or Cords
-                if(it.label && k !== 'garland' && k !== 'shrub' && k !== 'cords' && k !== 'wreath') { // FIX 1: Exclude wreath
+                // Only set bulk color for items that are NOT Garland, Shrub, or Cords, Wreath
+                if(it.label && k !== 'garland' && k !== 'shrub' && k !== 'cords' && k !== 'wreath' && k !== 'label') { 
                     it.col = valueToSave; 
                 }
             }); 
@@ -4110,25 +4298,27 @@ function initializeUI() {
     };
     
     // Initialize scale displays
-    // Check if settings object is already loaded/valid before overwriting with defaults
     const MIN_SCALE = 0.5;
-    if (settings.iconScale === undefined || settings.lineScale === undefined || settings.labelScale === undefined || settings.junctionScale === undefined) {
+    if (settings.iconScale === undefined || settings.lineScale === undefined || settings.labelScale === undefined || settings.junctionScale === undefined || settings.arrowFreqFactor === undefined) {
          settings.iconScale = 1.5;
-         settings.junctionScale = 1.0; // NEW
+         settings.junctionScale = 1.0; 
          settings.lineScale = 1.5;
-         settings.labelScale = 3.0; // Use new default max value
+         settings.labelScale = 3.0; 
+         settings.arrowFreqFactor = 1.0;
     }
     
     // Ensure UI fields reflect initial/loaded state
     lineScaleInput.value = settings.lineScale;
     iconScaleInput.value = settings.iconScale;
-    junctionScaleInput.value = settings.junctionScale; // NEW
+    junctionScaleInput.value = settings.junctionScale; 
     labelScaleInput.value = settings.labelScale;
+    arrowFreqInput.value = settings.arrowFreqFactor;
 
     updateLineScaleUI();
     updateIconScaleUI();
-    updateJunctionScaleUI(); // NEW
+    updateJunctionScaleUI(); 
     updateLabelScaleUI();
+    updateArrowFreqUI();
 }
 
 // Load the Google API client library callback
