@@ -679,17 +679,18 @@ function checkApiReadiness() {
 /**
  * Initiates the Google Sign-In/Authorization flow.
  */
-function handleAuthClick() {
+function handleAuthClick(event) {
+    // Determine which button triggered the event
+    const action = event.currentTarget.id; 
+
     if (accessToken) {
         // Token exists, proceed to action
-        const action = this.id; 
         if (action === 'gLoadDrive') {
             createPicker('load');
         } else if (action === 'gSaveDrive') {
              // If clicked the sign-in button, show a success message if already signed in
              showAlert('Already signed in. Now use "Load from Drive" or "Save to Drive" in the menu!');
         }
-        // Save to Drive from the dropdown will be handled by btnSaveDriveDropdown.onclick
         return; 
     }
     
@@ -704,7 +705,7 @@ function updateDriveUI(isAuthenticated) {
     if (isAuthenticated) {
         // Update gate buttons
         gLoadDriveBtn.textContent = '☁️ Load from Drive';
-        gLoadDriveBtn.onclick = () => createPicker('load');
+        gLoadDriveBtn.onclick = handleAuthClick; // Rerun handleAuthClick to trigger Picker immediately
         gSaveDriveBtn.textContent = '✅ Drive Connected';
         gSaveDriveBtn.disabled = true; // Disable sign-in button now that we have a token
         
@@ -757,12 +758,21 @@ async function findOrCreateMapFolder() {
 
 /**
  * Opens the Google Picker dialog for file selection or saving.
+ * NOTE: This function now checks if the driveFolderId exists before proceeding.
  * @param {'load'|'save'} pickerType - Determines the view to open.
  */
 function createPicker(pickerType) {
     if (!accessToken || !gapiReady || !gisReady) {
         showAlert('Please sign in to Google Drive first.');
         return;
+    }
+    // CRITICAL FIX: Ensure folder ID is available before opening the picker, 
+    // as the picker needs to know where to start looking.
+    if (!driveFolderId) {
+         showAlert('Drive folder is still initializing. Please try again in a moment.');
+         // Optionally force creation check if it failed previously
+         findOrCreateMapFolder(); 
+         return; 
     }
     
     let view;
@@ -777,7 +787,6 @@ function createPicker(pickerType) {
         
     } else if (pickerType === 'save') {
         // View for saving a new file (upload view) - Less common, but good alternative
-        // We will primarily use the REST API for saving, but the Picker can be used as a simple Uploader
         view = new google.picker.DocsUploadView().setParent(driveFolderId);
     }
 
@@ -3554,7 +3563,6 @@ function draw(){
             ctx.lineTo(s.x - sz, s.y + sz); 
             ctx.closePath();
             ctx.fillStyle = '#ffd86a'; ctx.fill();
-            
             ctx.shadowBlur = 0; // Strokes do not glow
             ctx.strokeStyle = 'black'; 
             ctx.lineWidth = strokeWidth; 
@@ -4217,12 +4225,12 @@ function captureCanvasData() {
                      if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } 
                      else if(vNode.dist < uNode.dist) { from = vPos; to = uPos; isReversed = true; }
                      else return; 
-                     
+
                      const cp = e.cps ? toScr(e.cps) : null;
                      const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y);
                      let count = Math.floor(dist/150 * settings.arrowFreqFactor); 
                      if (e.type !== 'cords' && count === 0 && settings.arrowFreqFactor > 0.5) count = 1; 
-                     
+
                      if(cp) {
                          for(let k=1; k<=count; k++){
                              let t = k / (count+1);
