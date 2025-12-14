@@ -23,7 +23,6 @@
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
 html,body{height:100%;height:100dvh;overflow:hidden;background:#000000;} 
-body{margin:0;color:var(--text);font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial, system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;overscroll-behavior:none;}
 body.blurred #app{filter:blur(18px);pointer-events:none}
 
 /* Gate / Landing - Restored Festive Styles */
@@ -684,6 +683,7 @@ function handleAuthClick(event) {
     if (accessToken) {
         // Token exists, proceed to action
         if (action === 'gLoadDrive') {
+            // CRITICAL FIX: Explicitly call createPicker('load') here
             createPicker('load');
         } else if (action === 'gSaveDrive') {
              // If clicked the sign-in button, show a success message if already signed in
@@ -2688,7 +2688,7 @@ function segmentLength(p1, p2, cp = null) {
     }
     // Approximation of quadratic Bezier curve length (simpler estimation)
     const d1 = Math.hypot(cp.x - p1.x, cp.y - p1.y);
-    const d2 = Math.hypot(p2.x - cp.x, cp.y - p2.y);
+    const d2 = Math.hypot(p2.x - cp.x, p2.y - p2.y);
     return d1 + d2; // Chord length approximation
 }
 
@@ -3292,7 +3292,6 @@ function draw(){
         ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2);
         ctx.fillStyle = wreathColor; 
         ctx.fill();
-        
         ctx.shadowBlur = 0; // Black stroke should not glow
         ctx.strokeStyle='black'; ctx.lineWidth=6 * itemScale * scale; ctx.stroke(); 
         ctx.strokeStyle=wreathColor; ctx.lineWidth=3 * itemScale * scale; ctx.stroke(); // Green inner stroke
