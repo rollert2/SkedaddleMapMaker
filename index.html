@@ -447,6 +447,8 @@ input[type=range].input:active::-webkit-slider-thumb {
           <button id="btnSaveDriveDropdown" disabled>☁️ Save to Drive</button> 
       </div>
   </div>
+  <!-- NEW DEDICATED SAVE TO DRIVE BUTTON -->
+  <button id="btnSaveDriveOnly" class="btn" disabled title="Save map directly to Google Drive">☁️ Drive</button>
 </header>
 
 <div class="wrap">
@@ -611,6 +613,7 @@ let driveFolderId = null; // Stores the ID of the dedicated map folder
 const gLoadDriveBtn = document.getElementById('gLoadDrive');
 const gSaveDriveBtn = document.getElementById('gSaveDrive');
 const btnSaveDriveDropdown = document.getElementById('btnSaveDriveDropdown');
+const btnSaveDriveOnly = document.getElementById('btnSaveDriveOnly'); // NEW
 
 // Initialize Google APIs
 // 1. Load GAPI (Client Library) for Drive API
@@ -708,11 +711,13 @@ function updateDriveUI(isAuthenticated) {
         gSaveDriveBtn.textContent = '✅ Drive Connected';
         gSaveDriveBtn.disabled = true; // Disable sign-in button now that we have a token
         
-        // Update dropdown button
+        // Update header buttons
         btnSaveDriveDropdown.disabled = false;
+        btnSaveDriveOnly.disabled = false;
     } else {
         gSaveDriveBtn.textContent = '☁️ Sign In to Drive';
         btnSaveDriveDropdown.disabled = true;
+        btnSaveDriveOnly.disabled = true;
     }
 }
 
@@ -2841,7 +2846,7 @@ function drawDeadEnd(p, neighbor, color){
     const capLen = 7.5 * settings.lineScale * scale; // Was 5
     const sP = toScr(p); 
     const sN = toScr(neighbor);
-    const dx = sP.x - sN.x, dy = sP.y - sN.y; 
+    const dx = sP.x - sN.x, dy = sN.y - sP.y; 
     const ang = Math.atan2(dy, dx); 
     const baseWidth = 4 * settings.lineScale * scale; // Was 3
     const colorWidth = 2 * settings.lineScale * scale; // Was 1
@@ -3995,8 +4000,10 @@ document.getElementById('btnSaveAll').onclick = (e) => {
 document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly(); document.getElementById('saveDropdown').style.display = 'none'; };
 document.getElementById('btnSaveImageOnly').onclick = () => { performSavePdf(); document.getElementById('saveDropdown').style.display = 'none'; };
 
-// NEW DRIVE LOAD/SAVE BUTTON HANDLERS
-document.getElementById('gLoadDrive').onclick = handleAuthClick; // Will trigger the picker if authenticated
+// NEW DRIVE SAVE BUTTON HANDLER
+document.getElementById('btnSaveDriveOnly').onclick = () => { 
+    saveToDrive(); 
+};
 document.getElementById('btnSaveDriveDropdown').onclick = () => { saveToDrive(); document.getElementById('saveDropdown').style.display = 'none'; };
 
 
@@ -4128,8 +4135,8 @@ async function performDualSave() {
     await performSaveMapOnly();
     
     // 3. Perform Drive map save (new integration)
-    // We don't await this to keep the dual local save quick, but we should make sure it runs.
-    saveToDrive();
+    // FIX: Await the saveToDrive function so the error message appears after local saves complete
+    await saveToDrive();
 }
 
 
