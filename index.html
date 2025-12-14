@@ -779,7 +779,7 @@ async function createPicker(pickerType) {
     if (pickerType === 'load') {
         // View for selecting an existing file (.skmap)
         view = new google.picker.View(google.picker.ViewId.DOCS);
-        // FIX: Expand MIME types to include text/plain and octet-stream to catch misclassified files
+        // FIX: Expanded MIME types to ensure all JSON-based map files are visible
         view.setMimeTypes(MAP_MIME_TYPE + ',text/plain,application/octet-stream'); 
         view.setParent(driveFolderId); // Start in our dedicated folder
         view.setQuery(MAP_FILE_EXTENSION); // Search for our file type
@@ -3791,6 +3791,7 @@ document.getElementById('btnSaveDriveDropdown').onclick = () => { saveToDrive();
 
 // Handle Validation Modal confirmation
 document.getElementById('btnSaveConfirm').onclick = () => { 
+    // Perform both local and drive save
     performDualSave(); 
     document.getElementById('modalSaveValidate').style.display = 'none';
 };
@@ -3909,9 +3910,15 @@ async function performSavePdf() {
 }
 
 async function performDualSave() {
+    // 1. Perform local PDF save
     await performSavePdf();
-    // Small delay to ensure the first dialog doesn't block the second logic flow
-    setTimeout(() => { performSaveMapOnly(); }, 500);
+    
+    // 2. Perform local map save
+    await performSaveMapOnly();
+    
+    // 3. Perform Drive map save (new integration)
+    // We don't await this to keep the dual local save quick, but we should make sure it runs.
+    saveToDrive();
 }
 
 
