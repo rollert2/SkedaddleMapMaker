@@ -595,6 +595,7 @@ const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0'; // API Key
 const APP_ID = 'skedaddle-map-maker-481022'; // Numeric Project ID (used by Picker)
 
 // Scopes required: Drive App Data folder and Drive File scope
+// CRITICAL FIX: Added drive.readonly scope for file content download
 const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.readonly'; 
 const MAP_MIME_TYPE = 'application/json';
 const MAP_FILE_EXTENSION = '.skmap';
@@ -778,8 +779,8 @@ async function createPicker(pickerType) {
     if (pickerType === 'load') {
         // View for selecting an existing file (.skmap)
         view = new google.picker.View(google.picker.ViewId.DOCS);
-        // FIX: Expand MIME types to include text/plain to catch misclassified files
-        view.setMimeTypes(MAP_MIME_TYPE + ',text/plain'); 
+        // FIX: Expand MIME types to include text/plain and octet-stream to catch misclassified files
+        view.setMimeTypes(MAP_MIME_TYPE + ',text/plain,application/octet-stream'); 
         view.setParent(driveFolderId); // Start in our dedicated folder
         view.setQuery(MAP_FILE_EXTENSION); // Search for our file type
         
@@ -2126,7 +2127,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
             if(item.segLabels) {
                 Object.keys(item.segLabels).forEach(idx => {
                     const i = parseInt(idx);
-                    // Use stored position if available, otherwise project to get a default screen position
+                    // Use stored position or calculate midpoint world position
                     let labelPos;
                     if (item.segLabelPos && item.segLabelPos[i]) {
                          labelPos = item.segLabelPos[i];
@@ -3286,12 +3287,12 @@ function draw(){
         }
 
         ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2);
-        ctx.fillStyle = wreathColor; 
+        ctx.fillStyle = colorOf('wreath'); 
         ctx.fill();
         
         ctx.shadowBlur = 0; // Black stroke should not glow
         ctx.strokeStyle='black'; ctx.lineWidth=6 * itemScale * scale; ctx.stroke(); 
-        ctx.strokeStyle=wreathColor; ctx.lineWidth=3 * itemScale * scale; ctx.stroke(); // Green inner stroke
+        ctx.strokeStyle=colorOf('wreath'); ctx.lineWidth=3 * itemScale * scale; ctx.stroke(); // Green inner stroke
         
         if(w.bow === 'top' || w.bow === 'bottom'){
             const by = w.bow==='top' ? s.y - r : s.y + r;
