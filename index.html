@@ -595,7 +595,7 @@ const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0'; // API Key
 const APP_ID = 'skedaddle-map-maker-481022'; // Numeric Project ID (used by Picker)
 
 // Scopes required: Drive App Data folder and Drive File scope
-const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata'; 
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.readonly'; 
 const MAP_MIME_TYPE = 'application/json';
 const MAP_FILE_EXTENSION = '.skmap';
 const MAP_FOLDER_NAME = 'Skedaddle Map Files';
@@ -3719,7 +3719,8 @@ document.getElementById('btnCustomerControlled').onclick = () => {
 
 
 // UPDATED LISTENERS: Reset target value to allow re-uploading same file
-// Handlers moved to DOMContentLoaded for safety, except for direct file input changes
+document.getElementById('gPickImg').onclick=()=>document.getElementById('gImg').click();
+document.getElementById('gPickMap').onclick=()=>document.getElementById('gMap').click();
 document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.target.value=''; };
 document.getElementById('gMap').onchange=e=>{ handleMap(e.target.files[0]); e.target.value=''; };
 
