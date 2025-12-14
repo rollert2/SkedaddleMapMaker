@@ -620,8 +620,6 @@ gapi.load('client:picker', async () => {
         await gapi.client.load('drive', 'v3');
         gapiReady = true;
         
-        // Picker API is also loaded by 'client:picker'
-        
         // 2. Wait/Check for GIS (Google Identity Services)
         // GIS script is async deferred, so we check availability or wait a moment
         const checkGis = setInterval(() => {
@@ -761,18 +759,19 @@ async function findOrCreateMapFolder() {
  * NOTE: This function now checks if the driveFolderId exists before proceeding.
  * @param {'load'|'save'} pickerType - Determines the view to open.
  */
-function createPicker(pickerType) {
+async function createPicker(pickerType) {
     if (!accessToken || !gapiReady || !gisReady) {
         showAlert('Please sign in to Google Drive first.');
         return;
     }
-    // CRITICAL FIX: Ensure folder ID is available before opening the picker, 
-    // as the picker needs to know where to start looking.
+    
+    // CRITICAL FIX: Ensure folder ID is available before opening the picker.
     if (!driveFolderId) {
-         showAlert('Drive folder is still initializing. Please try again in a moment.');
-         // Optionally force creation check if it failed previously
-         findOrCreateMapFolder(); 
-         return; 
+         showAlert('Initializing Drive folder... please try clicking Load again in a moment.');
+         // Force the asynchronous folder lookup again in case the initial call failed or hasn't completed
+         await findOrCreateMapFolder(); 
+         // Check again after attempt
+         if (!driveFolderId) return;
     }
     
     let view;
@@ -2427,169 +2426,6 @@ function handleTap(sx,sy){
     markPowerDirty(); requestRender();
 }
 
-function find3WayAt(pt) {
-    for(const tw of data.threeway) {
-        if(Math.hypot(tw.pt.x - pt.x, tw.pt.y - pt.y) < 0.5) return tw;
-    }
-    return null;
-}
-
-function countConnections(item) {
-    let count = 0;
-    const target = item.pt;
-    const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
-    lineLayers.forEach(L => {
-        data[L].forEach(line => {
-            if(line.points && line.points.length > 0) {
-                const first = line.points[0];
-                const last = line.points[line.points.length-1];
-                if(Math.hypot(first.x - target.x, first.y - target.y) < 0.5) count++;
-                if(Math.hypot(last.x - target.x, last.y - target.y) < 0.5) count++;
-            }
-        });
-    });
-    return count;
-}
-
-function placeItem(L, w, sx, sy){
-    const {label, index} = getNewItemData(L);
-    const snapLine = getSnapLineOnly(w.x, w.y, 25 / scale);
-    const pt = snapLine ? {x: snapLine.x, y: snapLine.y} : w;
-
-    if(L==='powersource'){ data.powersource.push({pt,label,index}); }
-    else if(L==='threeway'){ data.threeway.push({pt,label,index}); }
-    else if(L==='bow'){ data.bow.push({pt,label,index}); }
-    else if(L==='tree'){
-         if(currTreeKind==='ToL'){
-             openPop(document.getElementById('tolPop'), sx, sy, (sz)=>{
-                 const newLabel = `${sz}' ${label}`;
-                 data.tree.push({pt,kind:'ToL',size:+sz,label:newLabel,index});
-                 markPowerDirty(); requestRender(); refreshTable();
-             }); return;
-         }
-         data.tree.push({pt,kind:currTreeKind,size:9,label,index});
-    }
-    else if(L==='wreath'){
-        const szStr = currWreathSize==='32"' ? "32\"" : "42\"";
-        // FIX: Store WR# only in label, store size in separate prop
-        const obj={pt,size:currWreathSize,bow:'none',label:label,index}; 
-        data.wreath.push(obj);
-        openPop(document.getElementById('wreathPop'), sx, sy, (b)=>{ obj.bow=b; requestRender(); });
-        return;
-    }
-    markPowerDirty(); requestRender();
-    refreshTable();
-}
-
-function getSnap(sx,sy,tolPx){
-    if(!chkSnap.checked) return null; // ADDED: Check snap state
-    const w = toWorld(sx,sy); let best=null;
-    
-    // Check 3-Way points first with a larger hit area (45px)
-    const THRESHOLD_3WAY = 45; // Increased snap radius for 3-ways/junctions
-    const THRESHOLD_POINT = 30;
-    
-    const junctionPoints = []; 
-    if(data.threeway) data.threeway.forEach(t => junctionPoints.push({p:t.pt, host:t, type:'point', radius: THRESHOLD_3WAY}));
-    if(data.powersource) data.powersource.forEach(t => junctionPoints.push({p:t.pt, host:t, type:'point', radius: THRESHOLD_3WAY}));
-
-    for(const t of junctionPoints){
-        const s=toScr(t.p); const d=Math.hypot(sx-s.x, sy-s.y);
-        // Use increased radius for check
-        if(d<=t.radius && (!best || d<best.d)) best={d,x:t.p.x,y:t.p.y,host:t.host,type:'point'};
-    }
-    if(best) return best;
-
-
-    // Check all other points (line vertices, other icons)
-    const linePoints = []; 
-    Object.keys(data).forEach(k=>data[k].forEach(it=>{ 
-        if(it.points) {
-            it.points.forEach(p=>linePoints.push({p,host:it}));
-        }
-        if(it.pt && k!=='threeway' && k !== 'powersource') linePoints.push({p:it.pt,host:it}); 
-    }));
-    
-    for(const t of linePoints){
-        const s=toScr(t.p); const d=Math.hypot(sx-s.x, sy-s.y);
-        // Use default point radius (30px) for check
-        if(d<=THRESHOLD_POINT && (!best || d<best.d)) best={d,x:t.p.x,y:t.p.y,host:t.host,type:'point'};
-    }
-    if(best) return best;
-
-    // Check line projections (snapping *to* a segment)
-    ['ridges','fascia','peaks','groundstakes','garland','cords'].forEach(L=>{
-        data[L].forEach(it=>{
-            if(!it.points) return;
-            for(let i=0; i<it.points.length-1; i++){
-                const a=it.points[i], b=it.points[i+1];
-                const proj = projOnSeg(w, a, b);
-                if(proj.t>0 && proj.t<1){
-                    const sQ = toScr(proj.q);
-                    const d = Math.hypot(sx-sQ.x, sy-sQ.y);
-                    if(d<=tolPx && (!best || d<best.d)) best = {d, x:proj.q.x, y:proj.q.y, host:it, seg:i, type:'proj'};
-                }
-            }
-        });
-    });
-    return best;
-}
-
-function getSnapLineOnly(wx, wy, tolWorld) {
-    if(!chkSnap.checked) return null; // ADDED: Check snap state
-    let best = null;
-    ['ridges','fascia','peaks','groundstakes','garland','cords'].forEach(L=>{
-        data[L].forEach(it=>{
-            if(!it.points) return;
-            for(let i=0; i<it.points.length-1; i++){
-                const a=it.points[i], b=it.points[i+1];
-                const proj = projOnSeg({x:wx, y:wy}, a, b);
-                const d = Math.hypot(wx-proj.q.x, wy-proj.q.y);
-                if(proj.t>=0 && proj.t<=1 && d<=tolWorld) {
-                    let type = 'mid';
-                    let snapX = proj.q.x;
-                    let snapY = proj.q.y;
-                    if(proj.t < 0.05) { type='end'; snapX=a.x; snapY=a.y; }
-                    else if(proj.t > 0.95) { type='end'; snapX=b.x; snapY=b.y; }
-                    if(!best || d < best.d) {
-                        best = {d, x:snapX, y:snapY, type, layer:L, lineObj:it, segIndex:i};
-                    }
-                }
-            }
-        });
-    });
-    return best;
-}
-
-document.getElementById('btnComplete').onclick=()=>{
-    // CRITICAL FIX: Ensure sketch is valid before pushing to data
-    if(!sketch || sketch.points.length<2) {
-        startNewSketch();
-        requestRender();
-        return;
-    }
-    
-    // The layer name is available in currLayer and is used to push to data[currLayer]
-    const obj = {points:[...sketch.points], label:sketch.label, index: sketch.index, fra: false, gguard: false}; // Initialize FRA and gguard to false
-    
-    // Copy sketch color (if set by user/bulk) to permanent object
-    if (sketch.col) obj.col = sketch.col;
-
-    if(['garland','groundstakes','cords'].includes(currLayer)) obj.cps = [...sketch.cps];
-    
-    // Copy clip type if applicable (for C9s)
-    if (isC9(currLayer) && sketch.clip) obj.clip = sketch.clip;
-    
-    // NEW: Copy pillar mode state
-    if (currLayer === 'garland') obj.isPillarMode = chkPillar.checked;
-
-    data[currLayer].push(obj);
-    markPowerDirty(); startNewSketch(); requestRender(); refreshTable();
-    
-    // Clear redo stack on new action
-    redoStack = []; document.getElementById('btnRedo').disabled = true;
-};
-
 function handleSelectDown(sx, sy){
     // Hide move popup immediately
     document.getElementById('movePop').style.display = 'none';
@@ -2852,7 +2688,7 @@ function segmentLength(p1, p2, cp = null) {
     }
     // Approximation of quadratic Bezier curve length (simpler estimation)
     const d1 = Math.hypot(cp.x - p1.x, cp.y - p1.y);
-    const d2 = Math.hypot(p2.x - cp.x, p2.y - p2.y);
+    const d2 = Math.hypot(p2.x - cp.x, cp.y - p2.y);
     return d1 + d2; // Chord length approximation
 }
 
