@@ -721,7 +721,7 @@ function updateDriveUI(isAuthenticated) {
  * Finds the dedicated map folder, or creates it if it doesn't exist.
  */
 async function findOrCreateMapFolder() {
-    if (!accessToken) return;
+    if (!accessToken) return null;
     try {
         // Search for the folder
         const response = await gapi.client.drive.files.list({
@@ -748,9 +748,11 @@ async function findOrCreateMapFolder() {
             driveFolderId = createResponse.result.id;
         }
         console.log("Drive folder ID:", driveFolderId);
+        return driveFolderId;
     } catch (error) {
         console.error('Error finding or creating Drive folder:', error);
-        showAlert('Error connecting to Google Drive folder.');
+        // Note: We don't call showAlert here, let the caller handle the error/message
+        return null; 
     }
 }
 
@@ -770,9 +772,8 @@ async function createPicker(pickerType) {
     if (!driveFolderId) {
          showAlert('Initializing Drive folder... please try clicking Load again in a moment.');
          // Force the asynchronous folder lookup again in case the initial call failed or hasn't completed
-         await findOrCreateMapFolder(); 
-         // Check again after attempt
-         if (!driveFolderId) return;
+         const folderId = await findOrCreateMapFolder(); 
+         if (!folderId) return;
     }
     
     let view;
@@ -844,9 +845,18 @@ async function loadFromDrive(fileId) {
  * Saves the current map payload to Google Drive.
  */
 async function saveToDrive() {
-    if (!accessToken || !driveFolderId) {
+    if (!accessToken) {
         showAlert('Please sign in to Google Drive first.');
         return;
+    }
+    
+    // FIX: Ensure driveFolderId is set before proceeding
+    if (!driveFolderId) {
+        const folderId = await findOrCreateMapFolder();
+        if (!folderId) {
+            showAlert('Error saving map to Google Drive. Failed to find or create the dedicated folder.');
+            return;
+        }
     }
     
     const payload = buildPayload();
