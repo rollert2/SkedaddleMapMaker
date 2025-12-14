@@ -12,8 +12,8 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <!-- 2. Google API Client Library (GAPI) for REST calls (Drive, Picker) -->
 <script src="https://apis.google.com/js/api.js"></script>
-<!-- 3. Google Picker API (uses GAPI) -->
-<script src="https://apis.google.com/js/client.js"></script> 
+<!-- 3. Google Picker API (uses GAPI) - MUST BE LOADED HERE -->
+<script src="https://www.google.com/jsapi?autoload={'modules':[{'name':'picker','version':'1.0','callback':'pickerLoaded'}]}"></script>
 
 <style>
 :root{--bg:#0d1117;--panel:#141a24;--text:#e8eef6;--accent:#64b5ff;--border:#243148;--border2:#1b2435;
@@ -341,7 +341,7 @@ input[type=range].input:active::-webkit-slider-thumb {
 <body class="blurred">
 <div id="gate">
   <div class="gcard">
-    <!-- NEW CLOSE BUTTON -->
+    <!-- NEW CLOSE BUTTON: Added onclick back to unlock() -->
     <button class="close-btn" id="closeGateBtn" onclick="unlock()" title="Continue Editing">&times;</button>
     <img src="https://i.imgur.com/zdJfkpg.png" alt="logo" style="width:84px;height:84px;border-radius:16px;margin-bottom:16px; border: 2px solid var(--festive-gold);"><br/>
     <h2>Skedaddle Christmas Map Maker</h2>
@@ -612,42 +612,53 @@ const gLoadDriveBtn = document.getElementById('gLoadDrive');
 const gSaveDriveBtn = document.getElementById('gSaveDrive');
 const btnSaveDriveDropdown = document.getElementById('btnSaveDriveDropdown');
 
-// Initial load of GIS and GAPI libraries
-gapi.load('client:picker', gapiLoaded); // Load the GAPI client and picker module
-google.load('picker', '1', { 'callback': pickerLoaded }); // Load Picker API library
-
-/**
- * Called when the GAPI client library is loaded.
- */
-async function gapiLoaded() {
-    gapi.client.setApiKey(API_KEY);
-    await gapi.client.load('drive', 'v3'); // Load Drive API v3
-    gapiReady = true;
-    checkApiReadiness();
-}
-
-/**
- * Called when the Picker API library is loaded.
- */
-function pickerLoaded() {
-    gisReady = true;
-    // Initialize the Google Identity Services client (loads client_id and scopes)
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: GDRIVE_SCOPES,
-        callback: (response) => {
-            // This callback is executed after the user grants/refreshes the token
-            if (response.error !== undefined) {
-                showAlert('Authorization Failed: ' + response.error);
-            } else {
-                accessToken = response.access_token;
-                updateDriveUI(true);
-                // After successful sign-in, try to get the dedicated folder ID
-                findOrCreateMapFolder();
+// Initialize Google APIs
+// 1. Load GAPI (Client Library) for Drive API
+gapi.load('client:picker', async () => {
+    try {
+        await gapi.client.setApiKey(API_KEY);
+        await gapi.client.load('drive', 'v3');
+        gapiReady = true;
+        
+        // Picker API is also loaded by 'client:picker'
+        
+        // 2. Wait/Check for GIS (Google Identity Services)
+        // GIS script is async deferred, so we check availability or wait a moment
+        const checkGis = setInterval(() => {
+            if (window.google && window.google.accounts) {
+                clearInterval(checkGis);
+                initGis();
             }
-        },
-    });
-    checkApiReadiness();
+        }, 100);
+        
+    } catch (err) {
+        console.error("Error loading GAPI:", err);
+    }
+});
+
+// Initialize Google Identity Services (GIS)
+function initGis() {
+    try {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: GDRIVE_SCOPES,
+            callback: (response) => {
+                // This callback is executed after the user grants/refreshes the token
+                if (response.error !== undefined) {
+                    showAlert('Authorization Failed: ' + response.error);
+                } else {
+                    accessToken = response.access_token;
+                    updateDriveUI(true);
+                    // After successful sign-in, try to get the dedicated folder ID
+                    findOrCreateMapFolder();
+                }
+            },
+        });
+        gisReady = true;
+        checkApiReadiness();
+    } catch (err) {
+        console.error("Error initializing GIS:", err);
+    }
 }
 
 /**
@@ -3334,7 +3345,7 @@ function draw(){
     if(pg){
         // 1. Draw arrows on standard layers
         pg.edges.forEach(e => {
-            if(['garland', 'groundstakes'].includes(e.type)) return; // Skip single-path layers here
+            if(['garland', 'groundstakes'].includes(e.type)) return;
             
             const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
             if(uNode.dist !== Infinity && vNode.dist !== Infinity){
@@ -3865,8 +3876,7 @@ document.getElementById('btnCustomerControlled').onclick = () => {
 
 
 // UPDATED LISTENERS: Reset target value to allow re-uploading same file
-document.getElementById('gPickImg').onclick=()=>document.getElementById('gImg').click();
-document.getElementById('gPickMap').onclick=()=>document.getElementById('gMap').click();
+// Handlers moved to DOMContentLoaded for safety, except for direct file input changes
 document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.target.value=''; };
 document.getElementById('gMap').onchange=e=>{ handleMap(e.target.files[0]); e.target.value=''; };
 
@@ -4505,6 +4515,23 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Add relabeling listener
     document.getElementById('btnRelabelIDs').onclick = relabelIds;
+    
+    // --- SAFE BUTTON INITIALIZATION ---
+    // Ensure splash buttons work regardless of GAPI state
+    const gPickImg = document.getElementById('gPickImg');
+    const gPickBlank = document.getElementById('gPickBlank');
+    const gPickMap = document.getElementById('gPickMap');
+    const gImg = document.getElementById('gImg');
+    const gMap = document.getElementById('gMap');
+    const closeGateBtn = document.getElementById('closeGateBtn'); // Added closeGateBtn
+
+    if (gPickImg) gPickImg.onclick = () => { if (gImg) gImg.click(); };
+    if (gPickBlank) gPickBlank.onclick = () => { unlock(); };
+    if (gPickMap) gPickMap.onclick = () => { if (gMap) gMap.click(); };
+    if (closeGateBtn) closeGateBtn.onclick = () => { unlock(); }; // Attach listener in JS
+    
+    if (gImg) gImg.onchange = e => { handleImg(e.target.files[0]); e.target.value=''; };
+    if (gMap) gMap.onchange = e => { handleMap(e.target.files[0]); e.target.value=''; };
 });
 })();
 </script>
