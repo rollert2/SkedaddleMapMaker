@@ -779,8 +779,6 @@ async function createPicker(pickerType) {
         // View for selecting an existing file (.skmap)
         view = new google.picker.View(google.picker.ViewId.DOCS);
         view.setMimeTypes(MAP_MIME_TYPE);
-        view.setSelectFolderEnabled(false);
-        view.setOwnedByMe(true); // Filter to owned files
         view.setParent(driveFolderId); // Start in our dedicated folder
         view.setQuery(MAP_FILE_EXTENSION); // Search for our file type
         
@@ -930,7 +928,7 @@ async function saveToDrive() {
 /* ---------------------------------------------------------------------- */
 
 
-/* ---------- DATA DEFINITIONS (Rest of the original file is here) ---------- */
+/* ---------- DATA DEFINITIONS ---------- */
 const cats=[{name:"C9's",key:'c9',list:['fascia','peaks','ridges','groundstakes']},{name:'Minis',key:'min',list:['shrub','windows']},{name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},{name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},{name:'Power',key:'pwr',list:['powersource','cords','threeway']}];
 const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label'};
 const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label: 'LBL'};
@@ -949,6 +947,7 @@ function getColorCode(colorName) {
     }
     
     // 2. FIX: If it contains separators (spaces/slashes/commas), return the raw string.
+    // This string will be lowercased and split in drawContinuousLine.
     if (colorName.includes(' ') || colorName.includes('/') || colorName.includes(',')) {
         return colorName;
     }
@@ -1439,7 +1438,7 @@ function refreshTable(){
     });
 }
 
-/* ---------- CORE & VIEWPORT (Rest of the original file is here) ---------- */
+/* ---------- CORE & VIEWPORT ---------- */
 let cv = document.getElementById('cv');
 let ctx = cv.getContext('2d', {alpha: true}); 
 
@@ -3190,7 +3189,7 @@ function draw(){
     if(pg){
         // 1. Draw arrows on standard layers
         pg.edges.forEach(e => {
-            if(['garland', 'groundstakes'].includes(e.type)) return;
+            if(['garland', 'groundstakes'].includes(e.type)) return; // Skip single-path layers here
             
             const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
             if(uNode.dist !== Infinity && vNode.dist !== Infinity){
@@ -3292,6 +3291,7 @@ function draw(){
         ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2);
         ctx.fillStyle = wreathColor; 
         ctx.fill();
+        
         ctx.shadowBlur = 0; // Black stroke should not glow
         ctx.strokeStyle='black'; ctx.lineWidth=6 * itemScale * scale; ctx.stroke(); 
         ctx.strokeStyle=wreathColor; ctx.lineWidth=3 * itemScale * scale; ctx.stroke(); // Green inner stroke
