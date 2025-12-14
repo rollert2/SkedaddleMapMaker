@@ -340,12 +340,12 @@ input[type=range].input:active::-webkit-slider-thumb {
 <body class="blurred">
 <div id="gate">
   <div class="gcard">
-    <!-- NEW CLOSE BUTTON: Added onclick back to unlock() -->
+    <!-- NEW CLOSE BUTTON -->
     <button class="close-btn" id="closeGateBtn" onclick="unlock()" title="Continue Editing">&times;</button>
     <img src="https://i.imgur.com/zdJfkpg.png" alt="logo" style="width:84px;height:84px;border-radius:16px;margin-bottom:16px; border: 2px solid var(--festive-gold);"><br/>
     <h2>Skedaddle Christmas Map Maker</h2>
     <!-- REMOVED: <span class="version-tag">Beta</span> -->
-    <p style="margin-top:12px">Upload a photo, load a saved map, or connect to Google Drive.</p>
+    <p style="margin-top:12px">Upload a photo or load a saved map to begin.</p>
     <div class="grow">
       <!-- Standard Load/Upload -->
       <button id="gPickImg" class="gbtn">📷 Upload Image</button>
@@ -778,7 +778,8 @@ async function createPicker(pickerType) {
     if (pickerType === 'load') {
         // View for selecting an existing file (.skmap)
         view = new google.picker.View(google.picker.ViewId.DOCS);
-        view.setMimeTypes(MAP_MIME_TYPE);
+        // FIX: Expand MIME types to include text/plain to catch misclassified files
+        view.setMimeTypes(MAP_MIME_TYPE + ',text/plain'); 
         view.setParent(driveFolderId); // Start in our dedicated folder
         view.setQuery(MAP_FILE_EXTENSION); // Search for our file type
         
@@ -807,12 +808,8 @@ function pickerCallback(data) {
         const file = data.docs[0];
         const fileId = file[google.picker.Document.ID];
         
-        if (file.mimeType === MAP_MIME_TYPE) {
-            // User selected an .skmap file
-            loadFromDrive(fileId);
-        } else {
-            showAlert('Selected file is not a valid map file.');
-        }
+        // We accept anything the picker shows us and rely on JSON parsing to validate content
+        loadFromDrive(fileId);
     }
 }
 
