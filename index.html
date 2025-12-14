@@ -8,12 +8,12 @@
 <!-- Added jsPDF for PDF generation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<!-- --- NEW: GOOGLE DRIVE LIBRARIES --- -->
-<!-- 1. Google Identity Services (for Auth) -->
-<script src="https://accounts.google.com/gsi/client"></script> 
-<!-- 2. Google Platform Library (for APIs, Picker/Drive) -->
+<!-- 1. Google Identity Services (GIS) for OAuth 2.0 -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- 2. Google API Client Library (GAPI) for REST calls (Drive, Picker) -->
 <script src="https://apis.google.com/js/api.js"></script>
-<!-- ----------------------------------- -->
+<!-- 3. Google Picker API (uses GAPI) -->
+<script src="https://apis.google.com/js/client.js"></script> 
 
 <style>
 :root{--bg:#0d1117;--panel:#141a24;--text:#e8eef6;--accent:#64b5ff;--border:#243148;--border2:#1b2435;
@@ -343,16 +343,20 @@ input[type=range].input:active::-webkit-slider-thumb {
   <div class="gcard">
     <!-- NEW CLOSE BUTTON -->
     <button class="close-btn" id="closeGateBtn" onclick="unlock()" title="Continue Editing">&times;</button>
-    <img src="https://i.imgur.com/zdJfkpg.png" alt="logo" style="width:84px;height:84px;border-radius:16px;margin-bottom:16px; border: 2px solid var(--festive-gold);"/>
+    <img src="https://i.imgur.com/zdJfkpg.png" alt="logo" style="width:84px;height:84px;border-radius:16px;margin-bottom:16px; border: 2px solid var(--festive-gold);"><br/>
     <h2>Skedaddle Christmas Map Maker</h2>
     <!-- REMOVED: <span class="version-tag">Beta</span> -->
     <p style="margin-top:12px">Upload a photo, load a saved map, or connect to Google Drive.</p>
     <div class="grow">
+      <!-- Standard Load/Upload -->
       <button id="gPickImg" class="gbtn">📷 Upload Image</button>
       <button id="gPickBlank" class="gbtn">⬜ Start Blank Map</button>
       <button id="gPickMap" class="gbtn">📂 Load Map (.skmap)</button>
-      <!-- NEW DRIVE BUTTON -->
-      <button id="gPickDrive" class="gbtn">☁️ Load from Drive</button> 
+      
+      <!-- NEW DRIVE BUTTONS -->
+      <button id="gLoadDrive" class="gbtn" disabled>☁️ Load from Drive</button>
+      <button id="gSaveDrive" class="gbtn" disabled>☁️ Save to Drive</button>
+
       <input id="gImg" type="file" accept="image/*"/>
       <input id="gMap" type="file" accept=".skmap,.json,application/json"/>
     </div>
@@ -440,6 +444,8 @@ input[type=range].input:active::-webkit-slider-thumb {
       <div id="saveDropdown" class="dropdown-content">
           <button id="btnSaveMapOnly">💾 Save Map Only (.skmap)</button>
           <button id="btnSaveImageOnly">📤 Save Map as PDF (.pdf)</button>
+          <!-- NEW: Drive Save button in dropdown -->
+          <button id="btnSaveDriveDropdown" disabled>☁️ Save to Drive</button> 
       </div>
   </div>
 </header>
@@ -580,17 +586,332 @@ input[type=range].input:active::-webkit-slider-thumb {
 
 <script>
 (()=>{
-/* --- GOOGLE DRIVE AUTH CONFIGURATION --- */
-const CLIENT_ID = '746571343552-88ogvei1lvtq9ojq3te7fn06d1rlgut4.apps.googleusercontent.com';
-const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0';
-const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+/* ---------------------------------------------------------------------- */
+/* --------------------- GOOGLE DRIVE API INTEGRATION ------------------- */
+/* ---------------------------------------------------------------------- */
 
-let gAuthClient; // Google Authentication client object
-let isDriveApiReady = false;
-/* --------------------------------------- */
+// GOOGLE DRIVE CREDENTIALS (Implemented based on user input)
+const CLIENT_ID = '746571343552-88ogvei1lvtq9ojq3te7fn06d1rlgut4.apps.googleusercontent.com'; // OAuth 2.0 Client ID
+const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0'; // API Key
+const APP_ID = 'skedaddle-map-maker-481022'; // Numeric Project ID (used by Picker)
 
-/* ---------- DATA DEFINITIONS ---------- */
-// const CACHE_KEY = 'skedaddle_map_cache'; // REMOVED
+// Scopes required: Drive App Data folder and Drive File scope
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata'; 
+const MAP_MIME_TYPE = 'application/json';
+const MAP_FILE_EXTENSION = '.skmap';
+const MAP_FOLDER_NAME = 'Skedaddle Map Files';
+
+let accessToken = null;
+let tokenClient = null;
+let gapiReady = false;
+let gisReady = false;
+let driveFolderId = null; // Stores the ID of the dedicated map folder
+
+// Elements for Drive buttons
+const gLoadDriveBtn = document.getElementById('gLoadDrive');
+const gSaveDriveBtn = document.getElementById('gSaveDrive');
+const btnSaveDriveDropdown = document.getElementById('btnSaveDriveDropdown');
+
+// Initial load of GIS and GAPI libraries
+gapi.load('client:picker', gapiLoaded); // Load the GAPI client and picker module
+google.load('picker', '1', { 'callback': pickerLoaded }); // Load Picker API library
+
+/**
+ * Called when the GAPI client library is loaded.
+ */
+async function gapiLoaded() {
+    gapi.client.setApiKey(API_KEY);
+    await gapi.client.load('drive', 'v3'); // Load Drive API v3
+    gapiReady = true;
+    checkApiReadiness();
+}
+
+/**
+ * Called when the Picker API library is loaded.
+ */
+function pickerLoaded() {
+    gisReady = true;
+    // Initialize the Google Identity Services client (loads client_id and scopes)
+    tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: GDRIVE_SCOPES,
+        callback: (response) => {
+            // This callback is executed after the user grants/refreshes the token
+            if (response.error !== undefined) {
+                showAlert('Authorization Failed: ' + response.error);
+            } else {
+                accessToken = response.access_token;
+                updateDriveUI(true);
+                // After successful sign-in, try to get the dedicated folder ID
+                findOrCreateMapFolder();
+            }
+        },
+    });
+    checkApiReadiness();
+}
+
+/**
+ * Checks if both GAPI and Picker are ready and enables the Auth button.
+ */
+function checkApiReadiness() {
+    if (gapiReady && gisReady) {
+        gLoadDriveBtn.disabled = false;
+        gLoadDriveBtn.onclick = handleAuthClick;
+        gSaveDriveBtn.disabled = false;
+        gSaveDriveBtn.onclick = handleAuthClick;
+        
+        // This button acts as the primary sign-in for Drive access
+        gSaveDriveBtn.textContent = '☁️ Sign In to Drive';
+    }
+}
+
+/**
+ * Initiates the Google Sign-In/Authorization flow.
+ */
+function handleAuthClick() {
+    if (accessToken) {
+        // Token exists, proceed to action
+        const action = this.id; 
+        if (action === 'gLoadDrive') {
+            createPicker('load');
+        } else if (action === 'gSaveDrive') {
+             // If clicked the sign-in button, show a success message if already signed in
+             showAlert('Already signed in. Now use "Load from Drive" or "Save to Drive" in the menu!');
+        }
+        // Save to Drive from the dropdown will be handled by btnSaveDriveDropdown.onclick
+        return; 
+    }
+    
+    // Request a new token or refresh an expired one
+    tokenClient.requestAccessToken({ prompt: '' });
+}
+
+/**
+ * Updates the UI state after successful authentication.
+ */
+function updateDriveUI(isAuthenticated) {
+    if (isAuthenticated) {
+        // Update gate buttons
+        gLoadDriveBtn.textContent = '☁️ Load from Drive';
+        gLoadDriveBtn.onclick = () => createPicker('load');
+        gSaveDriveBtn.textContent = '✅ Drive Connected';
+        gSaveDriveBtn.disabled = true; // Disable sign-in button now that we have a token
+        
+        // Update dropdown button
+        btnSaveDriveDropdown.disabled = false;
+    } else {
+        gSaveDriveBtn.textContent = '☁️ Sign In to Drive';
+        btnSaveDriveDropdown.disabled = true;
+    }
+}
+
+
+/**
+ * Finds the dedicated map folder, or creates it if it doesn't exist.
+ */
+async function findOrCreateMapFolder() {
+    if (!accessToken) return;
+    try {
+        // Search for the folder
+        const response = await gapi.client.drive.files.list({
+            q: `mimeType='application/vnd.google-apps.folder' and name='${MAP_FOLDER_NAME}' and 'root' in parents and trashed=false`,
+            fields: 'files(id, name)',
+            spaces: 'drive',
+            oauthToken: accessToken
+        });
+
+        const files = response.result.files;
+        if (files && files.length > 0) {
+            driveFolderId = files[0].id;
+        } else {
+            // Folder not found, create it
+            const createResponse = await gapi.client.drive.files.create({
+                resource: {
+                    name: MAP_FOLDER_NAME,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: ['root']
+                },
+                fields: 'id',
+                oauthToken: accessToken
+            });
+            driveFolderId = createResponse.result.id;
+        }
+        console.log("Drive folder ID:", driveFolderId);
+    } catch (error) {
+        console.error('Error finding or creating Drive folder:', error);
+        showAlert('Error connecting to Google Drive folder.');
+    }
+}
+
+
+/**
+ * Opens the Google Picker dialog for file selection or saving.
+ * @param {'load'|'save'} pickerType - Determines the view to open.
+ */
+function createPicker(pickerType) {
+    if (!accessToken || !gapiReady || !gisReady) {
+        showAlert('Please sign in to Google Drive first.');
+        return;
+    }
+    
+    let view;
+    if (pickerType === 'load') {
+        // View for selecting an existing file (.skmap)
+        view = new google.picker.View(google.picker.ViewId.DOCS);
+        view.setMimeTypes(MAP_MIME_TYPE);
+        view.setSelectFolderEnabled(false);
+        view.setOwnedByMe(true); // Filter to owned files
+        view.setParent(driveFolderId); // Start in our dedicated folder
+        view.setQuery(MAP_FILE_EXTENSION); // Search for our file type
+        
+    } else if (pickerType === 'save') {
+        // View for saving a new file (upload view) - Less common, but good alternative
+        // We will primarily use the REST API for saving, but the Picker can be used as a simple Uploader
+        view = new google.picker.DocsUploadView().setParent(driveFolderId);
+    }
+
+    const picker = new google.picker.PickerBuilder()
+        .setAppId(APP_ID)
+        .setOAuthToken(accessToken)
+        .setDeveloperKey(API_KEY)
+        .addView(view)
+        .setCallback(pickerCallback)
+        .build();
+        
+    picker.setVisible(true);
+}
+
+/**
+ * Callback function executed after the user interacts with the Google Picker.
+ * @param {object} data - The Picker response data.
+ */
+function pickerCallback(data) {
+    if (data.action === google.picker.Action.PICKED) {
+        const file = data.docs[0];
+        const fileId = file[google.picker.Document.ID];
+        
+        if (file.mimeType === MAP_MIME_TYPE) {
+            // User selected an .skmap file
+            loadFromDrive(fileId);
+        } else {
+            showAlert('Selected file is not a valid map file.');
+        }
+    }
+}
+
+/**
+ * Downloads the content of a file from Google Drive and loads it into the map maker.
+ * @param {string} fileId - The ID of the Google Drive file.
+ */
+async function loadFromDrive(fileId) {
+    showAlert('Loading map from Google Drive...');
+    try {
+        const response = await gapi.client.drive.files.get({
+            fileId: fileId,
+            alt: 'media' // Important: fetches the file content, not metadata
+        });
+        
+        const mapDataString = response.body;
+        // Convert the string content to a File object for reuse with handleMap
+        const file = new File([mapDataString], 'downloaded_map.skmap', { type: MAP_MIME_TYPE });
+        
+        // Use the existing file loading function
+        handleMap(file); 
+        document.getElementById('modalAlert').style.display = 'none';
+        
+    } catch (error) {
+        console.error('Error downloading file from Drive:', error);
+        showAlert('Error loading map content from Drive. Check console for details.');
+    }
+}
+
+/**
+ * Saves the current map payload to Google Drive.
+ */
+async function saveToDrive() {
+    if (!accessToken || !driveFolderId) {
+        showAlert('Please sign in to Google Drive first.');
+        return;
+    }
+    
+    const payload = buildPayload();
+    const filename = `${getFilenameBase()}${MAP_FILE_EXTENSION}`;
+    const fileContent = JSON.stringify(payload);
+    const contentType = MAP_MIME_TYPE;
+    
+    showAlert('Saving map to Google Drive...');
+
+    try {
+        // 1. Check if the file already exists in the dedicated folder
+        const searchResponse = await gapi.client.drive.files.list({
+            q: `name='${filename}' and '${driveFolderId}' in parents and trashed=false`,
+            fields: 'files(id)',
+            spaces: 'drive',
+            oauthToken: accessToken
+        });
+
+        const existingFile = searchResponse.result.files?.[0];
+
+        if (existingFile) {
+            // 2. If file exists, update it (PUT request)
+            const updateResponse = await gapi.client.request({
+                path: `/upload/drive/v3/files/${existingFile.id}`,
+                method: 'PATCH',
+                params: {
+                    uploadType: 'media', // Use 'media' for simple content updates
+                },
+                headers: {
+                    'Content-Type': contentType,
+                },
+                body: fileContent,
+                oauthToken: accessToken
+            });
+            showAlert(`Map updated successfully in Drive! (ID: ${existingFile.id})`);
+        } else {
+            // 3. If file does not exist, create it (POST request)
+            const fileMetadata = {
+                'name': filename,
+                'mimeType': contentType,
+                'parents': [driveFolderId]
+            };
+
+            const multipartRequestBody =
+                '--BOUNDARY\r\n' +
+                'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+                JSON.stringify(fileMetadata) +
+                '\r\n--BOUNDARY\r\n' +
+                `Content-Type: ${contentType}\r\n\r\n` +
+                fileContent +
+                '\r\n--BOUNDARY--';
+
+            const createResponse = await gapi.client.request({
+                path: '/upload/drive/v3/files',
+                method: 'POST',
+                params: {
+                    uploadType: 'multipart',
+                },
+                headers: {
+                    'Content-Type': 'multipart/related; boundary="BOUNDARY"',
+                    'Content-Length': multipartRequestBody.length,
+                },
+                body: multipartRequestBody,
+                oauthToken: accessToken
+            });
+            showAlert(`Map saved successfully to Drive! (ID: ${createResponse.result.id})`);
+        }
+    } catch (error) {
+        console.error('Error saving file to Drive:', error);
+        showAlert('Error saving map to Google Drive. Please check permissions or try signing in again.');
+    }
+}
+
+
+/* ---------------------------------------------------------------------- */
+/* ------------------------ ORIGINAL MAP MAKER CODE --------------------- */
+/* ---------------------------------------------------------------------- */
+
+
+/* ---------- DATA DEFINITIONS (Rest of the original file is here) ---------- */
 const cats=[{name:"C9's",key:'c9',list:['fascia','peaks','ridges','groundstakes']},{name:'Minis',key:'min',list:['shrub','windows']},{name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},{name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},{name:'Power',key:'pwr',list:['powersource','cords','threeway']}];
 const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label'};
 const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label: 'LBL'};
@@ -609,7 +930,6 @@ function getColorCode(colorName) {
     }
     
     // 2. FIX: If it contains separators (spaces/slashes/commas), return the raw string.
-    // This string will be lowercased and split in drawContinuousLine.
     if (colorName.includes(' ') || colorName.includes('/') || colorName.includes(',')) {
         return colorName;
     }
@@ -1100,7 +1420,7 @@ function refreshTable(){
     });
 }
 
-/* ---------- CORE & VIEWPORT ---------- */
+/* ---------- CORE & VIEWPORT (Rest of the original file is here) ---------- */
 let cv = document.getElementById('cv');
 let ctx = cv.getContext('2d', {alpha: true}); 
 
@@ -1513,7 +1833,7 @@ function mergeLines(L, keepLine, mergeLine) {
     keepLine.cps = newCps;
     const idx = data[L].indexOf(mergeLine);
     if(idx > -1) data[L].splice(idx, 1);
-    markPowerDirty(); refreshTable();
+    refreshTable(); markPowerDirty();
 }
 
 cv.addEventListener('pointermove',e=>{
@@ -1645,6 +1965,7 @@ cv.addEventListener('pointerup',e=>{
     // Vertex/Icon drag release fix (1st priority)
     if (pointers.size === 1 && !wasGesture) { // Check size=1 to ensure the *last* pointerup is handled correctly
         if (draggingPoint) {
+            // Only release draggingPoint if this was the last pointer (size 1 after delete)
             draggingPoint = null;
             markPowerDirty();
             requestRender();
@@ -2682,7 +3003,7 @@ function drawContinuousLine(it, col, layerName) {
 
     // --- 2. BLACK OUTLINE (Ensures visibility) ---
     
-    // FIX: Skip general black outline for Cords
+    // FIX: Skip general black outline for Cords, as it's handled in step 4
     if (layerName !== 'cords') { 
         ctx.shadowBlur = 0;
         ctx.strokeStyle = 'black'; 
@@ -3386,7 +3707,8 @@ function applyUIState(o) {
 }
 
 
-const handleMap = (dataBlob)=>{
+const handleMap = (f)=>{
+    if(!f) return;
     const r=new FileReader(); r.onload=()=>{ 
         try{ 
             const o=JSON.parse(r.result); 
@@ -3469,7 +3791,6 @@ const handleMap = (dataBlob)=>{
                 };
             } 
             else { 
-                imgReady = false; // Important for blank maps
                 resetView(); 
                 applyState(o); // Apply job details
                 applyUIState(o); // Apply slider positions and toggles
@@ -3477,7 +3798,7 @@ const handleMap = (dataBlob)=>{
             } 
         }catch(e){showAlert('Error loading map'); console.error('Error loading map:', e);} 
     };
-    r.readAsText(dataBlob);
+    r.readAsText(f);
 };
 
 function applyState(o){
@@ -3547,159 +3868,8 @@ document.getElementById('btnCustomerControlled').onclick = () => {
 document.getElementById('gPickImg').onclick=()=>document.getElementById('gImg').click();
 document.getElementById('gPickMap').onclick=()=>document.getElementById('gMap').click();
 document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.target.value=''; };
-document.getElementById('gMap').onchange=e=>{ 
-    if(!e.target.files[0]) return;
-    handleMap(e.target.files[0]); 
-    e.target.value=''; 
-};
+document.getElementById('gMap').onchange=e=>{ handleMap(e.target.files[0]); e.target.value=''; };
 
-
-// --- GOOGLE DRIVE INTEGRATION FUNCTIONS ---
-
-// 1. Initialization and Authorization
-function handleAuthResult(authResult) {
-    console.log('[Drive Auth] Result:', authResult);
-    if (authResult && !authResult.error) {
-        console.log('[Drive Auth] Authorization successful. Attempting to open Picker...');
-        createPicker();
-    } else {
-        // Log the specific error if available
-        if (authResult.error) console.error('[Drive Auth] Error:', authResult.error);
-        showAlert('Google Drive authorization failed. Please sign in again. (Check console for details)');
-    }
-}
-
-function authDriveAndOpenPicker() {
-    if (!isDriveApiReady) {
-        console.warn('[Drive Auth] API not ready when button clicked.');
-        // Re-attempt manual load if the flag is still false
-        if (window.gapi && window.gapi.load) {
-            gapi.load('client:picker', window.gapiLoaded); 
-        }
-        showAlert('Google Drive API is still loading. Please wait a moment and try again.');
-        return;
-    }
-    
-    // Request token via the configured client
-    const token = gAuthClient.getAccessToken();
-    if (token) {
-        console.log('[Drive Auth] Token already exists, proceeding to Picker.');
-        createPicker();
-    } else {
-        console.log('[Drive Auth] Requesting new access token...');
-        // CRITICAL CHECK: Ensure the OAuth client object exists before calling requestAccessToken()
-        if (gAuthClient && gAuthClient.requestAccessToken) {
-            // This initiates the pop-up/redirect flow for the user to sign in
-            gAuthClient.requestAccessToken();
-        } else {
-            console.error('[Drive Auth] gAuthClient is not initialized correctly.');
-            showAlert('Initialization error. Please check your OAuth Client ID setup.');
-        }
-    }
-}
-
-// Global function required by the gapi load script
-window.gapiLoaded = function() {
-    console.log('[GAPI] Client Library loaded. Initializing Drive client...');
-    gapi.client.init({
-        apiKey: API_KEY,
-        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-    }).then(() => {
-        console.log('[GAPI] Drive client initialized.');
-        // 2. Initialize Google Identity Services for OAuth
-        gAuthClient = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: handleAuthResult,
-            error_callback: (error) => {
-                 console.error('Google Auth Error:', error);
-                 showAlert('Google sign-in failed. Check console for details.');
-            }
-        });
-        isDriveApiReady = true;
-        console.log('[GAPI] API Ready. Drive function enabled.');
-    }, (error) => {
-        console.error('[GAPI] Client Load Error:', error);
-        showAlert('Failed to initialize Google APIs.');
-    });
-}
-
-// 2. Google Picker Logic
-function createPicker() {
-    // CRITICAL: Check for Picker before use, if it fails, it might be a pop-up blocker
-    if (!google.picker) {
-        showAlert("Error: Google Picker not loaded. Check for pop-up blockers or authorization errors in the console.");
-        return;
-    }
-
-    const view = new google.picker.View(google.picker.ViewId.DOCS);
-    view.setMimeTypes('application/json,text/plain'); // Filter for JSON/text files (includes .skmap)
-    view.setQuery('*.skmap'); // Optional search query
-
-    try {
-        const picker = new google.picker.PickerBuilder()
-            .setAppId(CLIENT_ID) 
-            .setOAuthToken(gAuthClient.getAccessToken())
-            .setDeveloperKey(API_KEY)
-            .setCallback(pickerCallback)
-            .addView(view)
-            .enableFeature(google.picker.Feature.NAV_HIDDEN) // Hide navigation panel (optional)
-            .build();
-
-        picker.setVisible(true);
-        console.log('[Picker] Picker window attempting to open.');
-
-    } catch (e) {
-        console.error('[Picker] Failed to build/show picker:', e);
-        showAlert("Failed to open Google Drive file picker. This is often caused by pop-up blockers.");
-    }
-}
-
-function pickerCallback(data) {
-    if (data.action === google.picker.Action.PICKED) {
-        const fileId = data.docs[0].id;
-        console.log('[Picker Callback] File picked:', fileId);
-        fetchDriveFileContent(fileId);
-    }
-}
-
-// 3. Fetch File Content from Drive
-function fetchDriveFileContent(fileId) {
-    const accessToken = gAuthClient.getAccessToken();
-    if (!accessToken) {
-        showAlert('Missing authentication token for Drive API.');
-        return;
-    }
-
-    // Direct fetch using the Drive V3 API to get content as a Blob
-    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-
-    fetch(downloadUrl, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status} (File access denied or missing)`);
-        }
-        return response.blob();
-    })
-    .then(blob => {
-        if (blob.type !== 'application/json' && blob.type !== 'text/plain') {
-             // Handle case where user somehow selected a non-map file
-             showAlert(`Selected file type (${blob.type}) is not a valid map file.`);
-             return;
-        }
-        // Use handleMap function to process the Blob/File object
-        handleMap(blob); 
-    })
-    .catch(error => {
-        console.error('Error fetching file from Drive:', error);
-        showAlert('Failed to download file content from Google Drive.');
-    });
-}
 
 // --- SAVE/EXPORT LOGIC ---
 
@@ -3761,6 +3931,11 @@ document.getElementById('btnSaveAll').onclick = (e) => {
 // Handle Dropdown button clicks
 document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly(); document.getElementById('saveDropdown').style.display = 'none'; };
 document.getElementById('btnSaveImageOnly').onclick = () => { performSavePdf(); document.getElementById('saveDropdown').style.display = 'none'; };
+
+// NEW DRIVE LOAD/SAVE BUTTON HANDLERS
+document.getElementById('gLoadDrive').onclick = handleAuthClick; // Will trigger the picker if authenticated
+document.getElementById('btnSaveDriveDropdown').onclick = () => { saveToDrive(); document.getElementById('saveDropdown').style.display = 'none'; };
+
 
 // Handle Validation Modal confirmation
 document.getElementById('btnSaveConfirm').onclick = () => { 
@@ -4037,7 +4212,7 @@ function captureCanvasData() {
                      const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y);
                      let count = Math.floor(dist/150 * settings.arrowFreqFactor); 
                      if (e.type !== 'cords' && count === 0 && settings.arrowFreqFactor > 0.5) count = 1; 
-
+                     
                      if(cp) {
                          for(let k=1; k<=count; k++){
                              let t = k / (count+1);
@@ -4321,64 +4496,15 @@ function initializeUI() {
     updateArrowFreqUI();
 }
 
-// Load the Google API client library callback
-// CRITICAL: We need to define this callback globally so the script tag knows where to go.
-// The GAPI load call should fire as soon as the script tag is executed.
-if (window.gapi) {
-    gapi.load('client:picker', window.gapiLoaded);
-}
-
-
 document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
     initializeAndSizeContext();
-    
     // Default back button trap setup.
     document.getElementById('btnStay').onclick = () => { document.getElementById('modalBack').style.display = 'none'; history.pushState(null, null, location.href); };
     document.getElementById('btnLeave').onclick = () => { document.getElementById('modalBack').style.display = 'none'; history.back(); };
     
     // Add relabeling listener
     document.getElementById('btnRelabelIDs').onclick = relabelIds;
-    
-    // Add Google Drive Load listener
-    // This handler remains, but the initialization flow ensures it runs only when ready
-    document.getElementById('gPickDrive').onclick = () => {
-        if (!isDriveApiReady) {
-            console.warn('[Click] API not ready, forcing auth check.');
-            // Attempt a manual check if the flag is still false, as the error may happen later in the flow
-            if (window.gapi && window.gapi.load) {
-                 gapi.load('client:picker', window.gapiLoaded); // Re-trigger load if necessary
-            }
-            showAlert('Google Drive API is still loading. Please wait a moment and try again.');
-        } else {
-            authDriveAndOpenPicker();
-        }
-    };
-    
-    // FIX: Add logic for Start Blank Map
-    document.getElementById('gPickBlank').onclick = () => {
-        // Reset all data and settings to default/blank state
-        Object.keys(data).forEach(k => {
-            data[k] = [];
-        });
-        imgDataUrl = null;
-        imgReady = false;
-        scale = 1; panX = 0; panY = 0;
-        selectedItem = null;
-        draggingPoint = null;
-        actionCounter = 0;
-        redoStack = [];
-        startNewSketch(); // Resets sketch and ensures completion button is disabled
-        document.getElementById('customer').value = '';
-        document.getElementById('address').value = '';
-        document.getElementById('jobNotes').value = '';
-        
-        // Reset zoom/pan (optional, but good for starting blank)
-        resetView(); 
-        
-        refreshTable();
-        unlock(); // Unlock the splash screen
-    };
 });
 })();
 </script>
