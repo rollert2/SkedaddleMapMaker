@@ -375,7 +375,7 @@ input[type=range].input:active::-webkit-slider-thumb {
         <h3>Alert</h3>
         <p id="alertMsg">Message</p>
         <div class="row"><button onclick="document.getElementById('modalAlert').style.display='none'" class="btn-ok">OK</button></div>
-    </div>
+</div>
 </div>
 
 <!-- Save Validation Modal -->
@@ -945,7 +945,6 @@ function getColorCode(colorName) {
     }
     
     // 2. FIX: If it contains separators (spaces/slashes/commas), return the raw string.
-    // This string will be lowercased and split in drawContinuousLine.
     if (colorName.includes(' ') || colorName.includes('/') || colorName.includes(',')) {
         return colorName;
     }
@@ -1723,6 +1722,172 @@ function projOnSeg(p,a,b){
 }
 function nextIndex(prefix){const re=new RegExp('^'+prefix+'(\\d+)$','i');const used=new Set();for(const L in data){for(const it of data[L]){const m=(it.label||'').match(re);if(m)used.add(+m[1])}}let i=1;while(used.has(i))i++;return i}
 
+/* ---------- CORE UTILITIES (Icon/Snap/Placement) ---------- */
+
+// Helper to find nearest line point/segment for snapping
+function getSnapLineOnly(wx, wy, thresholdW){
+    let best = null; let minD = thresholdW;
+    const p = {x:wx, y:wy};
+    ['ridges','fascia','peaks','groundstakes','garland','shrub','windows'].forEach(L=>{
+        data[L].forEach(line=>{
+            for(let i=0; i<line.points.length-1; i++){
+                const a=line.points[i]; const b=line.points[i+1];
+                const proj=projOnSeg(p,a,b);
+                const d=Math.hypot(p.x-proj.q.x, p.y-proj.q.y);
+                if(d<minD){
+                    minD=d;
+                    best={x:proj.q.x, y:proj.q.y, type:'mid', host:line, seg:i};
+                }
+            }
+        });
+    });
+    return best;
+}
+
+// Main snap function for both ends/junctions and mid-segments
+function getSnap(sx, sy, thresholdS){
+    const w=toWorld(sx, sy);
+    const thresholdW=thresholdS/scale;
+    let best=null; let minD=thresholdW;
+    const p = w;
+
+    // 1. Snap to Line End/Start (Higher priority)
+    ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'].forEach(L=>{
+        data[L].forEach(line=>{
+            if(line.points.length>0){
+                [line.points[0], line.points[line.points.length-1]].forEach(pt=>{
+                    const d=Math.hypot(p.x-pt.x, p.y-pt.y);
+                    if(d<minD){ minD=d; best={x:pt.x, y:pt.y, type:'end', host:line}; }
+                });
+            }
+        });
+    });
+
+    // 2. Snap to Icon/Junction (Same priority as ends)
+    ['powersource','threeway','wreath','bow','tree'].forEach(L=>{
+        data[L].forEach(it=>{
+            if(it.pt){
+                const d=Math.hypot(p.x-it.pt.x, p.y-it.pt.y);
+                if(d<minD){ minD=d; best={x:it.pt.x, y:it.pt.y, type:'junction', host:it}; }
+            }
+        });
+    });
+
+    // 3. Snap to Line Segment Midpoint (Lower priority)
+    if(!best){
+        minD = thresholdW;
+        ['ridges','fascia','peaks','groundstakes','garland','shrub','windows'].forEach(L=>{
+            data[L].forEach(line=>{
+                for(let i=0; i<line.points.length-1; i++){
+                    const a=line.points[i]; const b=line.points[i+1];
+                    const proj=projOnSeg(p,a,b);
+                    const d=Math.hypot(p.x-proj.q.x, p.y-proj.q.y);
+                    if(proj.t>=0 && proj.t<=1 && d<minD){
+                        minD=d;
+                        best={x:proj.q.x, y:proj.q.y, type:'proj', host:line, seg:i};
+                    }
+                }
+            });
+        });
+    }
+
+    return best;
+}
+
+// Checks how many lines are connected to a junction (for 3-Way limit)
+function countConnections(junction) {
+    let count = 0;
+    const junctionWorld = junction.pt;
+    const TOL_SQR = 0.5 * 0.5;
+    
+    // Check line connections
+    ['ridges', 'fascia', 'peaks', 'groundstakes', 'garland', 'cords', 'shrub', 'windows'].forEach(L => {
+        data[L].forEach(line => {
+            if (line.points.length > 0) {
+                // Check start point
+                if (Math.hypot(line.points[0].x - junctionWorld.x, line.points[0].y - junctionWorld.y) < TOL_SQR) count++;
+                // Check end point (if not the same as start)
+                const end = line.points[line.points.length - 1];
+                if (line.points.length > 1 && Math.hypot(end.x - junctionWorld.x, end.y - junctionWorld.y) < TOL_SQR) count++;
+            }
+        });
+    });
+
+    return count;
+}
+
+// Finds if a 3-Way junction exists at a given world point
+function find3WayAt(pt) {
+    const TOL_SQR = 0.5 * 0.5;
+    for(const tw of data.threeway){
+        if(Math.hypot(tw.pt.x - pt.x, tw.pt.y - pt.y) < TOL_SQR) return tw;
+    }
+    return null;
+}
+
+// Handles the placement of Icons/single-point items (Wreath, Tree, Power, 3-Way, Bow)
+function placeItem(L, w, sx, sy){
+    let item;
+    const {label, index} = getNewItemData(L);
+    
+    if(L==='tree') {
+         placeTree(L, w, sx, sy, label, index); 
+         return; 
+    } else if(L==='wreath') {
+         placeWreath(L, w, sx, sy, label, index);
+         return;
+    }
+    
+    // For simple icons (Power, 3-Way, Bow)
+    item = {pt:w, label:label, index:index, kind: L};
+    
+    data[L].push(item);
+    markPowerDirty(); requestRender(); refreshTable();
+}
+
+// Handles placing a Tree, including the ToL size popup
+function placeTree(L, w, sx, sy, label, index) {
+    if (currTreeKind === 'ToL') {
+        openPop(document.getElementById('tolPop'), sx, sy, (size) => {
+            const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size)};
+            data[L].push(item);
+            markPowerDirty(); requestRender(); refreshTable();
+        });
+    } else {
+        const item = {pt:w, label:label, index:index, kind: currTreeKind};
+        data[L].push(item);
+        markPowerDirty(); requestRender(); refreshTable();
+    }
+}
+
+// Handles placing a Wreath, including the bow position popup
+function placeWreath(L, w, sx, sy, label, index) {
+    openPop(document.getElementById('wreathPop'), sx, sy, (bow) => {
+        const item = {pt:w, label:label + (currWreathSize === '42"' ? ' (42)' : ''), index:index, size: currWreathSize, bow: bow};
+        data[L].push(item);
+        markPowerDirty(); requestRender(); refreshTable();
+    });
+}
+
+// Function to finalize the current drawn line (FIXED)
+function completeSketch() {
+    if (!sketch || sketch.points.length < 2) return;
+    
+    // Add the completed line to the permanent data structure
+    data[sketch.layer].push(sketch); 
+    
+    // Reset state and start a new sketch for the same layer
+    const layer = sketch.layer;
+    sketch = null;
+    document.getElementById('btnComplete').disabled = true;
+    startNewSketch(); // Start a fresh sketch immediately
+    
+    // Update dependencies
+    markPowerDirty(); 
+    refreshTable();
+    requestRender(); 
+}
+
 /* ---------- INPUT ---------- */
 let pointers=new Map(),gesture=false,gMid=null,gScale=1,gPanX=0,gPanY=0,gDist=0;
 function mp(a,b){return{x:(a.x+b.x)/2,y:(a.y+b.y)/2}}
@@ -2351,13 +2516,35 @@ function startNewSketch(){
     document.getElementById('btnComplete').disabled=true;
 }
 
+// Function to finalize the current drawn line (FIXED)
+function completeSketch() {
+    if (!sketch || sketch.points.length < 2) return;
+    
+    // Add the completed line to the permanent data structure
+    data[sketch.layer].push(sketch); 
+    
+    // Reset state and start a new sketch for the same layer
+    const layer = sketch.layer;
+    sketch = null;
+    document.getElementById('btnComplete').disabled = true;
+    startNewSketch(); // Start a fresh sketch immediately
+    
+    // Update dependencies
+    markPowerDirty(); 
+    refreshTable();
+    requestRender(); 
+}
+
+document.getElementById('btnComplete').onclick = completeSketch; // <-- ADDED HANDLER
+
 function handleTap(sx,sy){
     if(!imgReady || mode!=='draw' || draggingPoint) return;
     const w=toWorld(sx,sy);
     redoStack = []; document.getElementById('btnRedo').disabled = true;
 
     if(['powersource','threeway','tree','wreath','bow'].includes(currLayer)){
-        placeItem(currLayer, w, sx, sy);
+        // This was the missing function causing the failure
+        placeItem(currLayer, w, sx, sy); 
         return;
     }
     if(!sketch) startNewSketch();
@@ -3158,14 +3345,14 @@ function draw(){
         imageFilter = 'brightness(0.25) grayscale(0.2)'; 
     }
     
-    if(imgReady){ 
+    if(imgReady && imgDataUrl){ 
         ctx.filter = imageFilter;
         ctx.drawImage(bg, panX, panY, bg.width*scale, bg.height*scale); 
         ctx.filter = 'none'; // Reset filter before drawing lines/icons
     } else {
         ctx.fillStyle='#151b2b'; ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.font='16px system-ui'; ctx.fillStyle='#456';
-        ctx.fillText('Load an image to start', cw/2, ch/2);
+        ctx.fillText('Load an image to start or click to draw on a blank map', cw/2, ch/2);
     }
 
     // --- DRAW LINES (Cords, Lines, Garland, Shrub, Windows) ---
@@ -3401,8 +3588,7 @@ function draw(){
             ctx.lineWidth = strokeWidth; 
             ctx.stroke(); 
             ctx.strokeStyle = 'white'; 
-            ctx.lineWidth = strokeWidth/2; 
-            ctx.stroke(); 
+            ctx.lineWidth = strokeWidth/2; ctx.stroke(); 
             ctx.shadowBlur = 0; // Reset after drawing threeway item
         });
     }
@@ -3515,6 +3701,17 @@ const handleImg = (f)=>{
     };
     r.readAsDataURL(f);
 };
+
+// New function to safely initiate a blank map state (FIX for blank map drawing)
+function startBlankMap() {
+    // Set default dimensions for coordinate system if none exist (1000x1000 world units)
+    bg.width = 1000;
+    bg.height = 1000;
+    imgDataUrl = null; // Ensure no old image data is kept
+    imgReady = true; 
+    resetView();
+    unlock();
+}
 
 // --- NEW FUNCTION TO APPLY UI STATE ---
 function applyUIState(o) {
@@ -3643,6 +3840,10 @@ const handleMap = (f)=>{
                 };
             } 
             else { 
+                // CRITICAL FIX: Ensure image background dimensions are set even if image data is missing
+                bg.width = o.bg_width || 1000;
+                bg.height = o.bg_height || 1000;
+                imgReady = true;
                 resetView(); 
                 applyState(o); // Apply job details
                 applyUIState(o); // Apply slider positions and toggles
@@ -4375,7 +4576,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeGateBtn = document.getElementById('closeGateBtn'); // Added closeGateBtn
 
     if (gPickImg) gPickImg.onclick = () => { if (gImg) gImg.click(); };
-    if (gPickBlank) gPickBlank.onclick = () => { unlock(); };
+    if (gPickBlank) gPickBlank.onclick = () => { startBlankMap(); }; // <-- FIX: Call startBlankMap to initialize state
     if (gPickMap) gPickMap.onclick = () => { if (gMap) gMap.click(); };
     if (closeGateBtn) closeGateBtn.onclick = () => { unlock(); }; // Attach listener in JS
     
