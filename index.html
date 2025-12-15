@@ -605,8 +605,12 @@ input[type=range].input:active::-webkit-slider-thumb {
 /* ---------------------------------------------------------------------- */
 
 // GOOGLE DRIVE CREDENTIALS (Implemented based on user input)
+// !!! CRITICAL: Replace these with your actual, verified credentials from Google Cloud Console.
+// 1. OAuth 2.0 Client ID (Web application)
 const CLIENT_ID = '746571343552-88ogvei1lvtq9ojq3te7fn06d1rlgut4.apps.googleusercontent.com'; // OAuth 2.0 Client ID
+// 2. API Key (Developer Key, for REST calls)
 const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0'; // API Key
+// 3. Numeric Project ID (from Google Cloud Console -> Project info)
 const APP_ID = 'skedaddle-map-maker-481022'; // Numeric Project ID (used by Picker)
 
 // Scopes required: Only for file loading via Picker and App Data
@@ -781,7 +785,7 @@ async function loadFromDrive(fileId) {
 /* ---------- DATA DEFINITIONS ---------- */
 const cats=[{name:"C9's",key:'c9',list:['fascia','peaks','ridges','groundstakes']},{name:'Minis',key:'min',list:['shrub','windows']},{name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},{name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},{name:'Power',key:'pwr',list:['powersource','cords','threeway']}];
 const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label'};
-const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label: 'LBL'};
+const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label:'LBL'};
 const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],garland:[],wreath:[],bow:[],cords:[],powersource:[],threeway:[],tree:[], label:[]}; // Add label layer
 
 // Extended color lookup for white variants
