@@ -596,9 +596,9 @@ const CLIENT_ID = '746571343552-88ogvei1lvtq9ojq3te7fn06d1rlgut4.apps.googleuser
 const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0'; // API Key
 const APP_ID = 'skedaddle-map-maker-481022'; // Numeric Project ID (used by Picker)
 
-// --- UPDATED SCOPES: Removed drive.readonly ---
-// Rely on drive.file for both save and subsequent load of app-created files.
-const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata'; 
+// Scopes required: Drive App Data folder and Drive File scope
+// CRITICAL FIX: Added drive.readonly scope for file content download
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.readonly'; 
 const MAP_MIME_TYPE = 'application/json';
 const MAP_FILE_EXTENSION = '.skmap';
 const MAP_FOLDER_NAME = 'Skedaddle Map Files';
@@ -637,32 +637,23 @@ gapi.load('client:picker', async () => {
     }
 });
 
-// Callback for the token request (used by handleAuthClick and forceAuthAndSave)
-const tokenCallback = (response) => {
-    if (response.error !== undefined) {
-        // If authorization fails during initial sign-in or forced save
-        showAlert('Authorization Failed: ' + response.error);
-    } else {
-        accessToken = response.access_token;
-        updateDriveUI(true);
-        // After successful sign-in, try to get the dedicated folder ID
-        findOrCreateMapFolder();
-        
-        // Check if there is a pending save operation
-        if (window._pendingDriveSave) {
-            window._pendingDriveSave();
-            window._pendingDriveSave = null;
-        }
-    }
-};
-
 // Initialize Google Identity Services (GIS)
 function initGis() {
     try {
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
             scope: GDRIVE_SCOPES,
-            callback: tokenCallback, // Use the shared callback
+            callback: (response) => {
+                // This callback is executed after the user grants/refreshes the token
+                if (response.error !== undefined) {
+                    showAlert('Authorization Failed: ' + response.error);
+                } else {
+                    accessToken = response.access_token;
+                    updateDriveUI(true);
+                    // After successful sign-in, try to get the dedicated folder ID
+                    findOrCreateMapFolder();
+                }
+            },
         });
         gisReady = true;
         checkApiReadiness();
@@ -681,9 +672,6 @@ function checkApiReadiness() {
         gSaveDriveBtn.disabled = false;
         gSaveDriveBtn.onclick = handleAuthClick;
         
-        // Update header buttons
-        btnSaveDriveOnly.disabled = false;
-        
         // This button acts as the primary sign-in for Drive access
         gSaveDriveBtn.textContent = '☁️ Sign In to Drive';
     }
@@ -699,9 +687,11 @@ function handleAuthClick(event) {
     if (accessToken) {
         // Token exists, proceed to action
         if (action === 'gLoadDrive') {
+            // CRITICAL FIX: Explicitly call createPicker('load') here
             createPicker('load');
         } else if (action === 'gSaveDrive') {
-             showAlert('Already signed in. Now use "Load from Drive" or the new "Drive" button!');
+             // If clicked the sign-in button, show a success message if already signed in
+             showAlert('Already signed in. Now use "Load from Drive" or "Save to Drive" in the menu!');
         }
         return; 
     }
@@ -766,6 +756,7 @@ async function findOrCreateMapFolder() {
         return driveFolderId;
     } catch (error) {
         console.error('Error finding or creating Drive folder:', error);
+        // Note: We don't call showAlert here, let the caller handle the error/message
         return null; 
     }
 }
@@ -785,6 +776,7 @@ async function createPicker(pickerType) {
     // CRITICAL FIX: Ensure folder ID is available before opening the picker.
     if (!driveFolderId) {
          showAlert('Initializing Drive folder... please try clicking Load again in a moment.');
+         // Force the asynchronous folder lookup again in case the initial call failed or hasn't completed
          const folderId = await findOrCreateMapFolder(); 
          if (!folderId) return;
     }
@@ -855,26 +847,31 @@ async function loadFromDrive(fileId) {
 }
 
 /**
- * Executes the core file save operation to Google Drive.
+ * Saves the current map payload to Google Drive.
  */
-async function performDriveSaveInternal() {
-    // This function assumes accessToken and driveFolderId are already valid.
+async function saveToDrive() {
+    if (!accessToken) {
+        showAlert('Please sign in to Google Drive first.');
+        return;
+    }
+    
+    // FIX: Ensure driveFolderId is set before proceeding
+    if (!driveFolderId) {
+        const folderId = await findOrCreateMapFolder();
+        if (!folderId) {
+            showAlert('Error saving map to Google Drive. Failed to find or create the dedicated folder.');
+            return;
+        }
+    }
     
     const payload = buildPayload();
     const filename = `${getFilenameBase()}${MAP_FILE_EXTENSION}`;
     const fileContent = JSON.stringify(payload);
     const contentType = MAP_MIME_TYPE;
+    
+    showAlert('Saving map to Google Drive...');
 
     try {
-        // Ensure folder ID is set before proceeding
-        if (!driveFolderId) {
-            const folderId = await findOrCreateMapFolder();
-            if (!folderId) {
-                showAlert('Error saving map to Google Drive. Failed to find or create the dedicated folder.');
-                return;
-            }
-        }
-
         // 1. Check if the file already exists in the dedicated folder
         const searchResponse = await gapi.client.drive.files.list({
             q: `name='${filename}' and '${driveFolderId}' in parents and trashed=false`,
@@ -886,8 +883,8 @@ async function performDriveSaveInternal() {
         const existingFile = searchResponse.result.files?.[0];
 
         if (existingFile) {
-            // 2. If file exists, update it (PATCH request)
-            await gapi.client.request({
+            // 2. If file exists, update it (PUT request)
+            const updateResponse = await gapi.client.request({
                 path: `/upload/drive/v3/files/${existingFile.id}`,
                 method: 'PATCH',
                 params: {
@@ -934,23 +931,7 @@ async function performDriveSaveInternal() {
         }
     } catch (error) {
         console.error('Error saving file to Drive:', error);
-        // Display the user-facing alert
         showAlert('Error saving map to Google Drive. Please check permissions or try signing in again.');
-    }
-}
-
-/**
- * Public function to save to Drive, handling authentication flow first.
- */
-function saveToDrive() {
-    if (!accessToken) {
-        // If not signed in, save the internal function as a pending action
-        // and force the user to authorize/re-authorize, ensuring 'consent' is prompted.
-        window._pendingDriveSave = () => performDriveSaveInternal();
-        tokenClient.requestAccessToken({ prompt: 'consent' });
-    } else {
-        // If signed in, attempt the save directly
-        performDriveSaveInternal();
     }
 }
 
@@ -1901,6 +1882,653 @@ function placeWreath(L, w, sx, sy, label, index) {
         data[L].push(item);
         markPowerDirty(); requestRender(); refreshTable();
     });
+}
+
+// Function to finalize the current drawn line (FIXED)
+function completeSketch() {
+    if (!sketch || sketch.points.length < 2) return;
+    
+    // Add the completed line to the permanent data structure
+    data[sketch.layer].push(sketch); 
+    
+    // Reset state and start a new sketch for the same layer
+    const layer = sketch.layer;
+    sketch = null;
+    document.getElementById('btnComplete').disabled = true;
+    startNewSketch(); // Start a fresh sketch immediately
+    
+    // Update dependencies
+    markPowerDirty(); 
+    refreshTable();
+    requestRender(); 
+}
+
+/* ---------- INPUT ---------- */
+let pointers=new Map(),gesture=false,gMid=null,gScale=1,gPanX=0,gPanY=0,gDist=0;
+function mp(a,b){return{x:(a.x+b.x)/2,y:(a.y+b.y)/2}}
+function ds(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+const toWorld=(sx,sy)=>({x:(sx-panX)/scale,y:(sy-panY)/scale});
+const toScr=p=>({x:p.x*scale+panX,y:p.y*scale+panY});
+
+let selectedItem = null, draggingPoint = null;
+let currentSnapLine = null; 
+let draggedLabelTarget = null; // NEW: Label currently being dragged
+
+let dragStartX=0, dragStartY=0, dragPanStartX=0, dragPanStartY=0;
+
+cv.addEventListener('pointerdown',e=>{
+    cv.setPointerCapture(e.pointerId);
+    const r=canvasWrap.getBoundingClientRect();
+    const ex = e.clientX-r.left, ey = e.clientY-r.top;
+    pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
+    
+    document.getElementById('lblEditor').style.display = 'none';
+    document.getElementById('movePop').style.display = 'none'; // Hide popups on new interaction
+
+    if(pointers.size === 1) {
+        isTapCandidate = true;
+        tapDownX = ex; tapDownY = ey;
+        dragStartX = ex; dragStartY = ey;
+        dragPanStartX = panX; dragPanStartY = panY;
+        
+        if (mode === 'move' && selectedItem) {
+             // Initiate full object drag
+             dragStartPt = { x: selectedItem.obj.pt ? selectedItem.obj.pt.x : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).x : 0),
+                             y: selectedItem.obj.pt ? selectedItem.obj.pt.y : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).y : 0) };
+             return;
+        } else if (mode === 'move-label' && selectedItem) { // NEW: Initiate label drag
+             const target = checkLabelClick(ex, ey, selectedItem.obj, selectedItem.type);
+             if (target) {
+                 draggedLabelTarget = target;
+                 return;
+             }
+        }
+    }
+    
+    if(pointers.size >= 2){
+        isTapCandidate = false; gesture=true;
+        const v=[...pointers.values()];
+        gDist=ds(v[0],v[1]); gMid=mp(v[0],v[1]);
+        gScale=scale; gPanX=panX; gPanY=panY;
+        return;
+    }
+    
+    if(mode === 'select' || mode === 'move') {
+        const w = toWorld(ex, ey);
+        // Try to heal only if clicking near a junction, don't interfere with dragging/selecting
+        let clickedObj = null;
+        data.threeway.forEach(t => { if(Math.hypot(toScr(t.pt).x - ex, toScr(t.pt).y - ey) < 30) clickedObj = t; });
+        if(!clickedObj) {
+            data.powersource.forEach(t => { if(Math.hypot(toScr(t.pt).x - ex, toScr(t.pt).y - ey) < 30) clickedObj = t; });
+        }
+        if(clickedObj) attemptHeal(clickedObj.pt);
+        
+        // Check if clicking anything to decide if pan or select drag starts
+        let hit = false;
+        const search = (list)=>{
+             list.forEach(obj=>{
+                 if(obj.points){
+                     // Check Vertices (for dragging)
+                     for(let i=0; i<obj.points.length; i++) if(Math.hypot(ex-toScr(obj.points[i]).x, ey-toScr(obj.points[i]).y)<30) hit=true;
+                     // Check Segments (for selecting/deleting)
+                     if(!hit) {
+                         for(let i=0; i<obj.points.length-1; i++){
+                             const p=projOnSeg(w, obj.points[i], obj.points[i+1]);
+                             if(p.t>=0 && p.t<=1 && Math.hypot(ex-toScr(p.q).x, ey-toScr(p.q).y)<30) hit=true;
+                         }
+                     }
+                 } else if(obj.pt){
+                     // Check Icons/Single Points
+                     if(Math.hypot(ex-toScr(obj.pt).x, ey-toScr(obj.pt).y)<30) hit=true;
+                 }
+             });
+        };
+        Object.keys(data).forEach(k=>search(data[k]));
+        
+        if(!hit) {
+            // Drag on empty space -> Pan (handled in pointermove later)
+        } else {
+             // Drag on item/point -> Select drag
+             // This function handles setting 'draggingPoint' and 'selectedItem'
+             handleSelectDown(ex, ey); 
+        }
+    }
+    
+    if(mode === 'label') {
+        // Only allow tap to bring up label editor, prevent panning/dragging in this mode
+        // Tap is handled in pointerup
+    }
+});
+
+function attemptHeal(pt) {
+    const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
+    let candidates = [];
+    lineLayers.forEach(L => {
+        data[L].forEach(line => {
+            if(line.points) {
+                const pStart = line.points[0];
+                const pEnd = line.points[line.points.length-1];
+                if(Math.hypot(pStart.x-pt.x, pStart.y-pt.y) < 0.1) candidates.push({line, L, end:'start'});
+                else if(Math.hypot(pEnd.x-pt.x, pEnd.y-pt.y) < 0.1) candidates.push({line, L, end:'end'});
+            }
+        });
+    });
+    if(candidates.length === 2 && candidates[0].L === candidates[1].L) {
+        const A = candidates[0].line;
+        const B = candidates[1].line;
+        if (!A.isSplit || !B.isSplit) return; 
+        if(candidates[0].end === 'end' && candidates[1].end === 'start') mergeLines(candidates[0].L, A, B);
+        else if (candidates[1].end === 'end' && candidates[0].end === 'start') mergeLines(candidates[0].L, B, A);
+    }
+}
+
+function mergeLines(L, keepLine, mergeLine) {
+    const newPoints = keepLine.points.concat(mergeLine.points.slice(1));
+    const newCps = (keepLine.cps || []).concat(mergeLine.cps || []);
+    keepLine.points = newPoints;
+    keepLine.cps = newCps;
+    const idx = data[L].indexOf(mergeLine);
+    if(idx > -1) data[L].splice(idx, 1);
+    refreshTable(); markPowerDirty();
+}
+
+cv.addEventListener('pointermove',e=>{
+    const r=canvasWrap.getBoundingClientRect();
+    const x=e.clientX-r.left, y=e.clientY-r.top;
+    if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x,y,id:e.pointerId});
+    cv._mx=x; cv._my=y;
+
+    if(gesture && pointers.size>=2){
+        const v=[...pointers.values()];
+        const currDist=ds(v[0],v[1]); const currMid=mp(v[0],v[1]);
+        if(gDist>0){
+            const nz = Math.max(0.1, Math.min(10, gScale * (currDist/gDist)));
+            const worldMid = {x:(gMid.x-gPanX)/gScale, y:(gMid.y-gPanY)/gScale};
+            scale = nz;
+            panX = currMid.x - worldMid.x*scale;
+            panY = currMid.y - worldMid.y*scale;
+            requestRender();
+        }
+        return;
+    }
+    
+    // Pan logic (Draw Mode OR Select/Label Mode when dragging empty space)
+    if(pointers.size === 1 && (!draggingPoint) && mode !== 'label' && mode !== 'move' && mode !== 'move-label') { // Label/Move mode explicitly blocks panning on tap/drag
+         const dx = x - dragStartX; const dy = y - dragStartY;
+         if(Math.hypot(dx, dy) > TAP_THRESHOLD){
+            isTapCandidate = false; 
+            panX = dragPanStartX + dx;
+            panY = dragPanStartY + dy;
+            requestRender();
+         }
+    }
+    
+    if(mode === 'select' && draggingPoint){
+        const w = toWorld(x, y);
+        currentSnapLine = null; 
+        
+        if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree')) {
+             // Move Icon/Junction point
+             const snap = getSnapLineOnly(w.x, w.y, 25 / scale); 
+             if (snap) {
+                 draggingPoint.obj.pt = {x: snap.x, y: snap.y};
+                 if(snap.type === 'mid') currentSnapLine = snap;
+             } else {
+                 draggingPoint.obj.pt = w;
+             }
+        } else {
+            // Move Line Point: Snap to lines/ends
+            let snap = getSnap(x, y, 25); // Use screen pixels for snap feel
+            const ptVal = snap ? {x:snap.x, y:snap.y} : w;
+            
+            if (draggingPoint.index === -1 && draggingPoint.obj.pt) {
+                draggingPoint.obj.pt = ptVal;
+            } else if (draggingPoint.obj.points) {
+                draggingPoint.obj.points[draggingPoint.index] = ptVal;
+            }
+        }
+        markPowerDirty(); requestRender();
+        return;
+    }
+    
+    // NEW: Handle full object drag in 'move' mode
+    if (mode === 'move' && selectedItem && dragStartPt) {
+        const w = toWorld(x, y);
+        const wStart = toWorld(dragStartX, dragStartY);
+        const dx = w.x - wStart.x;
+        const dy = w.y - wStart.y;
+        
+        const obj = selectedItem.obj;
+
+        if (obj.pt) {
+            // For Icons (pt), just update the point
+            obj.pt.x = dragStartPt.x + dx;
+            obj.pt.y = dragStartPt.y + dy;
+        } else if (obj.points) {
+            // For Lines (points), move all points by the delta
+            obj.points.forEach(p => {
+                p.x += dx;
+                p.y += dy;
+            });
+            // Update drag start for continuous movement relative to the original click
+            dragStartX = x;
+            dragStartY = y;
+            dragStartPt.x = obj.points[0].x; 
+            dragStartPt.y = obj.points[0].y; 
+            
+            // If the object has control points (like garland swag), move those too
+            if (obj.cps) {
+                obj.cps.forEach(cp => {
+                    if (cp) {
+                        cp.x += dx;
+                        cp.y += dy;
+                    }
+                });
+            }
+        }
+        markPowerDirty();
+        requestRender();
+        return;
+    }
+    
+    // NEW: Handle label drag in 'move-label' mode
+    if (mode === 'move-label' && draggedLabelTarget) {
+        const w = toWorld(x, y);
+        const obj = draggedLabelTarget.item;
+        const index = draggedLabelTarget.index;
+        const type = draggedLabelTarget.type;
+
+        if (type === 'point') {
+             if(!obj.ptLabelPos) obj.ptLabelPos = {};
+             obj.ptLabelPos[index] = {x: w.x, y: w.y};
+        } else if (type === 'seg') {
+             if(!obj.segLabelPos) obj.segLabelPos = {};
+             obj.segLabelPos[index] = {x: w.x, y: w.y};
+        } else if (type === 'simple') {
+             obj.pt.x = w.x;
+             obj.pt.y = w.y;
+        }
+        requestRender();
+        return;
+    }
+    
+    requestRender();
+});
+
+cv.addEventListener('pointerup',e=>{
+    const wasGesture = gesture;
+    
+    // Vertex/Icon drag release fix (1st priority)
+    if (pointers.size === 1 && !wasGesture) { // Check size=1 to ensure the *last* pointerup is handled correctly
+        if (draggingPoint) {
+            // Only release draggingPoint if this was the last pointer (size 1 after delete)
+            draggingPoint = null;
+            markPowerDirty();
+            requestRender();
+        }
+    }
+    
+    // Full object drag release fix (2nd priority)
+    if (mode === 'move' && dragStartPt) {
+        dragStartPt = null;
+    }
+    
+    // Label drag release fix (3rd priority)
+    if (mode === 'move-label' && draggedLabelTarget) {
+        draggedLabelTarget = null;
+    }
+
+    pointers.delete(e.pointerId);
+    
+    // If a multi-touch sequence just ended (Fix 9)
+    if (wasGesture) {
+         const r=canvasWrap.getBoundingClientRect();
+         // Reset single-touch drag start points to prevent jump
+         dragStartX = cv._mx;
+         dragStartY = cv._my;
+         dragPanStartX = panX;
+         dragPanStartY = panY;
+         isTapCandidate = false; // Cannot be a tap
+    }
+
+    if(pointers.size<2) gesture=false;
+    
+    // Handle tap events after multi-touch processing is complete
+    if(!wasGesture && pointers.size === 0 && e.button===0) {
+        const r=canvasWrap.getBoundingClientRect();
+        const ex = e.clientX-r.left, ey = e.clientY-r.top;
+        const dist = Math.hypot(ex - dragStartX, ey - dragStartY);
+        
+        if(dist < TAP_THRESHOLD) {
+             if(mode === 'draw') {
+                 handleTap(ex, ey);
+             } else if (mode === 'label') {
+                 // Activation of label editor moved here
+                 checkCordLabelClick(ex, ey);
+             } else if (mode === 'select' || mode === 'move' || mode === 'move-label') {
+                 // Re-check selection in case a click/tap selected an item but didn't drag
+                 handleSelectDown(ex, ey);
+             }
+        }
+    }
+});
+
+// NEW: Keyboard listener for Delete/Backspace
+document.addEventListener('keydown', (e) => {
+    if (selectedItem && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault(); // Prevent browser back action on backspace
+        deleteItem(selectedItem);
+        selectedItem = null;
+        // Hide move popup after deletion
+        document.getElementById('movePop').style.display = 'none';
+        requestRender();
+        updateModeTag(); // Clears any latent 'move' mode state or updates 'select' visuals
+    }
+});
+
+// NEW: Move Tool button handler
+document.getElementById('moveToolBtn').onclick = () => {
+    if (selectedItem) {
+        mode = 'move';
+        document.getElementById('movePop').style.display = 'none';
+        updateModeTag();
+        // The dragging will start on the next pointerdown, handled in cv.addEventListener('pointerdown')
+    }
+};
+
+// NEW: Move Label Tool button handler
+document.getElementById('moveLabelToolBtn').onclick = () => {
+    if (selectedItem && selectedItem.obj.points) { // Only available for line objects
+        mode = 'move-label';
+        document.getElementById('movePop').style.display = 'none';
+        updateModeTag();
+    }
+};
+
+// NEW: Delete Tool button handler
+document.getElementById('deleteToolBtn').onclick = () => {
+    if (selectedItem) {
+        deleteItem(selectedItem);
+        selectedItem = null;
+        document.getElementById('movePop').style.display = 'none';
+        updateModeTag();
+    }
+};
+
+
+function checkCordLabelClick(sx, sy) {
+    const w = toWorld(sx, sy);
+    
+    // Check for Simple Labels first (highest priority for a clean tap)
+    for (const item of data.label) {
+        const s = toScr(item.pt);
+        // Use a fixed size tap area around the point for simple labels
+        if(Math.hypot(s.x - sx, s.y - sy) < 40) {
+            showLabelEditor({ item: item, type: 'simple', index: -1, x: sx, y: sy });
+            return;
+        }
+    }
+    
+    // Then check for Segment/Point Labels
+    let best = checkLabelClick(sx, sy);
+    if (best) {
+        showLabelEditor(best);
+        return;
+    }
+    
+    // If nothing hit, create a new simple label
+    const {label, index} = getNewItemData('label');
+    if (!data.label) data.label = []; 
+    data.label.push({pt: w, label: label, index: index, text: ''});
+    // Immediately try to show label editor on the newly created item
+    showLabelEditor({ item: data.label[data.label.length - 1], type: 'simple', index: -1, x: sx, y: sy });
+}
+
+function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
+    const w = toWorld(sx, sy);
+    let best = null;
+    
+    const search = (item, L) => {
+        if (item.points) {
+            // Point Labels
+            if(item.ptLabels) {
+                Object.keys(item.ptLabels).forEach(idx => {
+                    const i = parseInt(idx);
+                    const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
+                    const sc = toScr(labelPos);
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) {
+                            best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
+                        }
+                    }
+                });
+            }
+            // Segment Labels
+            if(item.segLabels) {
+                Object.keys(item.segLabels).forEach(idx => {
+                    const i = parseInt(idx);
+                    // Use stored position or calculate midpoint world position
+                    let labelPos;
+                    if (item.segLabelPos && item.segLabelPos[i]) {
+                         labelPos = item.segLabelPos[i];
+                    } else {
+                         const mid = getPolylineMidpoint([item.points[i], item.points[i+1]]);
+                         labelPos = mid;
+                    }
+
+                    const sc = toScr(labelPos);
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) {
+                           best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
+                        }
+                    }
+                });
+            }
+        }
+    }
+    
+    if (specificItem) {
+        search(specificItem, specificType);
+    } else {
+        Object.keys(data).forEach(L => {
+            if (L === 'label') return; // Skip simple labels here, they are checked first
+            data[L].forEach(item => search(item, L));
+        });
+    }
+
+    return best;
+}
+
+
+function showLabelEditor(target) {
+    activeLabelTarget = target;
+    const el = document.getElementById('lblEditor');
+    const inp = document.getElementById('lblInput');
+    let val = '';
+    
+    // Determine the world position to calculate screen position for editor placement.
+    let worldPos;
+    if (target.type === 'simple') {
+        worldPos = target.item.pt;
+    } else if (target.type === 'point') {
+        // Use stored label position or fall back to point location
+        worldPos = target.item.ptLabelPos && target.item.ptLabelPos[target.index] ? target.item.ptLabelPos[target.index] : target.item.points[target.index];
+    } else if (target.type === 'seg') {
+        // Use stored label position or fall back to segment midpoint
+        worldPos = target.item.segLabelPos && target.item.segLabelPos[target.index] ? target.item.segLabelPos[target.index] : getPolylineMidpoint([target.item.points[target.index], target.item.points[target.index+1]]);
+    }
+    const s = toScr(worldPos);
+
+
+    if (target.type === 'point') {
+        if(!target.item.ptLabels) target.item.ptLabels = {};
+        val = target.item.ptLabels[target.index] || '';
+        inp.placeholder = 'Point Note/Ft';
+    } else if (target.type === 'seg') {
+        if(!target.item.segLabels) target.item.segLabels = {};
+        val = target.item.segLabels[target.index] || '';
+        inp.placeholder = 'Segment Note/Ft';
+    } else if (target.type === 'simple') {
+        val = target.item.text || '';
+        inp.placeholder = 'Label Text';
+    }
+    
+    inp.value = val;
+    // CRITICAL: Use the calculated screen coordinates for positioning
+    el.style.left = s.x + 'px';
+    el.style.top = s.y + 'px';
+    el.style.display = 'block';
+    inp.focus();
+}
+
+document.getElementById('lblInput').onchange = (e) => {
+    if(!activeLabelTarget) return;
+    const val = e.target.value;
+    const item = activeLabelTarget.item;
+    
+    if(activeLabelTarget.type === 'point') {
+        item.ptLabels[activeLabelTarget.index] = val;
+        // If label is set/changed, reset stored position to default point location
+        if(val) {
+            if(!item.ptLabelPos) item.ptLabelPos = {};
+            item.ptLabelPos[activeLabelTarget.index] = null;
+        }
+    } else if (activeLabelTarget.type === 'seg') {
+        item.segLabels[activeLabelTarget.index] = val;
+        // If label is set/changed, reset stored position to default midpoint
+        if(val) {
+            if(!item.segLabelPos) item.segLabelPos = {};
+            item.segLabelPos[activeLabelTarget.index] = null;
+        }
+    } else if (activeLabelTarget.type === 'simple') {
+        item.text = val;
+        // If text is cleared, delete the simple label
+        if (val === '') {
+             const idx = data.label.indexOf(item);
+             if(idx > -1) data.label.splice(idx, 1);
+        }
+    }
+    
+    document.getElementById('lblEditor').style.display = 'none';
+    requestRender();
+};
+
+document.getElementById('lblInput').onblur = () => {
+    setTimeout(() => { 
+        // Ensure that if it's a new simple label and the user blurred without typing, we delete it.
+        if (activeLabelTarget && activeLabelTarget.type === 'simple' && activeLabelTarget.item.text === '') {
+             const idx = data.label.indexOf(activeLabelTarget.item);
+             if(idx > -1) data.label.splice(idx, 1);
+             requestRender();
+        }
+        document.getElementById('lblEditor').style.display = 'none'; 
+    }, 200);
+};
+
+function splitLine(L, originalLine, segIndex, splitX, splitY) {
+    originalLine.isSplit = true;
+    const pointsA = originalLine.points.slice(0, segIndex+1);
+    pointsA.push({x: splitX, y: splitY});
+    const cpsA = originalLine.cps ? originalLine.cps.slice(0, segIndex+1) : [];
+    if(cpsA.length > segIndex) cpsA[segIndex] = null; 
+
+    const pointsB = [{x: splitX, y: splitY}].concat(originalLine.points.slice(segIndex+1));
+    const cpsB = originalLine.cps ? originalLine.cps.slice(segIndex+1) : [];
+    
+    originalLine.points = pointsA;
+    originalLine.cps = cpsA;
+    originalLine.ft = ''; originalLine.bulbs = ''; originalLine.notes = '';
+    
+    const {label, index} = getNewItemData(L);
+    const newLine = {
+        points: pointsB,
+        cps: cpsB,
+        label: label,
+        index: index,
+        col: originalLine.col,
+        ft: '', bulbs: '', notes: '',
+        isSplit: true,
+        clip: originalLine.clip, // Copy clip type
+        fra: originalLine.fra || false, // Copy FRA state
+        gguard: originalLine.gguard || false, // Copy Gutter Guard state
+        isPillarMode: originalLine.isPillarMode || false // NEW: Copy Pillar state
+    };
+    data[L].push(newLine);
+    refreshTable(); markPowerDirty();
+}
+
+cv.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const r=canvasWrap.getBoundingClientRect();
+    const mx=e.clientX-r.left, my=e.clientY-r.top;
+    const w=toWorld(mx,my);
+    const f = e.deltaY<0 ? 1.1 : 0.9;
+    const nz = Math.max(0.1, Math.min(10, scale*f));
+    panX = mx - w.x*nz;
+    panY = my - w.y*nz;
+    scale=nz;
+    requestRender();
+},{passive:false});
+
+let redoStack = [];
+
+function getNewItemData(L){
+    actionCounter++;
+    const p = pfx[L] || 'L';
+    
+    let label = '';
+    // FIX: Wreath IDs use WR prefix regardless of size, followed by size suffix.
+    if (L === 'wreath') {
+        const pWreath = pfx.wreath || 'WR'; // Use generic WR prefix
+        const indexWreath = nextIndex(pWreath);
+        label = pWreath + indexWreath;
+    } else if (L === 'label') { // Simple labels use LBL prefix
+        label = pfx.label + nextIndex(pfx.label);
+    } else {
+        label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow') ? '' : p + nextIndex(p);
+    }
+    
+    return {label, index: actionCounter};
+}
+
+document.getElementById('btnUndo').onclick=()=>{
+    if (sketch && sketch.points.length > 0) {
+        sketch.points.pop(); sketch.cps.pop();
+        document.getElementById('btnComplete').disabled = sketch.points.length<2;
+        markPowerDirty(); requestRender();
+        return;
+    }
+    let maxIndex = -1; let targetObj = null; let targetLayer = null; let targetIdxInArray = -1;
+    for (const L in data) {
+        if (!data[L]) continue;
+        data[L].forEach((item, idx) => {
+            if (item.index > maxIndex) {
+                maxIndex = item.index; targetObj = item; targetLayer = L; targetIdxInArray = idx;
+            }
+        });
+    }
+    if (targetObj && targetLayer) {
+        redoStack.push({layer: targetLayer, item: targetObj});
+        document.getElementById('btnRedo').disabled = false;
+        data[targetLayer].splice(targetIdxInArray, 1);
+        markPowerDirty(); requestRender(); refreshTable();
+    }
+};
+
+document.getElementById('btnRedo').onclick = () => {
+    if(redoStack.length === 0) return;
+    const record = redoStack.pop();
+    if(redoStack.length === 0) document.getElementById('btnRedo').disabled = true;
+    data[record.layer].push(record.item);
+    markPowerDirty(); requestRender(); refreshTable();
+};
+
+let sketch=null; 
+function startNewSketch(){
+    const data = getNewItemData(currLayer);
+    // NEW: Include Pillar Mode state in the sketch
+    sketch={points:[],cps:[],layer:currLayer,label:data.label, index: data.index, firstHost:null, isPillarMode: chkPillar.checked}; 
+    document.getElementById('btnComplete').disabled=true;
 }
 
 // Function to finalize the current drawn line (FIXED)
