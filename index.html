@@ -422,6 +422,9 @@ input[type=range].input:active::-webkit-slider-thumb {
   <button id="btnSnap" class="btn toggled" title="Toggle Snap to End/Junction">🧲 Snap</button>
 
   <!-- Reset View -->
+  <!-- ADDED ZOOM BUTTONS HERE -->
+  <button id="btnZoomIn" class="btn" title="Zoom In">➕</button>
+  <button id="btnZoomOut" class="btn" title="Zoom Out">➖</button>
   <button id="btnFit" class="btn">🔄 Reset View</button>
   
   <!-- Night View -->
@@ -450,7 +453,11 @@ input[type=range].input:active::-webkit-slider-thumb {
       <input id="customer" class="input" placeholder="Customer Name"/>
       <input id="address" class="input" placeholder="Address" style="margin-top:8px"/>
       <textarea id="jobNotes" class="input" placeholder="Job site notes..." style="margin-top:8px"></textarea>
-      <!-- Toggles removed from here -->
+      
+      <!-- MOVED BULK COLOUR INPUT TO JOB DETAILS SECTION -->
+      <div style="font-size:12px;color:#8b9bb4;margin-top:8px;">Bulk Colour:</div>
+      <input id="inputAllCol" class="input" placeholder="Set ALL colors (C9s, Windows)..." style="margin-top:4px">
+
     </div>
     
     <div class="group">
@@ -542,12 +549,11 @@ input[type=range].input:active::-webkit-slider-thumb {
              <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#cfe2ff;">
                 <input id="chkAutoCalc" type="checkbox" checked/> Auto-calc
              </label>
-             <span style="font-size:12px;color:#8b9bb4;margin-left:auto">Bulk Colour:</span>
-             <input id="inputAllCol" class="edit" style="flex:1;min-width:100px" placeholder="Set ALL colours...">
+             <!-- BULK COLOR INPUT REMOVED FROM HERE -->
+             <button id="btnRelabelIDs" class="btn" style="width:100%;margin:8px 0 0">Relabel IDs (Left-to-Right)</button>
         </div>
         
-        <!-- Relabel Button -->
-        <button id="btnRelabelIDs" class="btn" style="width:100%;margin:8px 0 0">Relabel IDs (Left-to-Right)</button>
+        <!-- Relabel Button REMOVED FROM HERE -->
 
         <div style="overflow-x:auto">
           <table id="matTable">
@@ -592,6 +598,9 @@ let gisReady = false;
 
 // Elements for Drive buttons
 const gLoadDriveBtn = document.getElementById('gLoadDrive');
+// ADDED ZOOM BUTTONS
+const btnZoomIn = document.getElementById('btnZoomIn');
+const btnZoomOut = document.getElementById('btnZoomOut');
 
 // Initialize Google APIs
 // 1. Load GAPI (Client Library) for Drive API
@@ -1302,6 +1311,31 @@ function resetView(){
   requestRender();
 }
 document.getElementById('btnFit').onclick=resetView;
+
+// ADDED zoom handlers
+btnZoomIn.onclick = () => {
+    const mx = lastWidth / 2;
+    const my = lastHeight / 2;
+    const w = toWorld(mx, my);
+    const f = 1.1;
+    const nz = Math.max(0.1, Math.min(10, scale * f));
+    panX = mx - w.x * nz;
+    panY = my - w.y * nz;
+    scale = nz;
+    requestRender();
+};
+
+btnZoomOut.onclick = () => {
+    const mx = lastWidth / 2;
+    const my = lastHeight / 2;
+    const w = toWorld(mx, my);
+    const f = 0.9;
+    const nz = Math.max(0.1, Math.min(10, scale * f));
+    panX = mx - w.x * nz;
+    panY = my - w.y * nz;
+    scale = nz;
+    requestRender();
+};
 
 const accWrap=document.getElementById('accWrap'); const toolBtn={};
 function buildTools(){
@@ -2794,7 +2828,9 @@ function drawContinuousLine(it, col, layerName) {
     const AMBIENT_MULTIPLIER = 15; 
     const CORE_GLOW_BLUR = 2 * scale + (baseWidth * 1.5); 
 
+    // We control the initial shadow state here, which affects the Ambient Pass
     if (isNightMode && isLightElement) {
+        glowStrength = CORE_GLOW_BLUR; 
         ctx.shadowBlur = glowStrength;
     } else {
         ctx.shadowBlur = 0;
@@ -2838,7 +2874,8 @@ function drawContinuousLine(it, col, layerName) {
     };
 
     // --- 1. AMBIENT PASS (Full Path) ---
-    if (isNightMode && isLightElement) { 
+    // CRITICAL FIX: Skip ambient pass entirely if it's a multi-color line, as the color would be wrong.
+    if (isNightMode && isLightElement && finalColors.length <= 1) { 
         const ambientBlur = CORE_GLOW_BLUR * AMBIENT_MULTIPLIER * 3; 
         const ambientAlpha = 0.05; 
         
@@ -2856,6 +2893,9 @@ function drawContinuousLine(it, col, layerName) {
 
         ctx.globalAlpha = 1.0;
     }
+    
+    // Reset shadow after ambient pass (or if skipped)
+    ctx.shadowBlur = 0;
 
 
     // --- 2. BLACK OUTLINE (Ensures visibility) ---
@@ -2939,11 +2979,13 @@ function drawContinuousLine(it, col, layerName) {
                 const remainingDistInSegment = segDist - currentDistInSegment;
                 const blockDist = Math.min(colorBlockLength, remainingDistInSegment);
                 
-                const endPointObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]), (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
-                const endPoint = toScr({x: endPointObj.x, y: endPointObj.y});
+                // We need to use world coordinates for the segment length calculation to find the point
+                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]), (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
+                const endPoint = toScr({x: ptObj.x, y: ptObj.y});
                 
                 if (blockDist > 0.1) {
                     if (isNightMode && isLightElement) {
+                        // CRITICAL FIX: Set shadow color and blur for this specific segment
                         ctx.shadowBlur = glowStrength;
                         ctx.shadowColor = color;
                     } else {
@@ -2965,6 +3007,9 @@ function drawContinuousLine(it, col, layerName) {
                     ctx.lineWidth = baseWidth; 
                     ctx.stroke();
                     ctx.setLineDash([]); // Reset after stroke
+                    
+                    // CRITICAL FIX: Reset shadow immediately after stroke so it doesn't affect the next block
+                    ctx.shadowBlur = 0; 
                 }
 
                 currentDistInSegment += blockDist;
@@ -3579,6 +3624,13 @@ function applyUIState(o) {
     const chkAuto = document.getElementById('chkAutoCalc');
     chkAuto.checked = uiState.isAutoCalcOn !== undefined ? uiState.isAutoCalcOn : true;
     
+    // Ensure white-bg class is handled if no image data but data exists
+    if (!imgDataUrl && Object.keys(data).some(k => data[k].length > 0)) {
+        document.body.classList.add('white-bg');
+    } else if (imgDataUrl) {
+         document.body.classList.remove('white-bg');
+    }
+
     // Re-render canvas to reflect night mode/snap/scale changes
     requestRender();
 }
