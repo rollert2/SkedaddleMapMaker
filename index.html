@@ -725,39 +725,91 @@ function updateDriveUI(isAuthenticated) {
 /**
  * Finds the dedicated map folder, or creates it if it doesn't exist.
  */
-async function findOrCreateMapFolder() {
-    if (!accessToken) return null;
+// Function to safely save the current map payload to Google Drive.
+async function saveToDrive() {
+    if (!accessToken) {
+        showAlert('Please sign in to Google Drive first.');
+        return;
+    }
+    
+    // STEP 1: CRITICALLY, await the confirmed folder ID and use a local variable.
+    // This blocks execution until the ID is found or created, guaranteeing it's a folder ID.
+    const folderId = await findOrCreateMapFolder();
+    if (!folderId) {
+        showAlert('Error saving map to Google Drive. Failed to find or create the dedicated folder.');
+        return;
+    }
+    
+    const payload = buildPayload();
+    const filename = `${getFilenameBase()}${MAP_FILE_EXTENSION}`;
+    const fileContent = JSON.stringify(payload);
+    const contentType = MAP_MIME_TYPE;
+    
+    showAlert('Saving map to Google Drive...');
+
     try {
-        // Search for the folder
-        const response = await gapi.client.drive.files.list({
-            q: `mimeType='application/vnd.google-apps.folder' and name='${MAP_FOLDER_NAME}' and 'root' in parents and trashed=false`,
-            fields: 'files(id, name)',
+        // STEP 2: Search for the file using the local, confirmed folderId
+        const searchResponse = await gapi.client.drive.files.list({
+            q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
+            fields: 'files(id)',
             spaces: 'drive',
             oauthToken: accessToken
         });
 
-        const files = response.result.files;
-        if (files && files.length > 0) {
-            driveFolderId = files[0].id;
-        } else {
-            // Folder not found, create it
-            const createResponse = await gapi.client.drive.files.create({
-                resource: {
-                    name: MAP_FOLDER_NAME,
-                    mimeType: 'application/vnd.google-apps.folder',
-                    parents: ['root']
+        const existingFile = searchResponse.result.files?.[0];
+
+        if (existingFile) {
+            // STEP 3A: Update existing file (PATCH request)
+            const updateResponse = await gapi.client.request({
+                path: `/upload/drive/v3/files/${existingFile.id}`,
+                method: 'PATCH',
+                params: {
+                    uploadType: 'media',
                 },
-                fields: 'id',
+                headers: {
+                    'Content-Type': contentType,
+                },
+                body: fileContent,
                 oauthToken: accessToken
             });
-            driveFolderId = createResponse.result.id;
+            showAlert(`Map updated successfully in Drive! (ID: ${existingFile.id})`);
+        } else {
+            // STEP 3B: Create new file (POST request)
+            const fileMetadata = {
+                'name': filename,
+                'mimeType': contentType,
+                // CRITICAL: Use the confirmed local folderId here
+                'parents': [folderId] 
+            };
+
+            const multipartRequestBody =
+                '--BOUNDARY\r\n' +
+                'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+                JSON.stringify(fileMetadata) +
+                '\r\n--BOUNDARY\r\n' +
+                `Content-Type: ${contentType}\r\n\r\n` +
+                fileContent +
+                '\r\n--BOUNDARY--';
+
+            const createResponse = await gapi.client.request({
+                path: '/upload/drive/v3/files',
+                method: 'POST',
+                params: {
+                    uploadType: 'multipart',
+                },
+                headers: {
+                    'Content-Type': 'multipart/related; boundary="BOUNDARY"',
+                    'Content-Length': multipartRequestBody.length,
+                },
+                body: multipartRequestBody,
+                oauthToken: accessToken
+            });
+            showAlert(`Map saved successfully to Drive! (ID: ${createResponse.result.id})`);
         }
-        console.log("Drive folder ID:", driveFolderId);
-        return driveFolderId;
     } catch (error) {
-        console.error('Error finding or creating Drive folder:', error);
-        // Note: We don't call showAlert here, let the caller handle the error/message
-        return null; 
+        console.error('Error saving file to Drive:', error);
+        // The error shows up on the console (line 933 in the image)
+        showAlert('Error saving map to Google Drive. Please check permissions or try signing in again.');
     }
 }
 
