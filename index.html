@@ -230,6 +230,18 @@ textarea.input{resize:vertical;min-height:80px}
     margin-right: 2px; /* Small space between box and text */
 }
 
+/* FIX: Ensure visibility of scale labels and bulk color label */
+.group .slider-container ~ div {
+    color: var(--text); /* Make 'Small'/'Large' labels white/light gray */
+}
+.group > div[style*="font-size:12px"] {
+    color: var(--text) !important; /* Targeting 'Line/Path Scale' etc. */
+}
+.group > div[style*="margin-top:8px"] {
+    color: var(--text) !important; /* Targeting 'Bulk Colour:' */
+}
+/* END FIX */
+
 
 /* Length Table Drawer (Bottom Sheet style on mobile) */
 #lenWrap{
