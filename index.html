@@ -76,8 +76,6 @@ body.blurred #app{filter:blur(18px);pointer-events:none}
     overflow: hidden; clip: rect(0,0,0,0); border: 0; visibility: visible;
 }
 
-/* REMOVED .version-tag STYLE */
-
 /* App Layout */
 #app{display:flex;flex-direction:column;height:100%;background:#05070a;}
 header{flex:0 0 60px;display:flex;align-items:center;gap:8px;padding:8px;background:#0a0f18;border-bottom:1px solid var(--border2);overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -157,6 +155,11 @@ canvas{
     display:block;
 }
 
+/* NEW: Style for blank map background */
+body.white-bg .canvasWrap {
+    background: white;
+}
+
 /* Sidebar / Drawer */
 aside{
   width:320px;background:#111726;border-right:1px solid var(--border2);display:flex;flex-direction:column;
@@ -207,7 +210,7 @@ textarea.input{resize:vertical;min-height:80px}
     color: var(--text);
 }
 
-/* FIX 2: Style for Clip/FRA container to align elements on one line */
+/* Style for Clip/FRA container to align elements on one line */
 .clip-fra-container {
     display: flex;
     align-items: center; /* Vertically align items */
@@ -248,22 +251,21 @@ select.edit { width: 100%; }
 .pop{position:fixed;z-index:9999;background:#0f1727;border:1px solid #456;border-radius:12px;display:none;padding:8px;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.5)}
 .pop button{background:#151b2b;border:1px solid #345;color:#fff;border-radius:8px;padding:10px 14px;cursor:pointer;font-size:14px;flex:1}
 
-/* Modal for Back/Warn, Save Validation, Cache List (Removed Cache List specifics) */
-#modalBack, #modalAlert, #modalSaveValidate {
+/* Modal for Back/Warn, Save Validation, Cache List */
+#modalBack, #modalAlert {
     position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10000; display:none; 
     align-items:center; justify-content:center; backdrop-filter:blur(5px);
 }
-#modalBack .card, #modalAlert .card, #modalSaveValidate .card {
+#modalBack .card, #modalAlert .card {
     background:#111827; border:1px solid #374151; border-radius:16px; padding:24px; 
     width:80%; max-width:min(500px, 90%); text-align:center;
 }
-#modalBack h3, #modalAlert h3, #modalSaveValidate h3 { margin:0 0 10px; color:#f87171; font-size:18px; }
-/* #modalCache h3 { color: var(--accent); } */ /* REMOVED */
-#modalBack p, #modalAlert p, #modalSaveValidate p { margin:0 0 20px; color:#d1d5db; font-size:14px; }
-#modalBack .row, #modalAlert .row, #modalSaveValidate .row { display:flex; gap:10px; justify-content: center;}
-#modalBack .row button, #modalAlert .row button, #modalSaveValidate .row button { flex:1; padding:12px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; }
-#modalBack .btn-stay, #modalSaveValidate .btn-cancel { background:#374151; color:white; }
-#modalBack .btn-leave, #modalSaveValidate .btn-confirm { background:#ef4444; color:white; }
+#modalBack h3, #modalAlert h3 { margin:0 0 10px; color:#f87171; font-size:18px; }
+#modalBack p, #modalAlert p { margin:0 0 20px; color:#d1d5db; font-size:14px; }
+#modalBack .row, #modalAlert .row { display:flex; gap:10px; justify-content: center;}
+#modalBack .row button, #modalAlert .row button { flex:1; padding:12px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; }
+#modalBack .btn-stay { background:#374151; color:white; }
+#modalBack .btn-leave { background:#ef4444; color:white; }
 #modalAlert .btn-ok { background:#3b82f6; color:white; width:100%; }
 
 /* Cord Label Editor */
@@ -344,7 +346,6 @@ input[type=range].input:active::-webkit-slider-thumb {
     <button class="close-btn" id="closeGateBtn" onclick="unlock()" title="Continue Editing">&times;</button>
     <img src="https://i.imgur.com/zdJfkpg.png" alt="logo" style="width:84px;height:84px;border-radius:16px;margin-bottom:16px; border: 2px solid var(--festive-gold);"><br/>
     <h2>Skedaddle Christmas Map Maker</h2>
-    <!-- REMOVED: <span class="version-tag">Beta</span> -->
     <p style="margin-top:12px">Upload a photo or load a saved map to begin.</p>
     <div class="grow">
       <!-- Standard Load/Upload -->
@@ -352,9 +353,8 @@ input[type=range].input:active::-webkit-slider-thumb {
       <button id="gPickBlank" class="gbtn">⬜ Start Blank Map</button>
       <button id="gPickMap" class="gbtn">📂 Load Map (.skmap)</button>
       
-      <!-- NEW DRIVE BUTTONS -->
+      <!-- ONLY LOAD FROM DRIVE BUTTON REMAINS -->
       <button id="gLoadDrive" class="gbtn" disabled>☁️ Load from Drive</button>
-      <button id="gSaveDrive" class="gbtn" disabled>☁️ Save to Drive</button>
 
       <input id="gImg" type="file" accept="image/*"/>
       <input id="gMap" type="file" accept=".skmap,.json,application/json"/>
@@ -378,17 +378,7 @@ input[type=range].input:active::-webkit-slider-thumb {
 </div>
 </div>
 
-<!-- Save Validation Modal -->
-<div id="modalSaveValidate">
-    <div class="card">
-        <h3>Missing Job Details</h3>
-        <p id="saveValidateMsg">The Customer Name, Address, or Timer fields are empty. Do you want to save the file(s) anyway?</p>
-        <div class="row">
-            <button id="btnSaveCancel" class="btn-cancel">Cancel</button>
-            <button id="btnSaveConfirm" class="btn-confirm">Save Anyway</button>
-        </div>
-    </div>
-</div>
+<!-- Save Validation Modal (Removed - Not needed for local saves) -->
 
 <!-- Cord Label Editor -->
 <div id="lblEditor"><input id="lblInput" placeholder="Ft/Note"></div>
@@ -443,12 +433,8 @@ input[type=range].input:active::-webkit-slider-thumb {
       <div id="saveDropdown" class="dropdown-content">
           <button id="btnSaveMapOnly">💾 Save Map Only (.skmap)</button>
           <button id="btnSaveImageOnly">📤 Save Map as PDF (.pdf)</button>
-          <!-- NEW: Drive Save button in dropdown -->
-          <button id="btnSaveDriveDropdown" disabled>☁️ Save to Drive</button> 
       </div>
   </div>
-  <!-- NEW DEDICATED SAVE TO DRIVE BUTTON -->
-  <button id="btnSaveDriveOnly" class="btn" disabled title="Save map directly to Google Drive">☁️ Drive</button>
 </header>
 
 <div class="wrap">
@@ -545,8 +531,6 @@ input[type=range].input:active::-webkit-slider-thumb {
         </dl>
     </div>
     
-    <!-- Settings section removed from here -->
-
   </aside>
 
   <main>
@@ -596,35 +580,29 @@ const CLIENT_ID = '746571343552-88ogvei1lvtq9ojq3te7fn06d1rlgut4.apps.googleuser
 const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0'; // API Key
 const APP_ID = 'skedaddle-map-maker-481022'; // Numeric Project ID (used by Picker)
 
-// Scopes required: Drive App Data folder and Drive File scope
-// CRITICAL FIX: Added drive.readonly scope for file content download
-const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.readonly'; 
+// Scopes required: Only for file loading via Picker and App Data
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata'; 
 const MAP_MIME_TYPE = 'application/json';
 const MAP_FILE_EXTENSION = '.skmap';
-const MAP_FOLDER_NAME = 'Skedaddle Map Files';
 
 let accessToken = null;
 let tokenClient = null;
 let gapiReady = false;
 let gisReady = false;
-let driveFolderId = null; // Stores the ID of the dedicated map folder
 
 // Elements for Drive buttons
 const gLoadDriveBtn = document.getElementById('gLoadDrive');
-const gSaveDriveBtn = document.getElementById('gSaveDrive');
-const btnSaveDriveDropdown = document.getElementById('btnSaveDriveDropdown');
-const btnSaveDriveOnly = document.getElementById('btnSaveDriveOnly'); // NEW
 
 // Initialize Google APIs
 // 1. Load GAPI (Client Library) for Drive API
 gapi.load('client:picker', async () => {
     try {
         await gapi.client.setApiKey(API_KEY);
-        await gapi.client.load('drive', 'v3');
+        // Note: We still load 'drive', 'v3' for the file content download (loadFromDrive)
+        await gapi.client.load('drive', 'v3'); 
         gapiReady = true;
         
         // 2. Wait/Check for GIS (Google Identity Services)
-        // GIS script is async deferred, so we check availability or wait a moment
         const checkGis = setInterval(() => {
             if (window.google && window.google.accounts) {
                 clearInterval(checkGis);
@@ -650,8 +628,6 @@ function initGis() {
                 } else {
                     accessToken = response.access_token;
                     updateDriveUI(true);
-                    // After successful sign-in, try to get the dedicated folder ID
-                    findOrCreateMapFolder();
                 }
             },
         });
@@ -668,35 +644,23 @@ function initGis() {
 function checkApiReadiness() {
     if (gapiReady && gisReady) {
         gLoadDriveBtn.disabled = false;
-        gLoadDriveBtn.onclick = handleAuthClick;
-        gSaveDriveBtn.disabled = false;
-        gSaveDriveBtn.onclick = handleAuthClick;
-        
-        // This button acts as the primary sign-in for Drive access
-        gSaveDriveBtn.textContent = '☁️ Sign In to Drive';
+        // Primary action is sign-in/initiate load
+        gLoadDriveBtn.onclick = handleAuthClick; 
+        gLoadDriveBtn.textContent = '☁️ Load from Drive';
     }
 }
 
 /**
- * Initiates the Google Sign-In/Authorization flow.
+ * Initiates the Google Sign-In/Authorization flow or Picker.
  */
 function handleAuthClick(event) {
-    // Determine which button triggered the event
-    const action = event.currentTarget.id; 
-
     if (accessToken) {
-        // Token exists, proceed to action
-        if (action === 'gLoadDrive') {
-            // CRITICAL FIX: Explicitly call createPicker('load') here
-            createPicker('load');
-        } else if (action === 'gSaveDrive') {
-             // If clicked the sign-in button, show a success message if already signed in
-             showAlert('Already signed in. Now use "Load from Drive" or "Save to Drive" in the menu!');
-        }
+        // Token exists, proceed directly to Picker
+        createPicker('load');
         return; 
     }
     
-    // Request a new token or refresh an expired one
+    // Request a new token or refresh an expired one (triggers the picker after callback)
     tokenClient.requestAccessToken({ prompt: '' });
 }
 
@@ -705,119 +669,17 @@ function handleAuthClick(event) {
  */
 function updateDriveUI(isAuthenticated) {
     if (isAuthenticated) {
-        // Update gate buttons
         gLoadDriveBtn.textContent = '☁️ Load from Drive';
-        gLoadDriveBtn.onclick = handleAuthClick; // Rerun handleAuthClick to trigger Picker immediately
-        gSaveDriveBtn.textContent = '✅ Drive Connected';
-        gSaveDriveBtn.disabled = true; // Disable sign-in button now that we have a token
-        
-        // Update header buttons
-        btnSaveDriveDropdown.disabled = false;
-        btnSaveDriveOnly.disabled = false;
+        gLoadDriveBtn.onclick = handleAuthClick; // Rerun handleAuthClick to trigger Picker
+        // Immediately trigger the Picker for a seamless flow after sign-in
+        createPicker('load'); 
     } else {
-        gSaveDriveBtn.textContent = '☁️ Sign In to Drive';
-        btnSaveDriveDropdown.disabled = true;
-        btnSaveDriveOnly.disabled = true;
+        gLoadDriveBtn.textContent = '☁️ Load from Drive';
     }
 }
 
-
 /**
- * Finds the dedicated map folder, or creates it if it doesn't exist.
- */
-// Function to safely save the current map payload to Google Drive.
-async function saveToDrive() {
-    if (!accessToken) {
-        showAlert('Please sign in to Google Drive first.');
-        return;
-    }
-    
-    // STEP 1: CRITICALLY, await the confirmed folder ID and use a local variable.
-    // This blocks execution until the ID is found or created, guaranteeing it's a folder ID.
-    const folderId = await findOrCreateMapFolder();
-    if (!folderId) {
-        showAlert('Error saving map to Google Drive. Failed to find or create the dedicated folder.');
-        return;
-    }
-    
-    const payload = buildPayload();
-    const filename = `${getFilenameBase()}${MAP_FILE_EXTENSION}`;
-    const fileContent = JSON.stringify(payload);
-    const contentType = MAP_MIME_TYPE;
-    
-    showAlert('Saving map to Google Drive...');
-
-    try {
-        // STEP 2: Search for the file using the local, confirmed folderId
-        const searchResponse = await gapi.client.drive.files.list({
-            q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
-            fields: 'files(id)',
-            spaces: 'drive',
-            oauthToken: accessToken
-        });
-
-        const existingFile = searchResponse.result.files?.[0];
-
-        if (existingFile) {
-            // STEP 3A: Update existing file (PATCH request)
-            const updateResponse = await gapi.client.request({
-                path: `/upload/drive/v3/files/${existingFile.id}`,
-                method: 'PATCH',
-                params: {
-                    uploadType: 'media',
-                },
-                headers: {
-                    'Content-Type': contentType,
-                },
-                body: fileContent,
-                oauthToken: accessToken
-            });
-            showAlert(`Map updated successfully in Drive! (ID: ${existingFile.id})`);
-        } else {
-            // STEP 3B: Create new file (POST request)
-            const fileMetadata = {
-                'name': filename,
-                'mimeType': contentType,
-                // CRITICAL: Use the confirmed local folderId here
-                'parents': [folderId] 
-            };
-
-            const multipartRequestBody =
-                '--BOUNDARY\r\n' +
-                'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-                JSON.stringify(fileMetadata) +
-                '\r\n--BOUNDARY\r\n' +
-                `Content-Type: ${contentType}\r\n\r\n` +
-                fileContent +
-                '\r\n--BOUNDARY--';
-
-            const createResponse = await gapi.client.request({
-                path: '/upload/drive/v3/files',
-                method: 'POST',
-                params: {
-                    uploadType: 'multipart',
-                },
-                headers: {
-                    'Content-Type': 'multipart/related; boundary="BOUNDARY"',
-                    'Content-Length': multipartRequestBody.length,
-                },
-                body: multipartRequestBody,
-                oauthToken: accessToken
-            });
-            showAlert(`Map saved successfully to Drive! (ID: ${createResponse.result.id})`);
-        }
-    } catch (error) {
-        console.error('Error saving file to Drive:', error);
-        // The error shows up on the console (line 933 in the image)
-        showAlert('Error saving map to Google Drive. Please check permissions or try signing in again.');
-    }
-}
-
-
-/**
- * Opens the Google Picker dialog for file selection or saving.
- * NOTE: This function now checks if the driveFolderId exists before proceeding.
- * @param {'load'|'save'} pickerType - Determines the view to open.
+ * Opens the Google Picker dialog for file selection.
  */
 async function createPicker(pickerType) {
     if (!accessToken || !gapiReady || !gisReady) {
@@ -825,28 +687,12 @@ async function createPicker(pickerType) {
         return;
     }
     
-    // CRITICAL FIX: Ensure folder ID is available before opening the picker.
-    if (!driveFolderId) {
-         showAlert('Initializing Drive folder... please try clicking Load again in a moment.');
-         // Force the asynchronous folder lookup again in case the initial call failed or hasn't completed
-         const folderId = await findOrCreateMapFolder(); 
-         if (!folderId) return;
-    }
-    
     let view;
-    if (pickerType === 'load') {
-        // View for selecting an existing file (.skmap)
-        view = new google.picker.View(google.picker.ViewId.DOCS);
-        // FIX: Expanded MIME types to ensure all JSON-based map files are visible
-        view.setMimeTypes(MAP_MIME_TYPE + ',text/plain,application/octet-stream'); 
-        view.setParent(driveFolderId); // Start in our dedicated folder
-        view.setQuery(MAP_FILE_EXTENSION); // Search for our file type
-        
-    } else if (pickerType === 'save') {
-        // View for saving a new file (upload view) - Less common, but good alternative
-        view = new google.picker.DocsUploadView().setParent(driveFolderId);
-    }
-
+    // View for selecting an existing file (.skmap)
+    view = new google.picker.View(google.picker.ViewId.DOCS);
+    view.setMimeTypes(MAP_MIME_TYPE + ',text/plain,application/octet-stream'); 
+    view.setQuery(MAP_FILE_EXTENSION); // Search for our file type
+    
     const picker = new google.picker.PickerBuilder()
         .setAppId(APP_ID)
         .setOAuthToken(accessToken)
@@ -860,21 +706,18 @@ async function createPicker(pickerType) {
 
 /**
  * Callback function executed after the user interacts with the Google Picker.
- * @param {object} data - The Picker response data.
  */
 function pickerCallback(data) {
     if (data.action === google.picker.Action.PICKED) {
         const file = data.docs[0];
         const fileId = file[google.picker.Document.ID];
         
-        // We accept anything the picker shows us and rely on JSON parsing to validate content
         loadFromDrive(fileId);
     }
 }
 
 /**
  * Downloads the content of a file from Google Drive and loads it into the map maker.
- * @param {string} fileId - The ID of the Google Drive file.
  */
 async function loadFromDrive(fileId) {
     showAlert('Loading map from Google Drive...');
@@ -897,96 +740,6 @@ async function loadFromDrive(fileId) {
         showAlert('Error loading map content from Drive. Check console for details.');
     }
 }
-
-/**
- * Saves the current map payload to Google Drive.
- */
-async function saveToDrive() {
-    if (!accessToken) {
-        showAlert('Please sign in to Google Drive first.');
-        return;
-    }
-    
-    // FIX: Ensure driveFolderId is set before proceeding
-    if (!driveFolderId) {
-        const folderId = await findOrCreateMapFolder();
-        if (!folderId) {
-            showAlert('Error saving map to Google Drive. Failed to find or create the dedicated folder.');
-            return;
-        }
-    }
-    
-    const payload = buildPayload();
-    const filename = `${getFilenameBase()}${MAP_FILE_EXTENSION}`;
-    const fileContent = JSON.stringify(payload);
-    const contentType = MAP_MIME_TYPE;
-    
-    showAlert('Saving map to Google Drive...');
-
-    try {
-        // 1. Check if the file already exists in the dedicated folder
-        const searchResponse = await gapi.client.drive.files.list({
-            q: `name='${filename}' and '${driveFolderId}' in parents and trashed=false`,
-            fields: 'files(id)',
-            spaces: 'drive',
-            oauthToken: accessToken
-        });
-
-        const existingFile = searchResponse.result.files?.[0];
-
-        if (existingFile) {
-            // 2. If file exists, update it (PUT request)
-            const updateResponse = await gapi.client.request({
-                path: `/upload/drive/v3/files/${existingFile.id}`,
-                method: 'PATCH',
-                params: {
-                    uploadType: 'media', // Use 'media' for simple content updates
-                },
-                headers: {
-                    'Content-Type': contentType,
-                },
-                body: fileContent,
-                oauthToken: accessToken
-            });
-            showAlert(`Map updated successfully in Drive! (ID: ${existingFile.id})`);
-        } else {
-            // 3. If file does not exist, create it (POST request)
-            const fileMetadata = {
-                'name': filename,
-                'mimeType': contentType,
-                'parents': [driveFolderId]
-            };
-
-            const multipartRequestBody =
-                '--BOUNDARY\r\n' +
-                'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-                JSON.stringify(fileMetadata) +
-                '\r\n--BOUNDARY\r\n' +
-                `Content-Type: ${contentType}\r\n\r\n` +
-                fileContent +
-                '\r\n--BOUNDARY--';
-
-            const createResponse = await gapi.client.request({
-                path: '/upload/drive/v3/files',
-                method: 'POST',
-                params: {
-                    uploadType: 'multipart',
-                },
-                headers: {
-                    'Content-Type': 'multipart/related; boundary="BOUNDARY"',
-                    'Content-Length': multipartRequestBody.length,
-                },
-                body: multipartRequestBody,
-                oauthToken: accessToken
-            });
-            showAlert(`Map saved successfully to Drive! (ID: ${createResponse.result.id})`);
-        }
-    } catch (error) {
-        console.error('Error saving file to Drive:', error);
-        showAlert('Error saving map to Google Drive. Please check permissions or try signing in again.');
-    }
-}
-
 
 /* ---------------------------------------------------------------------- */
 /* ------------------------ ORIGINAL MAP MAKER CODE --------------------- */
@@ -1260,7 +1013,7 @@ function relabelIds() {
 
 // Helper to determine if Gutter Guard checkbox should be shown
 function shouldShowGutterGuard(layer, clipType) {
-    // FIX 2: Only show for 'fascia' (not 'peaks') + Tuff or Shingle clips
+    // Only show for 'fascia' (not 'peaks') + Tuff or Shingle clips
     const isFascia = layer === 'fascia';
     const isTuffOrShingle = clipType === 'T' || clipType === 'ST';
     return isFascia && isTuffOrShingle;
@@ -1288,7 +1041,7 @@ function refreshTable(){
         let clipFraContainerStart = '<div class="clip-fra-container">';
         let clipFraContainerEnd = '</div>';
 
-        // FIX 3: Check if Clip type selection should be shown (Only C9 layers, excluding groundstakes)
+        // Check if Clip type selection should be shown (Only C9 layers, excluding groundstakes)
         if(isC9(r.L)) {
             if(r.L === 'groundstakes') {
                 // HIDE clip/FRA/GG for groundstakes
@@ -1307,7 +1060,6 @@ function refreshTable(){
                 if(r.L === 'ridges') opts = [{v:'ST', l:'Shingle'}]; 
                 else if (r.L === 'peaks') opts = [{v:'ST', l:'Shingle'}, {v:'Mag', l:'Mag'}];
                 else if (r.L === 'fascia') opts = [{v:'T', l:'Tuff'}, {v:'ST', l:'Shingle'}, {v:'Mag', l:'Mag'}];
-                // Note: The original code defaulted groundstakes to T, but per FIX 3, we skip the dropdown for stakes.
                 
                 let optStr = opts.map(o => `<option value="${o.v}" ${r.item.clip===o.v?'selected':''}>${o.l}</option>`).join('');
                 
@@ -1848,9 +1600,8 @@ function getSnap(sx, sy, thresholdS){
                 for(let i=0; i<line.points.length-1; i++){
                     const a=line.points[i]; const b=line.points[i+1];
                     const proj=projOnSeg(p,a,b);
-                    const d=Math.hypot(p.x-proj.q.x, p.y-proj.q.y);
-                    if(proj.t>=0 && proj.t<=1 && d<minD){
-                        minD=d;
+                    if(proj.t>=0 && proj.t<=1 && Math.hypot(p.x-proj.q.x, p.y-proj.q.y)<minD){
+                        minD=Math.hypot(p.x-proj.q.x, p.y-proj.q.y);
                         best={x:proj.q.x, y:proj.q.y, type:'proj', host:line, seg:i};
                     }
                 }
@@ -3044,7 +2795,6 @@ function drawContinuousLine(it, col, layerName) {
     const CORE_GLOW_BLUR = 2 * scale + (baseWidth * 1.5); 
 
     if (isNightMode && isLightElement) {
-        glowStrength = CORE_GLOW_BLUR; 
         ctx.shadowBlur = glowStrength;
     } else {
         ctx.shadowBlur = 0;
@@ -3176,7 +2926,7 @@ function drawContinuousLine(it, col, layerName) {
             const p1 = points[i];
             const p2 = points[i+1];
             const cp = cps[i];
-            const segDist = segmentLengths[i] * scale;
+            const segDist = segmentLength(it.points[i], it.points[i+1], it.cps?.[i]) * scale;
             
             // Check for Pillar Garland Dashing on Multi-Color lines (applies to the whole segment)
             const isDottedSegment = it.isPillarMode && layerName === 'garland' && (i % 2 !== 0);
@@ -3189,8 +2939,8 @@ function drawContinuousLine(it, col, layerName) {
                 const remainingDistInSegment = segDist - currentDistInSegment;
                 const blockDist = Math.min(colorBlockLength, remainingDistInSegment);
                 
-                const endPointObj = getPointOnSegmentAtDist(p1, p2, segDist, currentDistInSegment + blockDist, cp);
-                const endPoint = {x: endPointObj.x, y: endPointObj.y};
+                const endPointObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]), (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
+                const endPoint = toScr({x: endPointObj.x, y: endPointObj.y});
                 
                 if (blockDist > 0.1) {
                     if (isNightMode && isLightElement) {
@@ -3403,11 +3153,20 @@ function draw(){
     
     const cw = cv.width / DPR; const ch = cv.height / DPR;
     ctx.fillStyle='#000000'; ctx.fillRect(0,0,cw,ch);
-    ctx.fillStyle='#0b0f19'; ctx.fillRect(0,0,cw,ch);
+    
+    let isBlankMap = imgReady && !imgDataUrl;
+    
+    if(isBlankMap){
+        // Blank map: Fill with white and skip the aerial background box fill
+        ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch);
+    } else {
+        // Aerial map: Fill with dark gray/blue before drawing image
+        ctx.fillStyle='#0b0f19'; ctx.fillRect(0,0,cw,ch);
+    }
     
     // --- NIGHT MODE AERIAL IMAGE FILTERING ---
     let imageFilter = 'none';
-    if(imgReady && isNightMode) {
+    if(imgReady && imgDataUrl && isNightMode) {
         // Darken and slightly desaturate the image to simulate night/dusk
         imageFilter = 'brightness(0.25) grayscale(0.2)'; 
     }
@@ -3416,12 +3175,16 @@ function draw(){
         ctx.filter = imageFilter;
         ctx.drawImage(bg, panX, panY, bg.width*scale, bg.height*scale); 
         ctx.filter = 'none'; // Reset filter before drawing lines/icons
-    } else {
+    } else if (!imgReady) { // Only show instruction text if no map (blank or image) is loaded yet
         ctx.fillStyle='#151b2b'; ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.font='16px system-ui'; ctx.fillStyle='#456';
         ctx.fillText('Load an image to start or click to draw on a blank map', cw/2, ch/2);
     }
-
+    
+    // Power flow arrows (no glow)
+    ctx.shadowBlur = 0;
+    const pg = analyzePower();
+    
     // --- DRAW LINES (Cords, Lines, Garland, Shrub, Windows) ---
     // Cords layer: drawCord calls drawContinuousLine where color is enforced black
     data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); }); 
@@ -3432,10 +3195,6 @@ function draw(){
             drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); 
         });
     });
-    
-    // Power flow arrows (no glow)
-    ctx.shadowBlur = 0;
-    const pg = analyzePower();
     
     // --- POWER ARROWS AND DEAD ENDS ---
     if(pg){
@@ -3761,6 +3520,7 @@ const handleImg = (f)=>{
         bg.src=imgDataUrl;
         bg.onload=()=>{
             imgReady=true; 
+            document.body.classList.remove('white-bg'); // REMOVE white-bg when an image loads
             resetView(); 
             unlock();
         };
@@ -3776,6 +3536,7 @@ function startBlankMap() {
     bg.height = 1000;
     imgDataUrl = null; // Ensure no old image data is kept
     imgReady = true; 
+    document.body.classList.add('white-bg'); // ADD white-bg for blank paper effect
     resetView();
     unlock();
 }
@@ -3892,6 +3653,7 @@ const handleMap = (f)=>{
                 bg.src=imgDataUrl; 
                 bg.onload=()=>{
                     imgReady=true; 
+                    document.body.classList.remove('white-bg'); // REMOVE white-bg when image loads
                     resetView(); 
                     applyState(o); // Apply job details
                     applyUIState(o); // Apply slider positions and toggles
@@ -3899,6 +3661,7 @@ const handleMap = (f)=>{
                 }; 
                 bg.onerror=()=>{
                     imgReady=true; 
+                    document.body.classList.remove('white-bg'); // REMOVE white-bg on error just in case
                     resetView(); 
                     applyState(o); // Apply job details
                     applyUIState(o); // Apply slider positions and toggles
@@ -3911,6 +3674,7 @@ const handleMap = (f)=>{
                 bg.width = o.bg_width || 1000;
                 bg.height = o.bg_height || 1000;
                 imgReady = true;
+                document.body.classList.add('white-bg'); // ADD white-bg for loaded map with no background image
                 resetView(); 
                 applyState(o); // Apply job details
                 applyUIState(o); // Apply slider positions and toggles
@@ -3991,7 +3755,7 @@ document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.ta
 document.getElementById('gMap').onchange=e=>{ handleMap(e.target.files[0]); e.target.value=''; };
 
 
-// --- SAVE/EXPORT LOGIC ---
+// --- SAVE/EXPORT LOGIC (ONLY LOCAL SAVE REMAINS) ---
 
 // Toggle visibility of dropdown content - Right-click/Context menu handler
 cv.addEventListener('contextmenu', (e) => {
@@ -4033,41 +3797,14 @@ document.getElementById('btnSaveAll').onclick = (e) => {
     const dropdown = document.getElementById('saveDropdown');
     dropdown.style.display = 'none'; // Ensure dropdown is closed before validation
 
-    const cust = document.getElementById('customer').value.trim();
-    const addr = document.getElementById('address').value.trim();
-    const isCC = document.getElementById('btnCustomerControlled').classList.contains('toggled');
-    const timerFilled = document.getElementById('on1').value.trim() !== '';
-
-    const isMissingInfo = (cust === '' || addr === '') || (timerFilled === false && isCC === false);
-    
-    if (isMissingInfo) {
-        document.getElementById('modalSaveValidate').style.display = 'flex';
-    } else {
-        // If validation passes, proceed with Dual Save
-        performDualSave();
-    }
+    // NOTE: Since the validation modal was removed, we just proceed with the save.
+    // If you want validation back, re-add the HTML for #modalSaveValidate and the logic here.
+    performDualSave();
 };
 
 // Handle Dropdown button clicks
 document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly(); document.getElementById('saveDropdown').style.display = 'none'; };
 document.getElementById('btnSaveImageOnly').onclick = () => { performSavePdf(); document.getElementById('saveDropdown').style.display = 'none'; };
-
-// NEW DRIVE SAVE BUTTON HANDLER
-document.getElementById('btnSaveDriveOnly').onclick = () => { 
-    saveToDrive(); 
-};
-document.getElementById('btnSaveDriveDropdown').onclick = () => { saveToDrive(); document.getElementById('saveDropdown').style.display = 'none'; };
-
-
-// Handle Validation Modal confirmation
-document.getElementById('btnSaveConfirm').onclick = () => { 
-    // Perform both local and drive save
-    performDualSave(); 
-    document.getElementById('modalSaveValidate').style.display = 'none';
-};
-document.getElementById('btnSaveCancel').onclick = () => { 
-    document.getElementById('modalSaveValidate').style.display = 'none'; 
-};
 
 // Global function to construct payload
 function buildPayload() {
@@ -4186,9 +3923,7 @@ async function performDualSave() {
     // 2. Perform local map save
     await performSaveMapOnly();
     
-    // 3. Perform Drive map save (new integration)
-    // FIX: Await the saveToDrive function so the error message appears after local saves complete
-    await saveToDrive();
+    // DRIVE SAVE REMOVED HERE
 }
 
 
@@ -4309,9 +4044,15 @@ function captureCanvasData() {
         o.textBaseline = 'alphabetic';
 
         // 4. Draw Map Body (Original image, no night mode filter)
-        o.drawImage(bg, 
-            minX, minY, cropW, cropH, 
-            0, HEADER_H, OUT_W, MAP_H_PX); 
+        // If there is no image data but imgReady is true, we draw white background for export.
+        if (imgReady && !imgDataUrl) {
+            o.fillStyle = '#ffffff';
+            o.fillRect(0, HEADER_H, OUT_W, MAP_H_PX);
+        } else {
+             o.drawImage(bg, 
+                minX, minY, cropW, cropH, 
+                0, HEADER_H, OUT_W, MAP_H_PX); 
+        }
 
         const originalCtx = ctx;
         ctx = o; 
@@ -4483,7 +4224,7 @@ function captureCanvasData() {
                 // Color
                 let displayCol = r.col || '-';
                 // FIX 1: Use normalized/processed color logic
-                const normalizedRCol = r.col ? r.col.toLowerCase().replace(/\s/g, '/').replace(/,/g, '/') : '';
+                const normalizedRCol = r.col ? r.col.toLowerCase().replace(/\s/g, '/').replace(/,/g, '/').replace(/ /g, '') : '';
 
                 if (r.L === 'garland' || r.L === 'wreath' || (r.L === 'shrub' && !r.col)) {
                     displayCol = 'Green';
