@@ -220,11 +220,13 @@ textarea.input{resize:vertical;min-height:80px}
 .clip-fra-container label {
     margin-right: 8px; /* Space between FRA and Gutter Guard */
 }
+/* FIX: Ensure FRA/GG labels (and checkbox text) are visible */
 .fra-checkbox-label, .gg-checkbox-label {
     font-size: 12px;
     white-space: nowrap;
     display: flex; /* Ensure checkbox and text align */
     align-items: center;
+    color: var(--text); /* Set text color to white/light */
 }
 .fra-checkbox-label input, .gg-checkbox-label input {
     margin-right: 2px; /* Small space between box and text */
@@ -250,10 +252,18 @@ textarea.input{resize:vertical;min-height:80px}
   transition:transform .3s;transform:translateY(calc(100% - 44px));
 }
 #lenWrap.open{transform:translateY(0)}
-#lenHead{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#0f1729;cursor:pointer;height:44px;flex:0 0 44px;}
+/* FIX: Set text color for the lenHead and the span text */
+#lenHead{
+    display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#0f1729;
+    cursor:pointer;height:44px;flex:0 0 44px;
+    color: var(--text); /* Main "Line Information" text color */
+}
+#lenHead small {
+    color: #a0b0c0; /* Slightly dimmer secondary text */
+}
 #lenBody{overflow-y:auto;flex:1;background:#0d1526;padding-bottom:20px;}
 table{width:100%;border-collapse:collapse;min-width:100%;} 
-th,td{border-top:1px solid var(--border);padding:8px 10px;font-size:13px;text-align:left;}
+th,td{border-top:1px solid var(--border);padding:8px 10px;font-size:13px;text-align:left; color: var(--text);}
 th{color:#9fc3ff;text-align:left;background:#0f1729;position:sticky;top:0;z-index:2;}
 .edit{width:100%;background:#0b1222;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px}
 select.edit { width: 100%; }
