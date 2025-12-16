@@ -4106,6 +4106,9 @@ document.getElementById('gMap').onchange=e=>{ handleMap(e.target.files[0]); e.ta
 // REMOVED: Right-click/Context menu handler for dropdown.
 // REMOVED: document.addEventListener('click', ...) logic for closing dropdown.
 
+// NEW: Helper promise for controlled delay
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
 
 // Main Dual Save Button (FIX: Unconditionally call performDualSave for single-click save)
 document.getElementById('btnSaveAll').onclick = (e) => {
@@ -4123,9 +4126,11 @@ async function performDualSave() {
     // 1. Perform local PDF save
     const pdfSuccess = await performSavePdf();
     
-    // 2. Perform local map save
-    // NOTE: Waiting for PDF save to complete before starting map save helps prevent race conditions 
-    // and makes it more likely both files are handled correctly by the browser's download manager.
+    // 2. Introduce a delay to allow the browser time to initiate the first download 
+    // before the second one potentially causes a focus switch or dismissal.
+    await delay(750); 
+    
+    // 3. Perform local map save
     const mapSuccess = await performSaveMapOnly();
     
     if (pdfSuccess || mapSuccess) {
