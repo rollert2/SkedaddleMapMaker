@@ -537,6 +537,7 @@ input[type=range].input:active::-webkit-slider-thumb {
                 <input id="chkAutoCalc" type="checkbox" checked/> Auto-calc
              </label>
              <!-- BULK COLOR INPUT REMOVED FROM HERE -->
+        <!-- REMAINS: Relabel button (Used on all non-icon layers) -->
              <button id="btnRelabelIDs" class="btn" style="width:100%;margin:8px 0 0">Relabel IDs (Left-to-Right)</button>
         </div>
         
@@ -632,7 +633,7 @@ function initGis() {
             client_id: CLIENT_ID,
             scope: GDRIVE_SCOPES,
             callback: (response) => {
-                // This callback is executed after the user grants/refreshes the token
+                // This callback is executed after the user grants/re-fresh-es the token
                 if (response.error !== undefined) {
                     showAlert('Authorization Failed: ' + response.error);
                 } else {
@@ -842,6 +843,7 @@ function getColorCode(colorName) {
         case 'orange':
             return '#ff8c00';
         case 'purple':
+        case 'violet': // Added common variant
             return '#8a2be2';
         case 'pink':
             return '#ff69b4';
@@ -1031,7 +1033,8 @@ function isC9(L) {
 function relabelIds() {
     let itemsToRelabel = [];
     Object.keys(data).forEach(L => {
-        if (L === 'cords' || L === 'threeway' || L === 'powersource' || L === 'bow') return; // Do not relabel simple line types or junction points
+        // Exclude lines/items that should not be in the table or relabeled
+        if (L === 'cords' || L === 'threeway' || L === 'powersource' || L === 'bow' || L === 'custom_icon') return; // ADDED custom_icon
 
         data[L].forEach(item => {
             if (item.label || L === 'label') { // Include all line items with labels AND simple labels
@@ -1085,7 +1088,10 @@ function refreshTable(){
     const tbody = document.getElementById('lenRows');
     tbody.innerHTML='';
     let rows=[];
-    Object.keys(data).forEach(k=>data[k].forEach(it=>{ if(it.label && k !== 'label') rows.push({item: it, L:k}); }));
+    Object.keys(data).forEach(k=>data[k].forEach(it=>{ 
+        // Exclude simple labels AND custom icons from the table
+        if(it.label && k !== 'label' && k !== 'custom_icon') rows.push({item: it, L:k}); 
+    }));
     rows.sort((a,b)=>a.item.label.localeCompare(b.item.label, undefined, {numeric:true}));
     const chkAuto = document.getElementById('chkAutoCalc');
 
@@ -2498,7 +2504,8 @@ function getNewItemData(L){
     } else if (L === 'label') { // Simple labels use LBL prefix
         label = pfx.label + nextIndex(pfx.label);
     } else {
-        label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow') ? '' : p + nextIndex(p);
+        // Updated: Include 'custom_icon' to the list of items that do not receive a generated label
+        label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow' || L==='custom_icon') ? '' : p + nextIndex(p);
     }
     
     return {label, index: actionCounter};
@@ -2532,6 +2539,14 @@ document.getElementById('btnRedo').onclick = () => {
     if(redoStack.length === 0) return;
     const record = redoStack.pop();
     if(redoStack.length === 0) document.getElementById('btnRedo').disabled = true;
+    
+    // Restore image object if it's a custom icon
+    if (record.layer === 'custom_icon' && record.item.url) {
+        const img = new Image();
+        img.src = record.item.url;
+        record.item.imageObj = img;
+    }
+    
     data[record.layer].push(record.item);
     markPowerDirty(); requestRender(); refreshTable();
 };
@@ -3277,7 +3292,9 @@ function drawLabels(ctx, isExport=false) {
         ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
 
         Object.keys(data).forEach(k=>data[k].forEach(it=>{
-            if(!it.label || k === 'label') return;
+            // Custom Icons do not have a standard map label
+            if(!it.label || k === 'label' || k === 'custom_icon') return;
+            
             let p;
             let offY;
             
@@ -3863,6 +3880,21 @@ function startBlankMap() {
     unlock();
 }
 
+// Function to clean data before saving (remove DOM objects like Image)
+function getCleanData() {
+    // Deep copy the entire data structure
+    const cleanData = JSON.parse(JSON.stringify(data)); 
+
+    if (cleanData.custom_icon) {
+        cleanData.custom_icon.forEach(icon => {
+            // Ensure non-serializable DOM object is removed before saving
+            delete icon.imageObj; 
+        });
+    }
+    return cleanData;
+}
+
+
 // --- NEW FUNCTION TO APPLY UI STATE ---
 function applyUIState(o) {
     // 1. Load Sliders (The handleMap function sets the input values, this ensures display is right)
@@ -3940,6 +3972,15 @@ const handleMap = (f)=>{
                      });
                  }
                  actionCounter = maxIndex;
+                 
+                 // CUSTOM ICON PERSISTENCE: Recreate Image objects from Data URLs
+                 data.custom_icon.forEach(item => {
+                    if (item.url) {
+                        const img = new Image();
+                        img.src = item.url;
+                        item.imageObj = img; // Store the Image DOM object for drawing
+                    }
+                 });
             }
 
             // Load Settings, handling all scale properties
@@ -4152,7 +4193,7 @@ function buildPayload() {
     return {
         version:17, // Updated version to 17 (due to Pillar Mode and Arrow Frequency)
         image:imgDataUrl, 
-        data, 
+        data: getCleanData(), // Use cleaned data to exclude non-serializable objects (like imageObj)
         job:{ 
             name:document.getElementById('customer').value, 
             address:document.getElementById('address').value, 
@@ -4279,6 +4320,7 @@ function captureCanvasData() {
                       const scaledW = item.w * item.scale;
                       const scaledH = item.h * item.scale;
                       checkPt({x:item.pt.x + scaledW, y:item.pt.y + scaledH});
+                      checkPt({x:item.pt.x - 50, y:item.pt.y - 50}); // Add extra padding for custom icons
                  } else {
                      // Default point icons
                      checkPt({x:item.pt.x+50, y:item.pt.y+50});
@@ -4509,7 +4551,7 @@ function captureCanvasData() {
                 ci.imageObj = new Image();
                 ci.imageObj.src = ci.url;
             }
-            if (ci.imageObj.complete) {
+            if (ci.imageObj && ci.imageObj.complete) {
                 ctx.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH);
             }
         });
@@ -4623,7 +4665,8 @@ function collectRows() {
     const rows = [];
     Object.keys(data).forEach(L => {
         data[L].forEach(it => {
-            if (it.label && L !== 'label') rows.push({ // Exclude 'simple' labels from the table
+            // Exclude 'simple' labels and 'custom_icon' from the table
+            if (it.label && L !== 'label' && L !== 'custom_icon') rows.push({ 
                 L: L,
                 label: it.label,
                 ft: it.ft || '',
@@ -4658,8 +4701,8 @@ function initializeUI() {
 
         Object.keys(data).forEach(k => { 
             data[k].forEach(it => { 
-                // Only set bulk color for items that are NOT Garland, Shrub, or Cords, Wreath
-                if(it.label && k !== 'garland' && k !== 'shrub' && k !== 'cords' && k !== 'wreath' && k !== 'label') { 
+                // Only set bulk color for items that are NOT Garland, Shrub, Cords, Wreath, or Custom Icon
+                if(it.label && k !== 'garland' && k !== 'shrub' && k !== 'cords' && k !== 'wreath' && k !== 'custom_icon') { 
                     it.col = valueToSave; 
                 }
             }); 
