@@ -375,8 +375,7 @@ input[type=range].input:active::-webkit-slider-thumb {
       <button id="gPickBlank" class="gbtn">⬜ Start Blank Map</button>
       <button id="gPickMap" class="gbtn">📂 Load Map (.skmap)</button>
       
-      <!-- ADDED SAVE TO DRIVE BUTTON -->
-      <button id="gSaveDrive" class="gbtn" disabled>☁️ Save to Drive</button>
+      <!-- ONLY LOAD FROM DRIVE BUTTON REMAINS -->
       <button id="gLoadDrive" class="gbtn" disabled>☁️ Load from Drive</button>
 
       <input id="gImg" type="file" accept="image/*"/>
@@ -459,8 +458,7 @@ input[type=range].input:active::-webkit-slider-thumb {
       <div id="saveDropdown" class="dropdown-content">
           <button id="btnSaveMapOnly">💾 Save Map Only (.skmap)</button>
           <button id="btnSaveImageOnly">📤 Save Map as PDF (.pdf)</button>
-          <!-- ADDED SAVE TO DRIVE DROPDOWN BUTTON -->
-          <button id="btnSaveDriveOnly">☁️ Save to Drive</button>
+          <!-- SAVE TO DRIVE BUTTON REMOVED -->
       </div>
   </div>
 </header>
@@ -1161,19 +1159,6 @@ function refreshTable(){
             clipFraContainerEnd = '';
         }
         
-        const fraHtml = showFRA ? 
-            `<label class="fra-checkbox-label">
-                <input type="checkbox" class="fra-checkbox" ${r.item.fra ? 'checked' : ''}/> FRA
-             </label>` : 
-            '';
-            
-        // NEW Gutter Guard HTML
-        const gguardHtml = showGutterGuard ?
-            `<label class="gg-checkbox-label">
-                <input type="checkbox" class="gg-checkbox" ${r.item.gguard ? 'checked' : ''}/> Gutter Guard
-            </label>` :
-            '';
-            
         const clipCellContent = clipFraContainerStart + clipHtml + fraHtml + gguardHtml + clipFraContainerEnd; // Add gguardHtml
 
         // CONDITIONAL COLOR INPUT RENDERING 
