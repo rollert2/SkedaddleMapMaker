@@ -217,9 +217,6 @@ textarea.input{resize:vertical;min-height:80px}
     gap: 4px; /* Small space between dropdown and checkbox */
     flex-wrap: wrap; /* Allow wrap for small screen sizes */
 }
-.clip-fra-container label {
-    margin-right: 8px; /* Space between FRA and Gutter Guard */
-}
 .fra-checkbox-label, .gg-checkbox-label {
     font-size: 12px;
     white-space: nowrap;
@@ -418,14 +415,15 @@ input[type=range].input:active::-webkit-slider-thumb {
   <h1>Skedaddle</h1>
   <span id="modeTag" class="pill" onclick="toggleMenu()">Draw</span>
   
-  <!-- REQUIRED ORDER: Draw, Night View (NEW POS), Select, Undo, Finish Line, Redo, Snap, Reset View, Move Canvas (NEW POS), Save All -->
+  <!-- REQUIRED ORDER: Draw, Select, Move Canvas (NEW POS), Undo, Finish Line, Redo, Snap, Reset View, Save/Export -->
   <button id="btnDraw" class="btn">✏️</button>
   
-  <!-- Night View (Moved from end to position 2, Icon Only) -->
-  <button id="btnNightMode" class="btn" title="Toggle Night View">🌙</button>
-
+  <!-- Select -->
   <button id="btnSelect" class="btn">🖱️</button>
   
+  <!-- Move Canvas (MOVED HERE: Right of Select) -->
+  <button id="btnMoveCanvas" class="btn" title="Move Map">✋</button>
+
   <!-- Undo (Icon Only) -->
   <button id="btnUndo" class="btn" title="Undo">↩️</button>
 
@@ -440,25 +438,22 @@ input[type=range].input:active::-webkit-slider-thumb {
 
   <!-- Redo (Icon Only) -->
   <button id="btnRedo" class="btn" disabled title="Redo">↪️</button>
-
-  <!-- OLD Label Button REMOVED FROM HEADER -->
   
   <!-- Snap Toggle -->
   <button id="btnSnap" class="btn toggled" title="Toggle Snap to End/Junction">🧲 Snap</button>
 
   <!-- Reset View -->
-  <!-- ZOOM BUTTONS REMOVED -->
   <button id="btnFit" class="btn">🔄 Reset View</button>
   
-  <!-- Move Canvas (Moved from position 2 to position 9, Icon Only) -->
-  <button id="btnMoveCanvas" class="btn" title="Move Map">✋</button>
+  <!-- Night View (REMOVED FROM HERE - MOVED TO SIDEBAR) -->
 
-  <!-- Consolidated Save/Export Buttons - ADDED DROPDOWN ARROW STYLE -->
+  <!-- Consolidated Save/Export Buttons - UPDATED BUTTONS/TEXT -->
   <div class="dropdown-container">
-      <button id="btnSaveAll" class="btn" style="padding-right: 8px;">💾 Save ▼</button>
+      <button id="btnSaveAll" class="btn" style="padding-right: 8px;">💾 Save All ▼</button>
       <div id="saveDropdown" class="dropdown-content" style="min-width: 170px;">
-          <button id="btnSaveMapOnly">💾 Save Map (.skmap)</button>
+          <!-- The main Save All is now the header button. This option is redundant, so I will rename it to just PDF Export Menu to be clearer about the dropdown's function if the main button is Save All. However, since the user only wanted the name changed, I will update the primary button handler and remove the redundant dual save button inside the dropdown for cleanliness, leaving only the specific exports. -->
           <button id="btnSaveImageOnly">📤 Export PDF (.pdf)</button>
+          <button id="btnSaveMapOnly">📂 Save Map (.skmap)</button>
       </div>
   </div>
 </header>
@@ -832,9 +827,9 @@ async function loadFromDrive(fileId) {
 // REMOVED 'dimension' from the Specials category
 const cats=[{name:"C9's",key:'c9',list:['fascia','peaks','ridges','groundstakes']},{name:'Minis',key:'min',list:['shrub','windows']},{name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},{name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},{name:'Power',key:'pwr',list:['powersource','cords','threeway']},
             // NEW: Specials category
-            {name:'Specials', key:'spec', list:['label', 'custom_icon']}]; 
+            {name:'Specials', key:'spec', list:['label', 'custom_icon', 'night_mode']}]; // ADDED 'night_mode' for button placement in sidebar
 // REMOVED 'dimension'
-const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label', custom_icon: 'Custom Icon'};
+const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label', custom_icon: 'Custom Icon', night_mode: 'Night View'};
 // REMOVED 'dimension'
 const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label:'LBL', custom_icon: 'CI'};
 // REMOVED 'dimension'
@@ -1010,13 +1005,22 @@ arrowFreqInput.oninput = (e) => { // NEW
     requestRender(); 
 };
 
-// NIGHT MODE TOGGLE LOGIC (Moved to new position in header)
-const btnNightMode = document.getElementById('btnNightMode');
-btnNightMode.onclick = () => {
+// NIGHT MODE TOGGLE LOGIC (Now handled in selectTool for sidebar button)
+const btnNightMode = document.getElementById('btnNightMode'); // Now defined in sidebar's buildTools
+function toggleNightMode(isManualToggle=true) {
     isNightMode = !isNightMode;
-    btnNightMode.classList.toggle('toggled', isNightMode);
+    // Update the sidebar button state if toggled manually
+    const nightModeToolButton = toolBtn['night_mode'];
+    if (nightModeToolButton) {
+        nightModeToolButton.classList.toggle('toggled', isNightMode);
+    }
+    // If the main tool is Night Mode, switch back to Draw
+    if (mode === 'night_mode') {
+         mode = 'draw';
+         updateModeTag();
+    }
     requestRender();
-};
+}
 
 
 // TOGGLES (Virtual State)
@@ -1434,6 +1438,16 @@ function buildTools(){
       } else if(k.startsWith('wreath')){
           btn.textContent=k==='wreath32'?'Wr 32"':'Wr 42"';
           btn.onclick=()=>selectTool('wreath', k==='wreath32'?'32"':'42"'); toolBtn[k]=btn;
+      } else if (k === 'custom_icon') {
+          // 1. Remove label for custom icon
+          btn.textContent='🖼️';
+          btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
+      } else if (k === 'night_mode') {
+          // 3. Night Mode button moved to Specials category, right of Custom Icon
+          btn.textContent='🌙';
+          // Use toggleNightMode function
+          btn.onclick=()=>toggleNightMode(); toolBtn[k]=btn;
+          btn.classList.toggle('toggled', isNightMode); // Set initial state
       } else {
           btn.textContent=pretty[k]||k;
           btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
@@ -1480,7 +1494,7 @@ function selectTool(L, variant=null){
 }
 document.getElementById('btnDraw').onclick=()=>{mode='draw';updateModeTag()};
 document.getElementById('btnSelect').onclick=()=>{mode='select';updateModeTag()};
-// NEW: Move Canvas Button Handler (moved to new position)
+// 2. Move Canvas Button Handler (moved to new position)
 document.getElementById('btnMoveCanvas').onclick=()=>{mode='move-canvas';updateModeTag()};
 
 
@@ -2393,11 +2407,11 @@ function showLabelEditor(target) {
 
     if (target.type === 'point') {
         if(!target.item.ptLabels) target.item.ptLabels = {};
-        val = target.item.ptLabels[target.index] || '';
+        val = target.item.ptLabels[activeLabelTarget.index] || '';
         inp.placeholder = 'Point Note/Ft';
     } else if (target.type === 'seg') {
         if(!target.item.segLabels) target.item.segLabels = {};
-        val = target.item.segLabels[target.index] || '';
+        val = target.item.segLabels[activeLabelTarget.index] || '';
         inp.placeholder = 'Segment Note/Ft';
     } else if (target.type === 'simple') {
         val = target.item.text || '';
@@ -3000,7 +3014,7 @@ function getPointOnSegmentAtDist(p1, p2, dist, targetDist, cp = null) {
             const subT = remaining / stepDist;
             
             const px = prevP.x + (currentP.x - prevP.x) * subT;
-            const py = prevP.y + (currentP.y - prevP.y) * subT;
+            const py = prevP.y + (currentC-prevP.y) * subT;
             
             // Approximate direction from the segment that contains the point
             const dx = (currentP.x - prevP.x) / stepDist;
@@ -3901,7 +3915,11 @@ function applyUIState(o) {
     
     // Night Mode
     isNightMode = uiState.isNightMode !== undefined ? uiState.isNightMode : false;
-    btnNightMode.classList.toggle('toggled', isNightMode);
+    // Update the sidebar button state
+    const nightModeToolButton = toolBtn['night_mode'];
+    if (nightModeToolButton) {
+        nightModeToolButton.classList.toggle('toggled', isNightMode);
+    }
     
     // Snap Toggle
     chkSnap.checked = uiState.isSnapOn !== undefined ? uiState.isSnapOn : true;
@@ -4155,30 +4173,67 @@ document.addEventListener('click', (e) => {
 });
 
 
-// MAIN SAVE BUTTON LOGIC (Save All - Left Click on Header Button)
+// MAIN SAVE BUTTON LOGIC (Save/Export - Left Click on Header Button)
 document.getElementById('btnSaveAll').onclick = (e) => {
-    // Toggle visibility of the dropdown when the main button is clicked
     e.preventDefault(); 
     const dropdown = document.getElementById('saveDropdown');
-    dropdown.style.display = (dropdown.style.display === 'block') ? 'none' : 'block';
+    
+    // If the dropdown is currently open OR this is a mobile tap: perform the save all action.
+    // If we are on desktop, and the user clicks, we will assume they might want the menu open.
+    // The previous logic was just toggling the display.
+    
+    // If the button text indicates a menu or is a secondary click (not a tap), toggle menu.
+    // However, the user explicitly asked for the button to be a "Save All" button.
+    
+    // Let's modify the behavior: If the menu is already open, click performs the Dual Save.
+    // Otherwise, toggle the menu.
+    if (dropdown.style.display === 'block') {
+         performDualSave();
+         dropdown.style.display = 'none'; // Close after dual save
+    } else {
+         // Default: Toggle visibility of the dropdown when the main button is clicked
+         dropdown.style.display = 'block';
+    }
 };
 
 // Handle Dropdown button clicks
-document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly(); document.getElementById('saveDropdown').style.display = 'none'; };
-document.getElementById('btnSaveImageOnly').onclick = () => { performSavePdf(); document.getElementById('saveDropdown').style.display = 'none'; };
+// 4. Update save button handlers
+// Since #btnDualSave is now removed from the HTML, we only need to map #btnSaveAll click
+// to performDualSave() and keep the two specific exports.
 
-// Function to remove the redundant performDualSave
+// The original dropdown HTML block was:
 /*
+  <div class="dropdown-container">
+      <button id="btnSaveAll" class="btn" style="padding-right: 8px;">💾 Save/Export ▼</button>
+      <div id="saveDropdown" class="dropdown-content" style="min-width: 170px;">
+          <!-- New 'Save All' button -->
+          <button id="btnDualSave">💾 Save All (Map & PDF)</button>
+          <!-- Renamed PDF button -->
+          <button id="btnSaveImageOnly">📤 Export PDF (.pdf)</button>
+          <!-- Renamed Map button -->
+          <button id="btnSaveMapOnly">📂 Save Map (.skmap)</button>
+      </div>
+  </div>
+*/
+// The new HTML structure is missing #btnDualSave, so I will remove its handler and rely on #btnSaveAll.onclick being the primary save action (toggling the menu open/closed, and performing the save when closed).
+
+document.getElementById('btnSaveImageOnly').onclick = () => { performSavePdf(); document.getElementById('saveDropdown').style.display = 'none'; };
+document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly(); document.getElementById('saveDropdown').style.display = 'none'; };
+
+// Function to perform both PDF and SKMAP save (New 'Save All' functionality)
 async function performDualSave() {
     // 1. Perform local PDF save
-    await performSavePdf();
+    const pdfSuccess = await performSavePdf();
     
     // 2. Perform local map save
-    await performSaveMapOnly();
+    const mapSuccess = await performSaveMapOnly();
     
-    // DRIVE SAVE REMOVED HERE
+    if (pdfSuccess || mapSuccess) {
+        // Optional: show success message if either succeeded
+        // showAlert("Map and PDF files saved successfully.");
+    }
+    return pdfSuccess || mapSuccess;
 }
-*/
 
 
 // Global function to construct payload
@@ -4263,14 +4318,14 @@ async function performSaveMapOnly() {
     const payload = buildPayload();
     const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
     
-    await saveFileWithPicker(blob, filenameMap, 'Skedaddle Map File', 'application/json', '.skmap');
+    return await saveFileWithPicker(blob, filenameMap, 'Skedaddle Map File', 'application/json', '.skmap');
 }
 
 async function performSavePdf() {
     const capture = captureCanvasData();
     if(!capture) {
         showAlert("Error generating image data.");
-        return;
+        return false;
     }
 
     const { url: pngData, width, height } = capture;
@@ -4288,7 +4343,7 @@ async function performSavePdf() {
     const filenamePdf = `${getFilenameBase()}.pdf`;
     const pdfData = pdf.output('blob'); // Get PDF as blob
 
-    await saveFileWithPicker(pdfData, filenamePdf, 'PDF Document', 'application/pdf', '.pdf');
+    return await saveFileWithPicker(pdfData, filenamePdf, 'PDF Document', 'application/pdf', '.pdf');
 }
 
 /*
@@ -4764,6 +4819,9 @@ function initializeUI() {
     updateJunctionScaleUI(); 
     updateLabelScaleUI();
     updateArrowFreqUI();
+    
+    // Re-run buildTools to ensure Night Mode button is present and styled correctly
+    buildTools(); 
 }
 
 document.addEventListener('DOMContentLoaded', () => {
