@@ -426,13 +426,13 @@ input[type=range].input:active::-webkit-slider-thumb {
   <button id="btnUndo" class="btn" title="Undo">↩️</button>
 
   <!-- Swag Toggle (Tool-specific, moved left of Finish Line for Garland) -->
-  <button id="btnSwag" class="btn" title="Toggle Swag/Curves (Garland Only)" style="display:none">〰️ Swag</button>
+  <button id="btnSwag" class="btn" style="display:none" title="Toggle Swag/Curves (Garland Only)">〰️ Swag</button>
   
   <!-- Finish Line -->
   <button id="btnComplete" class="btn" disabled>✅ Finish Line</button>
 
   <!-- NEW Pillar Garland Toggle (Tool-specific) -->
-  <button id="btnPillar" class="btn" title="Toggle Pillar Garland (Dotted every 2nd line)" style="display:none">🏛️ Pillar</button>
+  <button id="btnPillar" class="btn" style="display:none" title="Toggle Pillar Garland (Dotted every 2nd line)">🏛️ Pillar</button>
 
   <!-- Redo (Icon Only) -->
   <button id="btnRedo" class="btn" disabled title="Redo">↪️</button>
@@ -1486,7 +1486,6 @@ function updateModeTag(){
     
     // --- Emergency Scale Visibility Check (Added Fix) ---
     // If scales are nonsensically low (e.g., loaded from a corrupted file), force them to be visible.
-    // This addresses the user's issue by guaranteeing visibility when switching modes.
     const MIN_SCALE = 0.5; // Same as slider minimum
     if (settings.iconScale < MIN_SCALE) settings.iconScale = 1.5;
     if (settings.junctionScale < MIN_SCALE) settings.junctionScale = 1.0; // NEW
@@ -2712,7 +2711,7 @@ function requestRender(){
 }
 
 function drawArrow(p, dir, color){
-    // Scale size by settings.lineScale AND scale (zoom)
+    // Scale size by settings.lineThickness and scale (zoom)
     const L = 10 * settings.lineScale * scale; 
     const ang = Math.atan2(dir.y, dir.x); 
     const baseWidth = 4 * settings.lineScale * scale;
@@ -2763,7 +2762,7 @@ function drawBow(x, y, scale, itemScale){
     ctx.beginPath(); ctx.ellipse(x+s*0.5, y-s*0.15, s*0.5, s*0.35, 0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     
     // Draw tails
-    ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x-s*0.5, y+s*0.8, x-s*0.6, y+s*1.2); ctx.lineTo(x-s*0.3, y+s*1.2); ctx.quadraticCurveTo(x-s*0.2, y+s*0.8, x,y); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x-s*0.5, y+s*0.8, x-s*0.6, y+s*1.2); ctx.lineTo(x-s*0.3, y+s*1.2); ctx.quadraticCurveCurveTo(x-s*0.2, y+s*0.8, x,y); ctx.fill();
     ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x+s*0.5, y+s*0.8, x+s*0.6, y+s*1.2); ctx.lineTo(x+s*0.3, y+s*1.2); ctx.quadraticCurveTo(x+s*0.2, y+s*0.8, x,y); ctx.fill();
     
     ctx.stroke(); // Stroke the tails
