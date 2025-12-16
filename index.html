@@ -823,7 +823,7 @@ async function loadFromDrive(fileId) {
 /* ---------- DATA DEFINITIONS ---------- */
 const cats=[{name:"C9's",key:'c9',list:['fascia','peaks','ridges','groundstakes']},{name:'Minis',key:'min',list:['shrub','windows']},{name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},{name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},{name:'Power',key:'pwr',list:['powersource','cords','threeway']}];
 const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label'};
-const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label: 'LBL'};
+const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label:'LBL'};
 const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],garland:[],wreath:[],bow:[],cords:[],powersource:[],threeway:[],tree:[], label:[]}; // Add label layer
 
 // Extended color lookup for white variants
@@ -1110,6 +1110,8 @@ function refreshTable(){
         let clipHtml = '';
         let showFRA = false;
         let showGutterGuard = false; 
+        let fraHtml = ''; // Initialize fraHtml
+        let gguardHtml = ''; // Initialize gguardHtml
         
         // Container for Clip and Adapters 
         let clipFraContainerStart = '<div class="clip-fra-container">';
@@ -1143,6 +1145,9 @@ function refreshTable(){
                 if (r.item.clip === 'ST') {
                     showFRA = true;
                     if (r.item.fra === undefined) r.item.fra = false;
+                    fraHtml = `<label class="fra-checkbox-label" title="Flat Roof Adapter (Used with ST clip)">
+                                  <input type="checkbox" class="fra-checkbox" ${r.item.fra ? 'checked' : ''}/> FRA
+                               </label>`;
                 }
 
                 // Check if Gutter Guard option should be shown (only for Fascia lines on Tuff/Shingle clips)
@@ -1150,6 +1155,9 @@ function refreshTable(){
                      showGutterGuard = true;
                      // Initialize gguard property if missing
                      if (r.item.gguard === undefined) r.item.gguard = false; 
+                     gguardHtml = `<label class="gg-checkbox-label" title="Gutter Guard (Used with T/ST on Fascia)">
+                                      <input type="checkbox" class="gg-checkbox" ${r.item.gguard ? 'checked' : ''}/> GG
+                                   </label>`;
                 }
             }
 
@@ -1723,7 +1731,7 @@ function countConnections(junction) {
 function find3WayAt(pt) {
     const TOL_SQR = 0.5 * 0.5;
     for(const tw of data.threeway){
-        if(Math.hypot(tw.pt.x - pt.x, tw.pt.y - pt.y) < TOL_SQR) return tw;
+        if(Math.hypot(tw.pt.x - pt.x, pt.y - pt.y) < TOL_SQR) return tw;
     }
     return null;
 }
@@ -2762,7 +2770,7 @@ function drawBow(x, y, scale, itemScale){
     ctx.beginPath(); ctx.ellipse(x+s*0.5, y-s*0.15, s*0.5, s*0.35, 0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     
     // Draw tails
-    ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x-s*0.5, y+s*0.8, x-s*0.6, y+s*1.2); ctx.lineTo(x-s*0.3, y+s*1.2); ctx.quadraticCurveCurveTo(x-s*0.2, y+s*0.8, x,y); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x-s*0.5, y+s*0.8, x-s*0.6, y+s*1.2); ctx.lineTo(x-s*0.3, y+s*1.2); ctx.quadraticCurveTo(x-s*0.2, y+s*0.8, x,y); ctx.fill();
     ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x+s*0.5, y+s*0.8, x+s*0.6, y+s*1.2); ctx.lineTo(x+s*0.3, y+s*1.2); ctx.quadraticCurveTo(x+s*0.2, y+s*0.8, x,y); ctx.fill();
     
     ctx.stroke(); // Stroke the tails
@@ -3752,25 +3760,37 @@ const handleMap = (f)=>{
             updateArrowFreqUI();
 
 
+            // --- NEW UNLOCK LOGIC FOR MAP LOADING ---
+            
+            // Apply Job Details and UI state first
+            applyState(o); 
+            applyUIState(o); 
+
             if(imgDataUrl){ 
                 bg.src=imgDataUrl; 
-                bg.onload=()=>{
+                
+                // Check if the image is already loaded (can happen with cached image)
+                if (bg.complete && bg.naturalWidth !== 0) {
                     imgReady=true; 
-                    document.body.classList.remove('white-bg'); // REMOVE white-bg when image loads
+                    document.body.classList.remove('white-bg'); 
                     resetView(); 
-                    applyState(o); // Apply job details
-                    applyUIState(o); // Apply slider positions and toggles
-                    unlock();
-                }; 
-                bg.onerror=()=>{
-                    imgReady=true; 
-                    document.body.classList.remove('white-bg'); // REMOVE white-bg on error just in case
-                    resetView(); 
-                    applyState(o); // Apply job details
-                    applyUIState(o); // Apply slider positions and toggles
-                    unlock();
-                    showAlert("Map image failed to load");
-                };
+                    unlock(); // Unlock immediately if image is ready
+                } else {
+                    // Otherwise, wait for onload/onerror events
+                    bg.onload=()=>{
+                        imgReady=true; 
+                        document.body.classList.remove('white-bg'); 
+                        resetView(); 
+                        unlock();
+                    }; 
+                    bg.onerror=()=>{
+                        imgReady=true; 
+                        document.body.classList.remove('white-bg');
+                        resetView(); 
+                        unlock(); // Still unlock on image error
+                        showAlert("Map image failed to load");
+                    };
+                }
             } 
             else { 
                 // CRITICAL FIX: Ensure image background dimensions are set even if image data is missing
@@ -3779,10 +3799,10 @@ const handleMap = (f)=>{
                 imgReady = true;
                 document.body.classList.add('white-bg'); // ADD white-bg for loaded map with no background image
                 resetView(); 
-                applyState(o); // Apply job details
-                applyUIState(o); // Apply slider positions and toggles
+                // Unlock immediately as there's no image load to wait for
                 unlock();
             } 
+            
         }catch(e){showAlert('Error loading map'); console.error('Error loading map:', e);} 
     };
     r.readAsText(f);
@@ -4483,7 +4503,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add relabeling listener
     document.getElementById('btnRelabelIDs').onclick = relabelIds;
     
-    // --- SAFE BUTTON INITIALIZATION ---\
+    // --- SAFE BUTTON INITIALIZATION ---
     // Ensure splash buttons work regardless of GAPI state
     const gPickImg = document.getElementById('gPickImg');
     const gPickBlank = document.getElementById('gPickBlank');
