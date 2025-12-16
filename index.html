@@ -220,7 +220,6 @@ textarea.input{resize:vertical;min-height:80px}
 .clip-fra-container label {
     margin-right: 8px; /* Space between FRA and Gutter Guard */
 }
-/* FIX: Ensure FRA/GG labels (and checkbox text) are visible */
 .fra-checkbox-label, .gg-checkbox-label {
     font-size: 12px;
     white-space: nowrap;
@@ -572,7 +571,7 @@ input[type=range].input:active::-webkit-slider-thumb {
       <div id="lenHead"><div>📏 Line Information <small>(Tap to view)</small></div><span>▲</span></div>
       <div id="lenBody">
         <div style="padding:8px 12px;background:#0f1729;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-             <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#cfe2ff;">
+             <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text);">
                 <input id="chkAutoCalc" type="checkbox" checked/> Auto-calc
              </label>
              <!-- BULK COLOR INPUT REMOVED FROM HERE -->
@@ -612,22 +611,23 @@ const CLIENT_ID = '746571343552-88ogvei1lvtq9ojq3te7fn06d1rlgut4.apps.googleuser
 const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0'; // API Key
 const APP_ID = '746571343552'; // Numeric Project ID (used by Picker)
 
-// Scopes required: drive.file for read/write access to files created/opened by app, drive.metadata for folder search
-const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.metadata'; 
+// Scopes required: Only for file loading via Picker and App Data
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata'; 
 const MAP_MIME_TYPE = 'application/json';
 const MAP_FILE_EXTENSION = '.skmap';
-const MAP_FOLDER_NAME = 'Skedaddle Map Files'; 
+// const MAP_FOLDER_NAME = 'Skedaddle Map Files'; // No longer needed
 
 let accessToken = null;
 let tokenClient = null;
 let gapiReady = false;
 let gisReady = false;
-let driveFolderId = null; // Global variable to store the ID of the dedicated folder
+// let driveFolderId = null; // No longer needed
 
 // Elements for Drive buttons
 const gLoadDriveBtn = document.getElementById('gLoadDrive');
-const gSaveDriveBtn = document.getElementById('gSaveDrive');
-const btnSaveDriveOnly = document.getElementById('btnSaveDriveOnly');
+// Save buttons removed from UI, keeping variables for script compatibility might be prudent but for a clean removal, let's remove the logic/handlers below.
+// const gSaveDriveBtn = document.getElementById('gSaveDrive');
+// const btnSaveDriveOnly = document.getElementById('btnSaveDriveOnly');
 // ADDED ZOOM BUTTONS
 const btnZoomIn = document.getElementById('btnZoomIn');
 const btnZoomOut = document.getElementById('btnZoomOut');
@@ -658,6 +658,7 @@ gapi.load('client:picker', async () => {
 // Initialize Google Identity Services (GIS)
 function initGis() {
     try {
+        // NOTE: Scopes simplified to exclude drive.metadata/drive.file unless required for Picker/Auth
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
             scope: GDRIVE_SCOPES,
@@ -684,16 +685,16 @@ function initGis() {
 function checkApiReadiness() {
     if (gapiReady && gisReady) {
         gLoadDriveBtn.disabled = false;
-        gSaveDriveBtn.disabled = false;
+        // gSaveDriveBtn.disabled = false; // REMOVED
         
         // Primary action is sign-in/initiate load (for both buttons)
         const authClickHandler = () => tokenClient.requestAccessToken({ prompt: '' });
         gLoadDriveBtn.onclick = authClickHandler;
-        gSaveDriveBtn.onclick = authClickHandler;
+        // gSaveDriveBtn.onclick = authClickHandler; // REMOVED
 
         gLoadDriveBtn.textContent = '☁️ Load from Drive';
-        gSaveDriveBtn.textContent = '☁️ Save to Drive';
-        btnSaveDriveOnly.onclick = handleSaveDriveClick;
+        // gSaveDriveBtn.textContent = '☁️ Save to Drive'; // REMOVED
+        // btnSaveDriveOnly.onclick = handleSaveDriveClick; // REMOVED
     }
 }
 
@@ -711,19 +712,17 @@ function handleAuthClick(event) {
     tokenClient.requestAccessToken({ prompt: '' });
 }
 
-/**
- * Initiates the Save to Drive flow.
- */
-function handleSaveDriveClick() {
-    if (!accessToken) {
-        // If not signed in, prompt for sign-in first
-        tokenClient.requestAccessToken({ prompt: '' });
-    } else {
-        // If signed in, proceed directly to save function
-        saveToDrive();
-    }
-    document.getElementById('saveDropdown').style.display = 'none';
-}
+// /**
+//  * Initiates the Save to Drive flow. (REMOVED)
+//  */
+// function handleSaveDriveClick() {
+//     if (!accessToken) {
+//         tokenClient.requestAccessToken({ prompt: '' });
+//     } else {
+//         saveToDrive();
+//     }
+//     document.getElementById('saveDropdown').style.display = 'none';
+// }
 
 
 /**
@@ -732,16 +731,14 @@ function handleSaveDriveClick() {
 function updateDriveUI(isAuthenticated) {
     if (isAuthenticated) {
         gLoadDriveBtn.textContent = '☁️ Load from Drive';
-        gSaveDriveBtn.textContent = '☁️ Save to Drive';
+        // gSaveDriveBtn.textContent = '☁️ Save to Drive'; // REMOVED
         
         gLoadDriveBtn.onclick = () => createPicker('load');
-        gSaveDriveBtn.onclick = saveToDrive;
+        // gSaveDriveBtn.onclick = saveToDrive; // REMOVED
         
-        // Check if the user initiated the flow by clicking the Load button
-        // Note: For simplicity, we just rely on the button clicks now.
     } else {
         gLoadDriveBtn.textContent = '☁️ Load from Drive';
-        gSaveDriveBtn.textContent = '☁️ Save to Drive';
+        // gSaveDriveBtn.textContent = '☁️ Save to Drive'; // REMOVED
     }
 }
 
@@ -808,137 +805,17 @@ async function loadFromDrive(fileId) {
     }
 }
 
-/**
- * Finds the dedicated map folder, or creates it if it doesn't exist.
- * This version enforces the folder MIME type in the search query.
- */
-async function findOrCreateMapFolder() {
-    if (!accessToken) return null;
-    
-    const FOLDER_MIME = 'application/vnd.google-apps.folder';
-    
-    try {
-        // Search for the folder, specifically filtering by its FOLDER MIME type
-        const response = await gapi.client.drive.files.list({
-            q: `mimeType='${FOLDER_MIME}' and name='${MAP_FOLDER_NAME}' and 'root' in parents and trashed=false`,
-            fields: 'files(id, name)',
-            spaces: 'drive',
-            oauthToken: accessToken
-        });
+// /**
+//  * Finds the dedicated map folder, or creates it if it doesn't exist. (REMOVED)
+//  */
+// async function findOrCreateMapFolder() {
+//     // Removed body
+// }
 
-        const files = response.result.files;
-        if (files && files.length > 0) {
-            // FOUND: Use the first one found (should be the folder)
-            driveFolderId = files[0].id;
-        } else {
-            // NOT FOUND: Folder does not exist, create it
-            const createResponse = await gapi.client.drive.files.create({
-                resource: {
-                    name: MAP_FOLDER_NAME,
-                    mimeType: FOLDER_MIME, // CRITICAL: Use the folder MIME type here
-                    parents: ['root']
-                },
-                fields: 'id',
-                oauthToken: accessToken
-            });
-            driveFolderId = createResponse.result.id;
-        }
-        
-        // Return the confirmed ID
-        console.log("Drive folder ID:", driveFolderId);
-        return driveFolderId;
-    } catch (error) {
-        console.error('Error finding or creating Drive folder:', error);
-        showAlert('Error accessing Google Drive folder permissions.');
-        return null; 
-    }
-}
-
-// Function to safely save the current map payload to Google Drive.
-async function saveToDrive() {
-    if (!accessToken) {
-        showAlert('Please sign in to Google Drive first.');
-        return;
-    }
-    
-    // CRITICAL FIX: Await the confirmed folder ID and use a local variable.
-    const folderId = await findOrCreateMapFolder();
-    if (!folderId) {
-        showAlert('Error saving map to Google Drive. Failed to find or create the dedicated folder.');
-        return;
-    }
-    
-    const payload = buildPayload();
-    const filename = `${getFilenameBase()}${MAP_FILE_EXTENSION}`;
-    const fileContent = JSON.stringify(payload);
-    const contentType = MAP_MIME_TYPE;
-    
-    showAlert('Saving map to Google Drive...');
-
-    try {
-        // 1. Check if the file already exists in the dedicated folder
-        const searchResponse = await gapi.client.drive.files.list({
-            q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
-            fields: 'files(id)',
-            spaces: 'drive',
-            oauthToken: accessToken
-        });
-
-        const existingFile = searchResponse.result.files?.[0];
-
-        if (existingFile) {
-            // 2A. Update existing file (PATCH request)
-            const updateResponse = await gapi.client.request({
-                path: `/upload/drive/v3/files/${existingFile.id}`,
-                method: 'PATCH',
-                params: {
-                    uploadType: 'media',
-                },
-                headers: {
-                    'Content-Type': contentType,
-                },
-                body: fileContent,
-                oauthToken: accessToken
-            });
-            showAlert(`Map updated successfully in Drive! (ID: ${existingFile.id})`);
-        } else {
-            // 2B. Create new file (POST request)
-            const fileMetadata = {
-                'name': filename,
-                'mimeType': contentType,
-                // CRITICAL: Use the confirmed local folderId here
-                'parents': [folderId] 
-            };
-
-            const multipartRequestBody =
-                '--BOUNDARY\r\n' +
-                'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-                JSON.stringify(fileMetadata) +
-                '\r\n--BOUNDARY\r\n' +
-                `Content-Type: ${contentType}\r\n\r\n` +
-                fileContent +
-                '\r\n--BOUNDARY--';
-
-            const createResponse = await gapi.client.request({
-                path: '/upload/drive/v3/files',
-                method: 'POST',
-                params: {
-                    uploadType: 'multipart',
-                },
-                headers: {
-                    'Content-Type': 'multipart/related; boundary="BOUNDARY"',
-                    'Content-Length': multipartRequestBody.length,
-                },
-                body: multipartRequestBody,
-                oauthToken: accessToken
-            });
-            showAlert(`Map saved successfully to Drive! (ID: ${createResponse.result.id})`);
-        }
-    } catch (error) {
-        console.error('Error saving file to Drive:', error);
-        showAlert('Error saving map to Google Drive. Please check permissions or try signing in again.');
-    }
-}
+// // Function to safely save the current map payload to Google Drive. (REMOVED)
+// async function saveToDrive() {
+//     // Removed body
+// }
 
 /* ---------------------------------------------------------------------- */
 /* ------------------------ ORIGINAL MAP MAKER CODE --------------------- */
@@ -4048,7 +3925,8 @@ document.getElementById('btnSaveAll').onclick = (e) => {
 document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly(); document.getElementById('saveDropdown').style.display = 'none'; };
 document.getElementById('btnSaveImageOnly').onclick = () => { performSavePdf(); document.getElementById('saveDropdown').style.display = 'none'; };
 // Drive Save is handled by handleSaveDriveClick
-btnSaveDriveOnly.onclick = handleSaveDriveClick;
+// document.getElementById('btnSaveDriveOnly').onclick = handleSaveDriveClick; // REMOVED
+// document.getElementById('gSaveDrive').onclick = handleSaveDriveClick; // REMOVED
 
 
 // Global function to construct payload
@@ -4621,7 +4499,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add relabeling listener
     document.getElementById('btnRelabelIDs').onclick = relabelIds;
     
-    // --- SAFE BUTTON INITIALIZATION ---
+    // --- SAFE BUTTON INITIALIZATION ---\
     // Ensure splash buttons work regardless of GAPI state
     const gPickImg = document.getElementById('gPickImg');
     const gPickBlank = document.getElementById('gPickBlank');
