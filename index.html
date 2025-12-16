@@ -35,7 +35,7 @@ body.blurred #app{filter:blur(18px);pointer-events:none}
     padding:28px; /* Increased padding retained */
     width:min(460px,100%);
     text-align:center;
-    box-shadow:0 10px 60px rgba(rgba(204, 51, 51, 1),.4); /* Red glow effect retained */
+    box-shadow:0 10px 60px rgba(204, 51, 51, 0.4); /* Red glow effect corrected from invalid rgba nesting */
     position: relative; /* Needed for close button positioning */
 }
 /* New Close Button Style */
@@ -418,8 +418,12 @@ input[type=range].input:active::-webkit-slider-thumb {
   <h1>Skedaddle</h1>
   <span id="modeTag" class="pill" onclick="toggleMenu()">Draw</span>
   
-  <!-- REQUIRED ORDER: Draw, Select, Undo, Finish Line, Redo, Label, Snap, Reset View, Night View, Save All -->
+  <!-- REQUIRED ORDER: Draw, Night View (NEW POS), Select, Undo, Finish Line, Redo, Snap, Reset View, Move Canvas (NEW POS), Save All -->
   <button id="btnDraw" class="btn">✏️</button>
+  
+  <!-- Night View (Moved from end to position 2, Icon Only) -->
+  <button id="btnNightMode" class="btn" title="Toggle Night View">🌙</button>
+
   <button id="btnSelect" class="btn">🖱️</button>
   
   <!-- Undo (Icon Only) -->
@@ -437,28 +441,24 @@ input[type=range].input:active::-webkit-slider-thumb {
   <!-- Redo (Icon Only) -->
   <button id="btnRedo" class="btn" disabled title="Redo">↪️</button>
 
-  <!-- NEW Label Button (Puts label wherever clicked) -->
-  <button id="btnLabel" class="btn">🏷️</button>
+  <!-- OLD Label Button REMOVED FROM HEADER -->
   
   <!-- Snap Toggle -->
   <button id="btnSnap" class="btn toggled" title="Toggle Snap to End/Junction">🧲 Snap</button>
 
   <!-- Reset View -->
-  <!-- ADDED ZOOM BUTTONS HERE -->
-  <button id="btnZoomIn" class="btn" title="Zoom In">➕</button>
-  <button id="btnZoomOut" class="btn" title="Zoom Out">➖</button>
+  <!-- ZOOM BUTTONS REMOVED -->
   <button id="btnFit" class="btn">🔄 Reset View</button>
   
-  <!-- Night View -->
-  <button id="btnNightMode" class="btn" title="Toggle Night View">🌙 Night View</button>
+  <!-- Move Canvas (Moved from position 2 to position 9, Icon Only) -->
+  <button id="btnMoveCanvas" class="btn" title="Move Map">✋</button>
 
-  <!-- Consolidated Save/Export Buttons -->
+  <!-- Consolidated Save/Export Buttons - ADDED DROPDOWN ARROW STYLE -->
   <div class="dropdown-container">
-      <button id="btnSaveAll" class="btn">💾 Save All</button>
-      <div id="saveDropdown" class="dropdown-content">
-          <button id="btnSaveMapOnly">💾 Save Map Only (.skmap)</button>
-          <button id="btnSaveImageOnly">📤 Save Map as PDF (.pdf)</button>
-          <!-- SAVE TO DRIVE BUTTON REMOVED -->
+      <button id="btnSaveAll" class="btn" style="padding-right: 8px;">💾 Save ▼</button>
+      <div id="saveDropdown" class="dropdown-content" style="min-width: 170px;">
+          <button id="btnSaveMapOnly">💾 Save Map (.skmap)</button>
+          <button id="btnSaveImageOnly">📤 Export PDF (.pdf)</button>
       </div>
   </div>
 </header>
@@ -504,9 +504,10 @@ input[type=range].input:active::-webkit-slider-thumb {
       <!-- Line Scale Slider -->
       <div style="font-size:12px; margin-bottom:8px;">Line/Path Scale</div>
       <div class="slider-container" id="lineScaleContainer">
-          <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.5"/>
+          <!-- Default value changed to 1.0 -->
+          <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
           <div style="font-size:11px; color:#8b9bb4; display:flex; justify-content:space-between; margin-top: -10px;">
-              <span>Thin</span><span id="lineScaleValue">1.5x</span><span>Thick</span>
+              <span>Thin</span><span id="lineScaleValue">1.0x</span><span>Thick</span>
           </div>
       </div>
       
@@ -598,6 +599,13 @@ input[type=range].input:active::-webkit-slider-thumb {
   <button data-size="3">3'</button><button data-size="6">6'</button><button data-size="9">9'</button><button data-size="12">12'</button><button data-size="15">15'</button>
 </div>
 
+<!-- NEW Custom Image Upload Popup -->
+<div id="imgUploadPop" class="pop" style="flex-direction: column; padding: 12px; min-width: 200px;">
+  <label for="iconFile" class="btn" style="margin-bottom: 8px;">🖼️ Upload Image</label>
+  <input type="file" id="iconFile" accept="image/*" style="display:none;"/>
+  <button id="cancelIconUpload" class="btn">Cancel</button>
+</div>
+
 <script>
 (()=>{
 /* ---------------------------------------------------------------------- */
@@ -627,8 +635,8 @@ const gLoadDriveBtn = document.getElementById('gLoadDrive');
 // const gSaveDriveBtn = document.getElementById('gSaveDrive');
 // const btnSaveDriveOnly = document.getElementById('btnSaveDriveOnly');
 // ADDED ZOOM BUTTONS
-const btnZoomIn = document.getElementById('btnZoomIn');
-const btnZoomOut = document.getElementById('btnZoomOut');
+// const btnZoomIn = document.getElementById('btnZoomIn'); // REMOVED
+// const btnZoomOut = document.getElementById('btnZoomOut'); // REMOVED
 
 // Initialize Google APIs
 // 1. Load GAPI (Client Library) for Drive API
@@ -821,10 +829,16 @@ async function loadFromDrive(fileId) {
 
 
 /* ---------- DATA DEFINITIONS ---------- */
-const cats=[{name:"C9's",key:'c9',list:['fascia','peaks','ridges','groundstakes']},{name:'Minis',key:'min',list:['shrub','windows']},{name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},{name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},{name:'Power',key:'pwr',list:['powersource','cords','threeway']}];
-const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label'};
-const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label:'LBL'};
-const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],garland:[],wreath:[],bow:[],cords:[],powersource:[],threeway:[],tree:[], label:[]}; // Add label layer
+// REMOVED 'dimension' from the Specials category
+const cats=[{name:"C9's",key:'c9',list:['fascia','peaks','ridges','groundstakes']},{name:'Minis',key:'min',list:['shrub','windows']},{name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},{name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},{name:'Power',key:'pwr',list:['powersource','cords','threeway']},
+            // NEW: Specials category
+            {name:'Specials', key:'spec', list:['label', 'custom_icon']}]; 
+// REMOVED 'dimension'
+const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label', custom_icon: 'Custom Icon'};
+// REMOVED 'dimension'
+const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label:'LBL', custom_icon: 'CI'};
+// REMOVED 'dimension'
+const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],garland:[],wreath:[],bow:[],cords:[],powersource:[],threeway:[],tree:[], label:[], custom_icon:[]}; 
 
 // Extended color lookup for white variants
 function getColorCode(colorName) {
@@ -885,7 +899,7 @@ let settings = {
     // UPDATED DEFAULTS FOR BETTER VISIBILITY:
     iconScale: 1.5, // Wreaths, Trees, Bows
     junctionScale: 1.0, // Power, 3-Way (New scale)
-    lineScale: 1.5, // Start slightly larger
+    lineScale: 1.0, // <-- CHANGED DEFAULT TO 1.0
     labelScale: 3.0, // Default max for best visibility
     lineThickness: 3, 
     arrowFreqFactor: 1.0, // NEW: Power direction arrow frequency
@@ -996,7 +1010,7 @@ arrowFreqInput.oninput = (e) => { // NEW
     requestRender(); 
 };
 
-// NIGHT MODE TOGGLE LOGIC
+// NIGHT MODE TOGGLE LOGIC (Moved to new position in header)
 const btnNightMode = document.getElementById('btnNightMode');
 btnNightMode.onclick = () => {
     isNightMode = !isNightMode;
@@ -1373,6 +1387,7 @@ function resetView(){
 document.getElementById('btnFit').onclick=resetView;
 
 // ADDED zoom handlers
+/* REMOVED
 btnZoomIn.onclick = () => {
     const mx = lastWidth / 2;
     const my = lastHeight / 2;
@@ -1396,6 +1411,7 @@ btnZoomOut.onclick = () => {
     scale = nz;
     requestRender();
 };
+*/
 
 const accWrap=document.getElementById('accWrap'); const toolBtn={};
 function buildTools(){
@@ -1442,8 +1458,12 @@ function selectTool(L, variant=null){
     
     // Hide move popup when changing tools
     document.getElementById('movePop').style.display = 'none';
+    document.getElementById('imgUploadPop').style.display = 'none'; // Hide custom icon popup
 
-    mode='draw'; updateModeTag(); startNewSketch();
+    mode='draw'; 
+    if (L === 'label') mode = 'label'; // Set initial mode for label tool
+    updateModeTag(); 
+    startNewSketch();
     
     // Toggle visibility and state for Garland-specific buttons
     if(currLayer === 'garland') {
@@ -1460,28 +1480,37 @@ function selectTool(L, variant=null){
 }
 document.getElementById('btnDraw').onclick=()=>{mode='draw';updateModeTag()};
 document.getElementById('btnSelect').onclick=()=>{mode='select';updateModeTag()};
-// New Label Mode button handler
-document.getElementById('btnLabel').onclick=()=>{
-    mode='label';
-    // Default to point label on entering label mode
-    currLabelTarget='point'; 
-    updateModeTag();
-};
+// NEW: Move Canvas Button Handler (moved to new position)
+document.getElementById('btnMoveCanvas').onclick=()=>{mode='move-canvas';updateModeTag()};
+
 
 function updateModeTag(){
     const t = document.getElementById('modeTag');
+    // Remove toggled class from all mode buttons
+    document.getElementById('btnDraw').classList.remove('toggled');
+    document.getElementById('btnSelect').classList.remove('toggled');
+    document.getElementById('btnMoveCanvas').classList.remove('toggled'); // NEW
+
     if (mode === 'draw') {
          t.textContent = pretty[currLayer] || 'Draw';
          t.style.borderColor = '#64b5ff';
          t.style.color = '#64b5ff';
+         document.getElementById('btnDraw').classList.add('toggled');
     } else if (mode === 'select') {
          t.textContent = 'Select';
          t.style.borderColor = '#ffbd2e';
          t.style.color = '#ffbd2e';
+         document.getElementById('btnSelect').classList.add('toggled');
     } else if (mode === 'label') {
          t.textContent = 'Label';
          t.style.borderColor = '#46c47a';
          t.style.color = '#46c47a';
+         // Handled via tool button active state in the sidebar
+    } else if (mode === 'move-canvas') { // NEW
+         t.textContent = 'Move Canvas';
+         t.style.borderColor = '#f87171'; // Red/Warning color for movement
+         t.style.color = '#f87171';
+         document.getElementById('btnMoveCanvas').classList.add('toggled');
     } else if (mode === 'move') {
          t.textContent = 'Move';
          t.style.borderColor = '#ff3b3b';
@@ -1568,8 +1597,8 @@ function analyzePower(){
       const worldPos = {x:n.x, y:n.y};
       let isDecoration = false;
       
-      // Check if this dead end point is occupied by a decoration icon
-      ['wreath', 'tree', 'bow'].forEach(L => {
+      // Check for fixed icons (Custom Icons do not prevent dead end drawing)
+      ['wreath', 'tree', 'bow', 'custom_icon'].forEach(L => {
         data[L].forEach(item => {
           if (item.pt && Math.hypot(item.pt.x - worldPos.x, item.pt.y - worldPos.y) < TOL_SQR) {
             isDecoration = true;
@@ -1577,7 +1606,6 @@ function analyzePower(){
         });
       });
       
-      // Also check if the line attached to this node is garland or shrub (greenery)
       let isGarlandOrShrub = false;
       edges.forEach(e => {
         if (['garland', 'shrub'].includes(e.type) && (e.u === i || e.v === i)) {
@@ -1585,19 +1613,17 @@ function analyzePower(){
         }
       });
       
-      // R2: If it's a dead end, and not a decoration, and NOT garland/shrub, draw the cap
       if (!isDecoration && !isGarlandOrShrub) {
         deadTips.push(i); 
       }
     } 
   });
   
-  // NEW: Process single-path layers to find where the single arrow should go
   const singleArrowEdges = [];
   singlePathEdges.forEach((pathInfo, line) => {
       const totalLength = pathInfo.totalLength;
       if (totalLength < 0.1) return;
-      const targetDist = totalLength * 0.5; // Place arrow at midpoint
+      const targetDist = totalLength * 0.5; 
       
       let bestSegment = null;
       for (const seg of pathInfo.segments) {
@@ -1611,12 +1637,10 @@ function analyzePower(){
           const edge = bestSegment.edge;
           const distInSegment = targetDist - bestSegment.startDist;
           
-          // Determine flow direction (power is always at start, so flow is start to end)
           const uNode = nodes[edge.u]; 
           const vNode = nodes[edge.v];
           let isReversed = false;
           if (uNode.dist > vNode.dist) {
-              // The line is connected backwards to the power source, reverse direction
               isReversed = true; 
           }
           
@@ -1676,8 +1700,9 @@ function getSnap(sx, sy, thresholdS){
     });
 
     // 2. Snap to Icon/Junction (Same priority as ends)
-    ['powersource','threeway','wreath','bow','tree'].forEach(L=>{
+    ['powersource','threeway','wreath','bow','tree', 'custom_icon'].forEach(L=>{
         data[L].forEach(it=>{
+            // Note: Custom Icon uses pt as Top-Left, snapping should be less restricted
             if(it.pt){
                 const d=Math.hypot(p.x-it.pt.x, p.y-it.pt.y);
                 if(d<minD){ minD=d; best={x:it.pt.x, y:it.pt.y, type:'junction', host:it}; }
@@ -1736,7 +1761,22 @@ function find3WayAt(pt) {
     return null;
 }
 
-// Handles the placement of Icons/single-point items (Wreath, Tree, Power, 3-Way, Bow)
+// New Global state for custom icon placement
+let pendingCustomIcon = null;
+
+// Handles placing a Custom Icon, opening the upload dialog
+function placeCustomIcon(w, sx, sy, label, index) {
+    // Store temporary data until image is uploaded
+    pendingCustomIcon = { pt: w, label: label, index: index, kind: 'custom_icon', tempX: sx, tempY: sy };
+    // Open image upload popup
+    const popEl = document.getElementById('imgUploadPop');
+    popEl.style.left = sx + 'px';
+    popEl.style.top = sy + 'px';
+    popEl.style.transform = 'translate(-50%, -100%)';
+    popEl.style.display = 'flex';
+}
+
+// Handles the placement of Icons/single-point items (Wreath, Tree, Power, 3-Way, Bow, Custom Icon)
 function placeItem(L, w, sx, sy){
     let item;
     const {label, index} = getNewItemData(L);
@@ -1746,6 +1786,9 @@ function placeItem(L, w, sx, sy){
          return; 
     } else if(L==='wreath') {
          placeWreath(L, w, sx, sy, label, index);
+         return;
+    } else if(L==='custom_icon') { // NEW: Custom Icon placement
+         placeCustomIcon(w, sx, sy, label, index);
          return;
     }
     
@@ -1820,6 +1863,7 @@ cv.addEventListener('pointerdown',e=>{
     
     document.getElementById('lblEditor').style.display = 'none';
     document.getElementById('movePop').style.display = 'none'; // Hide popups on new interaction
+    document.getElementById('imgUploadPop').style.display = 'none'; // Hide custom icon popup
 
     if(pointers.size === 1) {
         isTapCandidate = true;
@@ -1948,10 +1992,18 @@ cv.addEventListener('pointermove',e=>{
         return;
     }
     
-    // Pan logic (Draw Mode OR Select/Label Mode when dragging empty space)
-    if(pointers.size === 1 && (!draggingPoint) && mode !== 'label' && mode !== 'move' && mode !== 'move-label') { // Label/Move mode explicitly blocks panning on tap/drag
-         const dx = x - dragStartX; const dy = y - dragStartY;
-         if(Math.hypot(dx, dy) > TAP_THRESHOLD){
+    // Pan logic (Now explicitly handles move-canvas mode)
+    const isExplicitPanMode = mode === 'move-canvas';
+    
+    // Implicit Pan Allowed: only if not explicitly a movement/label mode AND no point is being dragged
+    const isImplicitPanAllowed = (mode !== 'label' && mode !== 'move' && mode !== 'move-label' && !draggingPoint);
+
+    if (pointers.size === 1 && (isExplicitPanMode || isImplicitPanAllowed)) {
+         const dx = x - dragStartX; 
+         const dy = y - dragStartY;
+         
+         // Start panning immediately if in explicit pan mode, otherwise wait for tap threshold
+         if(isExplicitPanMode || Math.hypot(dx, dy) > TAP_THRESHOLD) {
             isTapCandidate = false; 
             panX = dragPanStartX + dx;
             panY = dragPanStartY + dy;
@@ -1972,7 +2024,31 @@ cv.addEventListener('pointermove',e=>{
              } else {
                  draggingPoint.obj.pt = w;
              }
-        } else {
+        } else if (draggingPoint.type === 'custom_icon') {
+             // NEW: Handle Custom Icon Move/Scale drag in select mode
+            const ci = draggingPoint.obj;
+            
+            if (draggingPoint.handle === 'move' || draggingPoint.index === -1) {
+                 // Move TL corner (which is ci.pt)
+                 ci.pt.x = w.x;
+                 ci.pt.y = w.y;
+            } 
+            else if (draggingPoint.handle === 'scale' || draggingPoint.index === -2) {
+                 // Scale handle drag (BR corner)
+                 const tlW = ci.pt; // TL corner in world coords
+                 
+                 // Calculate new width/height from TL to current pointer world pos
+                 const newWorldW = w.x - tlW.x;
+                 
+                 // Base scale on the new width, ensuring it's not negative
+                 if (newWorldW > 0.05) { // Minimum world width check (e.g., 5cm)
+                     // newWorldW = ci.w * newScale
+                     const newScale = newWorldW / ci.w;
+                     ci.scale = newScale;
+                 }
+            }
+        }
+        else {
             // Move Line Point: Snap to lines/ends
             let snap = getSnap(x, y, 25); // Use screen pixels for snap feel
             const ptVal = snap ? {x:snap.x, y:snap.y} : w;
@@ -2095,6 +2171,9 @@ cv.addEventListener('pointerup',e=>{
         const ex = e.clientX-r.left, ey = e.clientY-r.top;
         const dist = Math.hypot(ex - dragStartX, ey - dragStartY);
         
+        // Ensure no action if in move-canvas mode, even if distance is small
+        if(mode === 'move-canvas') return;
+
         if(dist < TAP_THRESHOLD) {
              if(mode === 'draw') {
                  handleTap(ex, ey);
@@ -2108,6 +2187,62 @@ cv.addEventListener('pointerup',e=>{
         }
     }
 });
+
+// Custom Icon File Upload/Cancel Handlers
+const iconFile = document.getElementById('iconFile');
+const imgUploadPop = document.getElementById('imgUploadPop');
+const cancelIconUpload = document.getElementById('cancelIconUpload');
+
+cancelIconUpload.onclick = () => {
+    imgUploadPop.style.display = 'none';
+    pendingCustomIcon = null;
+    iconFile.value = ''; // Reset input
+    requestRender();
+}
+
+iconFile.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file || !pendingCustomIcon) {
+        imgUploadPop.style.display = 'none';
+        pendingCustomIcon = null;
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            // Store the custom icon data (pt is now Top-Left corner)
+            const iconData = pendingCustomIcon;
+            iconData.url = event.target.result;
+            // Store original image dimensions (W/H)
+            iconData.w = img.naturalWidth || 100;
+            iconData.h = img.naturalHeight || 100;
+            iconData.scale = 0.15; // Start small
+            iconData.imageObj = img; // Store image object for drawing
+            
+            data.custom_icon.push(iconData);
+            pendingCustomIcon = null;
+            imgUploadPop.style.display = 'none';
+            iconFile.value = ''; // Reset input
+            
+            // Auto-select the newly placed icon for immediate scaling/moving
+            selectedItem = { type: 'custom_icon', obj: iconData };
+
+            markPowerDirty();
+            requestRender();
+            refreshTable();
+        };
+        img.onerror = () => {
+             showAlert("Failed to load image for custom icon.");
+             pendingCustomIcon = null;
+             imgUploadPop.style.display = 'none';
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
 
 // NEW: Keyboard listener for Delete/Backspace
 document.addEventListener('keydown', (e) => {
@@ -2453,7 +2588,7 @@ function handleTap(sx,sy){
     const w=toWorld(sx,sy);
     redoStack = []; document.getElementById('btnRedo').disabled = true;
 
-    if(['powersource','threeway','tree','wreath','bow'].includes(currLayer)){
+    if(['powersource','threeway','tree','wreath','bow', 'custom_icon'].includes(currLayer)){
         // This was the missing function causing the failure
         placeItem(currLayer, w, sx, sy); 
         return;
@@ -2521,12 +2656,14 @@ function handleTap(sx,sy){
     markPowerDirty(); requestRender();
 }
 
+const CUSTOM_HANDLE_HITBOX = 30; // 30px screen space
+const CORNER_HANDLE_SIZE = 8; // Half the size of the corner handles in draw()
+
 function handleSelectDown(sx, sy){
     // Hide move popup immediately
     document.getElementById('movePop').style.display = 'none';
     isMovingLabel = false; // Disable label moving on general selection check
 
-    // 1. Try to set dragging point first (vertex or icon)
     let hitPoint = null;
     let bestPointDist = 45; // Max distance in pixels to consider a hit (Used for lines/vertices only)
 
@@ -2562,6 +2699,43 @@ function handleSelectDown(sx, sy){
     // Use a large default hitbox for initial sweep to ensure we catch large decorations
     Object.keys(data).forEach(k => searchPoints(data[k], k, bestPointDist)); 
 
+    // 1. Check for Custom Icon handles (Highest Priority for Custom Icons)
+    let isCustomIconHandleDrag = false;
+    data.custom_icon.forEach(ci => {
+        const sTL = toScr(ci.pt);
+        const scaledW = ci.w * ci.scale * scale;
+        const scaledH = ci.h * ci.scale * scale;
+        
+        const handles = [
+            { pos: sTL, handle: 'move' }, // TL (Move)
+            { pos: {x: sTL.x + scaledW, y: sTL.y}, handle: 'scale' }, // TR (Scale) - Not used, but good to have
+            { pos: {x: sTL.x, y: sTL.y + scaledH}, handle: 'scale' }, // BL (Scale) - Not used, but good to have
+            { pos: {x: sTL.x + scaledW, y: sTL.y + scaledH}, handle: 'scale' } // BR (Scale) - Primary scale handle
+        ];
+
+        for (const { pos, handle } of handles) {
+            const d = Math.hypot(sx - pos.x, sy - pos.y);
+            if (d < CUSTOM_HANDLE_HITBOX) {
+                // Note: Only the TL handle actually starts the "Move" logic in this file's implementation
+                const index = (handle === 'scale') ? -2 : -1; // -2 for scale, -1 for move (TL corner)
+                draggingPoint = { obj: ci, index: index, type: 'custom_icon', d: d, handle: handle };
+                isCustomIconHandleDrag = true;
+                break;
+            }
+        }
+        if(isCustomIconHandleDrag) return;
+    });
+
+    // If a custom handle drag is initiated, set selectedItem and exit.
+    if (isCustomIconHandleDrag) {
+         selectedItem = { type: 'custom_icon', obj: draggingPoint.obj };
+         document.getElementById('movePop').style.display = 'none';
+         requestRender();
+         return;
+    }
+
+
+    // 2. If it's a normal point drag (Line vertex or non-custom-icon)
     if (hitPoint && hitPoint.type !== 'label') { // Prevent dragging simple labels as vertices
         draggingPoint = hitPoint; // Initiate vertex/point dragging directly
         selectedItem = { type: hitPoint.type, obj: hitPoint.obj };
@@ -2570,7 +2744,7 @@ function handleSelectDown(sx, sy){
         return;
     }
 
-    // 2. Try to select an entire line segment or object (for selecting the *object*)
+    // 3. Try to select an entire line segment or object (for selecting the *object*)
     let bestObject = null;
     let bestObjectDist = 30; 
     const w = toWorld(sx, sy);
@@ -2625,7 +2799,15 @@ function handleSelectDown(sx, sy){
 }
 
 function getItemCenter(obj){
-    if(obj.pt) return obj.pt;
+    if(obj.pt) {
+        // For custom icons, calculate center for the popup position based on size
+        if (obj.kind === 'custom_icon') {
+            const scaledW = obj.w * obj.scale;
+            const scaledH = obj.h * obj.scale;
+            return { x: obj.pt.x + scaledW / 2, y: obj.pt.y + scaledH / 2 };
+        }
+        return obj.pt;
+    }
     if(obj.points){
         let sx=0, sy=0; obj.points.forEach(p=>{sx+=p.x; sy+=p.y});
         return {x:sx/obj.points.length, y:sy/obj.points.length}; 
@@ -3126,6 +3308,12 @@ function drawLabels(ctx, isExport=false) {
                  const h = (it.size || 9) * 3 * scale * treeScale; 
                  p = {x: it.pt.x, y: it.pt.y - (h/2)/scale}; 
                  offY = 0;
+            } else if (k === 'custom_icon') {
+                 // Custom icons: use center of the image area
+                 const scaledW = it.w * it.scale;
+                 const scaledH = it.h * it.scale;
+                 p = { x: it.pt.x + scaledW / 2, y: it.pt.y + scaledH / 2 };
+                 offY = 0;
             } else {
                  p = it.pt;
                  offY = 0;
@@ -3523,6 +3711,54 @@ function draw(){
         });
     }
     ctx.shadowBlur = 0;
+    
+    // --- DRAW CUSTOM ICONS ---
+    data.custom_icon.forEach(ci => {
+        if (!ci.url) return;
+        
+        // Use pt as Top-Left corner in world coordinates
+        const sTL = toScr(ci.pt);
+        
+        // Calculate scaled dimensions
+        const scaledW = ci.w * ci.scale * scale;
+        const scaledH = ci.h * ci.scale * scale;
+
+        // Lazy load image object if necessary (for compatibility)
+        if (!ci.imageObj || ci.imageObj.src !== ci.url) {
+            ci.imageObj = new Image();
+            ci.imageObj.src = ci.url;
+        }
+
+        if (ci.imageObj.complete) {
+            ctx.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH);
+        }
+        
+        // Draw Selection/Transform Handles
+        if (selectedItem && selectedItem.type === 'custom_icon' && selectedItem.obj === ci) {
+             const HANDLE_SIZE = 8;
+             const handles = [
+                sTL, // TL (Move)
+                {x: sTL.x + scaledW, y: sTL.y}, // TR
+                {x: sTL.x, y: sTL.y + scaledH}, // BL
+                {x: sTL.x + scaledW, y: sTL.y + scaledH} // BR (Scale)
+             ];
+             
+             // Draw bounding box
+             ctx.strokeStyle = '#4a90e2';
+             ctx.lineWidth = 1;
+             ctx.setLineDash([4, 4]);
+             ctx.strokeRect(sTL.x, sTL.y, scaledW, scaledH);
+             ctx.setLineDash([]); // Reset dash
+
+             // Draw 4 corner handles
+             handles.forEach(h => {
+                 ctx.beginPath(); ctx.arc(h.x, h.y, HANDLE_SIZE, 0, Math.PI*2);
+                 ctx.fillStyle = h === handles[3] ? '#ffbd2e' : 'white'; // Highlight scale handle (BR)
+                 ctx.fill(); 
+                 ctx.strokeStyle = '#4a90e2'; ctx.lineWidth=2; ctx.stroke();
+             });
+        }
+    });
 
     // --- Draw Final Sketch (Always on top of everything except selection markers) ---
     if(sketch && sketch.points.length>0){
@@ -3562,7 +3798,7 @@ function draw(){
                  ctx.fillStyle = 'white'; ctx.fill(); 
                  ctx.strokeStyle = '#4a90e2'; ctx.lineWidth=2 * selectionBaseScale; ctx.stroke();
              });
-        } else if (obj.pt){
+        } else if (obj.pt && obj.kind !== 'custom_icon'){
             const s = toScr(obj.pt); 
             // Draw selection circle around icon (fixed size)
             ctx.beginPath(); ctx.arc(s.x, s.y, 15 * selectionBaseScale, 0, Math.PI*2); 
@@ -3706,6 +3942,7 @@ const handleMap = (f)=>{
                  let maxIndex = 0;
                  // Backwards compatibility for the new 'label' layer
                  if (!o.data.label) o.data.label = []; 
+                 if (!o.data.custom_icon) o.data.custom_icon = []; // Initialize new custom icon layer
                  
                  for (const L in data) {
                      data[L] = o.data[L] || [];
@@ -3725,7 +3962,7 @@ const handleMap = (f)=>{
                 // Ensure loaded values are clamped at a visible minimum (MIN_SCALE)
                 settings.iconScale = Math.max(MIN_SCALE, o.settings.iconScale !== undefined ? o.settings.iconScale : 1.5);
                 settings.junctionScale = Math.max(MIN_SCALE, o.settings.junctionScale !== undefined ? o.settings.junctionScale : 1.0); // NEW
-                settings.lineScale = Math.max(MIN_SCALE, o.settings.lineScale !== undefined ? o.settings.lineScale : 1.5);
+                settings.lineScale = Math.max(MIN_SCALE, o.settings.lineScale !== undefined ? o.settings.lineScale : 1.0); // Default to 1.0
                 // Preserve loaded labelScale, or use the new 3.0 default if missing
                 settings.labelScale = Math.max(MIN_SCALE, o.settings.labelScale !== undefined ? o.settings.labelScale : 3.0);
                 settings.arrowFreqFactor = Math.max(0.5, o.settings.arrowFreqFactor !== undefined ? o.settings.arrowFreqFactor : 1.0); // NEW
@@ -3740,7 +3977,7 @@ const handleMap = (f)=>{
                  // Set to a generous default if no settings object exists
                  settings.iconScale = 1.5;
                  settings.junctionScale = 1.0; // NEW
-                 settings.lineScale = 1.5;
+                 settings.lineScale = 1.0; // Default to 1.0
                  settings.labelScale = 3.0; 
                  settings.arrowFreqFactor = 1.0; // NEW
             }
@@ -3909,28 +4146,39 @@ document.addEventListener('click', (e) => {
             updateModeTag();
         }
     }
+    // Also hide the custom image upload popup
+    const imgUploadPop = document.getElementById('imgUploadPop');
+    if (imgUploadPop.style.display === 'flex' && !imgUploadPop.contains(e.target) && e.target !== cv) {
+        imgUploadPop.style.display = 'none';
+        pendingCustomIcon = null;
+    }
 });
 
 
 // MAIN SAVE BUTTON LOGIC (Save All - Left Click on Header Button)
 document.getElementById('btnSaveAll').onclick = (e) => {
-    // If this is a right click (context menu), let the contextmenu listener handle it (and display the dropdown)
-    if (e.button === 2) return; 
-
+    // Toggle visibility of the dropdown when the main button is clicked
+    e.preventDefault(); 
     const dropdown = document.getElementById('saveDropdown');
-    dropdown.style.display = 'none'; // Ensure dropdown is closed before validation
-
-    // NOTE: Since the validation modal was removed, we just proceed with the save.
-    // If you want validation back, re-add the HTML for #modalSaveValidate and the logic here.
-    performDualSave();
+    dropdown.style.display = (dropdown.style.display === 'block') ? 'none' : 'block';
 };
 
 // Handle Dropdown button clicks
 document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly(); document.getElementById('saveDropdown').style.display = 'none'; };
 document.getElementById('btnSaveImageOnly').onclick = () => { performSavePdf(); document.getElementById('saveDropdown').style.display = 'none'; };
-// Drive Save is handled by handleSaveDriveClick
-// document.getElementById('btnSaveDriveOnly').onclick = handleSaveDriveClick; // REMOVED
-// document.getElementById('gSaveDrive').onclick = handleSaveDriveClick; // REMOVED
+
+// Function to remove the redundant performDualSave
+/*
+async function performDualSave() {
+    // 1. Perform local PDF save
+    await performSavePdf();
+    
+    // 2. Perform local map save
+    await performSaveMapOnly();
+    
+    // DRIVE SAVE REMOVED HERE
+}
+*/
 
 
 // Global function to construct payload
@@ -4043,6 +4291,7 @@ async function performSavePdf() {
     await saveFileWithPicker(pdfData, filenamePdf, 'PDF Document', 'application/pdf', '.pdf');
 }
 
+/*
 async function performDualSave() {
     // 1. Perform local PDF save
     await performSavePdf();
@@ -4052,6 +4301,7 @@ async function performDualSave() {
     
     // DRIVE SAVE REMOVED HERE
 }
+*/
 
 
 // Helper function to capture the final exported PNG data (as implemented in btnExport)
@@ -4076,8 +4326,16 @@ function captureCanvasData() {
              if(item.pt) {
                  checkPt(item.pt);
                  // Approximate size for single items to ensure full visibility
-                 checkPt({x:item.pt.x+50, y:item.pt.y+50});
-                 checkPt({x:item.pt.x-50, y:item.pt.y-50});
+                 if (L === 'custom_icon') {
+                      // Custom icons use pt as TL corner
+                      const scaledW = item.w * item.scale;
+                      const scaledH = item.h * item.scale;
+                      checkPt({x:item.pt.x + scaledW, y:item.pt.y + scaledH});
+                 } else {
+                     // Default point icons
+                     checkPt({x:item.pt.x+50, y:item.pt.y+50});
+                     checkPt({x:item.pt.x-50, y:item.pt.y-50});
+                 }
              }
         });
     });
@@ -4293,6 +4551,21 @@ function captureCanvasData() {
             });
         }
         
+        // --- DRAWING CUSTOM ICONS ---
+        data.custom_icon.forEach(ci => {
+            if (!ci.url) return;
+            const sTL = toScr(ci.pt);
+            const scaledW = ci.w * ci.scale * scale;
+            const scaledH = ci.h * ci.scale * scale;
+            if (!ci.imageObj || ci.imageObj.src !== ci.url) {
+                ci.imageObj = new Image();
+                ci.imageObj.src = ci.url;
+            }
+            if (ci.imageObj.complete) {
+                ctx.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH);
+            }
+        });
+        
         // --- DRAWING LABELS (Always last for z-index on export) ---
         drawLabels(ctx, true);
 
@@ -4474,7 +4747,7 @@ function initializeUI() {
     if (settings.iconScale === undefined || settings.lineScale === undefined || settings.labelScale === undefined || settings.junctionScale === undefined || settings.arrowFreqFactor === undefined) {
          settings.iconScale = 1.5;
          settings.junctionScale = 1.0; 
-         settings.lineScale = 1.5;
+         settings.lineScale = 1.0;
          settings.labelScale = 3.0; 
          settings.arrowFreqFactor = 1.0;
     }
