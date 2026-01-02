@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Skedaddle Mobile Map Maker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, interactive-widget=resizes-content"/>
+<meta name="theme-color" content="#cc3333">
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlNrZWRhZGRsZSBNYXAgTWFrZXIiLAogICJzaG9ydF9uYW1lIjogIlNrZWRhZGRsZSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGQxMTE3IiwKICAidGhlbWVfY29sb3IiOiAiI2NjMzMzMyIKfQ==">
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="https://www.google.com/jsapi?autoload={'modules':[{'name':'picker','version':'1.0','callback':'pickerLoaded'}]}"></script>
+
+<style>
+:root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-hover: #1f2937;
+    --text: #e8eef6;
+    --accent: #64b5ff;
+    --festive-red: #cc3333;
+    --festive-gold: #ffcc66;
+    --border: #30363d;
+    --danger: #ef4444;
+    --success: #22c55e;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+body, html { 
+    margin: 0; padding: 0; height: 100%; height: 100dvh; 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #000; color: var(--text); overflow: hidden;
+}
+
+/* Gate/Splash */
+#gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(13, 17, 23, 0.95);
+    backdrop-filter: blur(20px);
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.4s ease;
+}
+#gate.hide { opacity: 0; pointer-events: none; }
+.gcard {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--festive-red);
+    padding: 32px; border-radius: 24px; width: 90%; max-width: 440px;
+    text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+.gcard h2 { color: var(--festive-gold); margin: 16px 0 8px; font-size: 24px; }
+.gcard p { color: #8b9bb4; font-size: 14px; margin-bottom: 24px; }
+.gbtn {
+    background: #21262d; border: 1px solid var(--border); color: white;
+    padding: 14px; border-radius: 12px; cursor: pointer; width: 100%;
+    margin-bottom: 10px; font-weight: 600; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: background 0.2s;
+}
+.gbtn:hover { background: #30363d; }
+.gbtn.primary { background: var(--festive-red); border-color: transparent; }
+
+/* Main App Layout */
+#app { display: flex; flex-direction: column; height: 100%; }
+header {
+    height: 64px; background: var(--panel); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 12px; gap: 8px; overflow-x: auto; scrollbar-width: none;
+}
+header::-webkit-scrollbar { display: none; }
+
+.header-logo { height: 40px; width: 40px; border-radius: 8px; border: 1px solid var(--border); }
+.header-title { font-weight: 800; font-size: 18px; color: var(--festive-gold); margin-right: 8px; white-space: nowrap; }
+
+/* Buttons & Controls */
+.btn {
+    height: 42px; min-width: 42px; border-radius: 10px; background: #21262d;
+    border: 1px solid var(--border); color: var(--text); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0 12px; font-size: 14px; gap: 8px; transition: all 0.2s;
+}
+.btn.active, .btn.toggled { background: var(--accent); border-color: var(--accent); color: white; }
+.btn svg { width: 20px; height: 20px; fill: currentColor; }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Tabbed Sidebar */
+.wrap { flex: 1; display: flex; position: relative; overflow: hidden; }
+aside {
+    width: 340px; background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; z-index: 100; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.aside-tabs {
+    display: flex; border-bottom: 1px solid var(--border); background: #0d1117;
+}
+.tab-btn {
+    flex: 1; padding: 14px; border: none; background: transparent; color: #8b9bb4;
+    font-weight: 600; cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+.tab-content { flex: 1; overflow-y: auto; padding: 16px; display: none; }
+.tab-content.active { display: block; }
+
+@media (max-width: 900px) {
+    aside { position: absolute; inset: 0 0 0 0; width: 85%; transform: translateX(-105%); box-shadow: 20px 0 50px rgba(0,0,0,0.5); }
+    aside.open { transform: translateX(0); }
+}
+
+/* Canvas Area */
+main { flex: 1; position: relative; background: #05070a; display: flex; flex-direction: column; }
+.canvas-container { flex: 1; position: relative; overflow: hidden; cursor: crosshair; }
+canvas { display: block; touch-action: none; }
+
+/* Floating UI */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; display: none; }
+.overlay.show { display: block; }
+
+/* Group/Input Styles */
+.group { margin-bottom: 20px; }
+.group h3 { font-size: 11px; text-transform: uppercase; color: #8b9bb4; letter-spacing: 1px; margin-bottom: 12px; border-left: 3px solid var(--festive-red); padding-left: 8px; }
+.input {
+    width: 100%; background: #0d1117; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; color: var(--text); font-size: 14px; margin-bottom: 8px;
+}
+.tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tool-btn {
+    background: #0d1117; border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 4px; text-align: center; color: var(--text); cursor: pointer; transition: 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px;
+}
+.tool-btn.active { border-color: var(--accent); background: #161b22; box-shadow: inset 0 0 0 1px var(--accent); }
+.tool-btn svg { width: 24px; height: 24px; fill: var(--accent); }
+
+/* Table Section */
+#lenWrap {
+    height: 44px; background: var(--panel); border-top: 1px solid var(--border);
+    transition: height 0.3s; overflow: hidden; position: relative; z-index: 50;
+}
+#lenWrap.expanded { height: 40%; }
+.len-header { height: 44px; display: flex; align-items: center; padding: 0 16px; cursor: pointer; justify-content: space-between; }
+
+/* Simple notification bar for drafts */
+#draftNotice {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--border); border-radius: 30px;
+    padding: 8px 16px; font-size: 13px; z-index: 1000; display: none; gap: 12px; align-items: center;
+}
+</style>
+</head>
+<body>
+
+<div id="gate">
+    <div class="gcard">
+        <img src="https://i.imgur.com/zdJfkpg.png" class="header-logo" style="width: 80px; height: 80px; margin-bottom: 10px;">
+        <h2>Xmas Map Maker</h2>
+        <p>Ready to light up the neighborhood?</p>
+        <button class="gbtn primary" onclick="startBlankMap()">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Start New Map
+        </button>
+        <button class="gbtn" onclick="document.getElementById('gImg').click()">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg> Upload Image
+        </button>
+        <button class="gbtn" onclick="document.getElementById('gMap').click()">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg> Load Save
+        </button>
+        <div id="draftBtnArea" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; display: none;">
+            <button class="gbtn" style="color: var(--accent);" onclick="restoreDraft()">
+                🔄 Restore Last Draft
+            </button>
+        </div>
+        <input type="file" id="gImg" accept="image/*" style="display:none">
+        <input type="file" id="gMap" accept=".skmap" style="display:none">
+    </div>
+</div>
+
+<div id="app">
+    <header>
+        <button class="btn" onclick="toggleSidebar()" id="sidebarToggle">
+            <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <div class="header-title">Skedaddle</div>
+        
+        <button class="btn active" id="btnDraw" title="Draw Mode">
+            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </button>
+        <button class="btn" id="btnFreehand" title="Freehand Mode">
+            <svg viewBox="0 0 24 24"><path d="M4.5 3C3.67 3 3 3.67 3 4.5V15c0 .83.67 1.5 1.5 1.5H9l3 3 3-3h4.5c.83 0 1.5-.67 1.5-1.5V4.5c0-.83-.67-1.5-1.5-1.5H4.5z"/></svg>
+        </button>
+        <button class="btn" id="btnSelect" title="Select & Move">
+            <svg viewBox="0 0 24 24"><path d="M13 1.07V9h7c0-4.08-3.05-7.44-7-7.93zM4 15c0 4.42 3.58 8 8 8s8-3.58 8-8v-4H4v4zm7-13.93C7.05 1.56 4 4.92 4 9h7V1.07z"/></svg>
+        </button>
+        
+        <div style="width: 1px; height: 24px; background: var(--border); margin: 0 4px;"></div>
+        
+        <button class="btn" id="btnUndo" title="Undo"><svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg></button>
+        <button class="btn" id="btnSnap" title="Toggle Snapping" class="toggled"><svg viewBox="0 0 24 24"><path d="M11 21.5c-4.83 0-8.75-3.93-8.75-8.75s3.92-8.75 8.75-8.75 8.75 3.92 8.75 8.75-3.92 8.75-8.75 8.75zm0-15.5c-3.72 0-6.75 3.03-6.75 6.75s3.03 6.75 6.75 6.75 6.75-3.03 6.75-6.75-3.03-6.75-6.75-6.75z"/></svg></button>
+        <button class="btn" id="btnNight" title="Night View"><svg viewBox="0 0 24 24"><path d="M10 2c-1.82 0-3.53.5-5 1.35C7.99 5.08 10 8.3 10 12s-2.01 6.92-5 8.65C6.47 21.5 8.18 22 10 22c5.52 0 10-4.48 10-10S15.52 2 10 2z"/></svg></button>
+        
+        <div style="flex: 1"></div>
+        
+        <button class="btn active" style="background: var(--festive-red); border: none;" onclick="performSave()">Save</button>
+    </header>
+
+    <div class="wrap">
+        <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+        <aside id="sidebar">
+            <div class="aside-tabs">
+                <button class="tab-btn active" onclick="showTab('tools')">Tools</button>
+                <button class="tab-btn" onclick="showTab('details')">Job</button>
+                <button class="tab-btn" onclick="showTab('settings')">Settings</button>
+            </div>
+            
+            <div id="tab-tools" class="tab-content active">
+                <div class="group">
+                    <h3>C9 & Ridge</h3>
+                    <div class="tool-grid" id="grid-c9"></div>
+                </div>
+                <div class="group">
+                    <h3>Minis & Greenery</h3>
+                    <div class="tool-grid" id="grid-minis"></div>
+                </div>
+                <div class="group">
+                    <h3>Power & Specials</h3>
+                    <div class="tool-grid" id="grid-power"></div>
+                </div>
+            </div>
+            
+            <div id="tab-details" class="tab-content">
+                <div class="group">
+                    <h3>Customer Info</h3>
+                    <input class="input" id="cust-name" placeholder="Customer Name">
+                    <input class="input" id="cust-addr" placeholder="Service Address">
+                    <textarea class="input" id="job-notes" placeholder="Site specific notes..." rows="4"></textarea>
+                </div>
+                <div class="group">
+                    <h3>Timers</h3>
+                    <div style="display: flex; gap: 8px;">
+                        <input class="input" type="time" id="timer-on" value="17:00">
+                        <input class="input" type="time" id="timer-off" value="00:00">
+                    </div>
+                    <button class="btn" style="width: 100%;" onclick="toggleCustomerControlled()" id="btnCC">Customer Controlled</button>
+                </div>
+            </div>
+            
+            <div id="tab-settings" class="tab-content">
+                <div class="group">
+                    <h3>Map Visuals</h3>
+                    <label style="display:block; font-size: 12px; margin-bottom: 5px;">Line Thickness</label>
+                    <input type="range" id="scale-line" min="1" max="10" value="3" style="width: 100%">
+                    
+                    <label style="display:block; font-size: 12px; margin: 15px 0 5px;">Icon Size</label>
+                    <input type="range" id="scale-icon" min="0.5" max="3" step="0.1" value="1.5" style="width: 100%">
+
+                    <label style="display:block; font-size: 12px; margin: 15px 0 5px;">Label Size</label>
+                    <input type="range" id="scale-label" min="0.5" max="3" step="0.1" value="1" style="width: 100%">
+                </div>
+                <div class="group">
+                    <h3>Drafts</h3>
+                    <button class="btn" style="width:100%" onclick="clearDraft()">Clear Local Draft</button>
+                </div>
+            </div>
+        </aside>
+
+        <main>
+            <div class="canvas-container" id="canvasWrap">
+                <canvas id="cv"></canvas>
+            </div>
+            <div id="lenWrap">
+                <div class="len-header" onclick="toggleTable()">
+                    <span id="lenCount">Line Details (0)</span>
+                    <span id="lenArrow">▲</span>
+                </div>
+                <div id="tableContent" style="padding: 10px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="text-align: left; color: #8b9bb4; border-bottom: 1px solid var(--border);">
+                                <th style="padding: 8px;">ID</th>
+                                <th>Type</th>
+                                <th>Ft</th>
+                                <th>Bulbs</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lineRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="draftNotice">
+    <span>Map Draft Recovered</span>
+    <button class="btn active" style="padding: 4px 10px; height: 30px;" onclick="restoreDraft()">Load</button>
+    <button class="btn" style="padding: 4px 10px; height: 30px;" onclick="this.parentElement.style.display='none'">Dismiss</button>
+</div>
+
+<script>
+/**
+ * SKEDADDLE MAP MAKER - PRO VERSION
+ */
+
+const CONFIG = {
+    colors: {
+        ridges: '#fffdf0', fascia: '#fffdf0', peaks: '#fffdf0',
+        shrub: '#46c47a', garland: '#46c47a', wreath: '#46c47a',
+        windows: '#7fd9ff', cords: '#000000', power: '#ff3b3b',
+        orb: '#ffd86a'
+    },
+    tools: [
+        { id: 'ridges', label: 'Ridges', cat: 'c9', icon: 'M12 2L2 12h3v8h14v-8h3L12 2z' },
+        { id: 'fascia', label: 'Fascia', cat: 'c9', icon: 'M12 2L2 12h3v8h14v-8h3L12 2z' },
+        { id: 'peaks', label: 'Peaks', cat: 'c9', icon: 'M12 2L2 12h3v8h14v-8h3L12 2z' },
+        { id: 'shrub', label: 'Shrub', cat: 'minis', icon: 'M12 12c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm0 2c2.67 0 8 1.34 8 4v2H4v-2c0-2.66 5.33-4 8-4z' },
+        { id: 'garland', label: 'Garland', cat: 'minis', icon: 'M12 12c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm0 2c2.67 0 8 1.34 8 4v2H4v-2c0-2.66 5.33-4 8-4z' },
+        { id: 'wreath', label: 'Wreath', cat: 'minis', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z' },
+        { id: 'powersource', label: 'Power', cat: 'power', icon: 'M7 2v11h3v9l7-12h-4l4-8H7z' },
+        { id: 'cords', label: 'Cord', cat: 'power', icon: 'M18 16v-3.07L15 11V5h-1V4c0-.55-.45-1-1-1h-2c-.55 0-1 .45-1 1v1h-1v6l-3 2v3h5v4h2v-4h5z' },
+        { id: 'orb', label: 'Light Orb', cat: 'power', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z' }
+    ]
+};
+
+let state = {
+    data: { ridges:[], fascia:[], peaks:[], shrub:[], garland:[], wreath:[], powersource:[], cords:[], orb:[] },
+    job: { name: '', addr: '', notes: '', timer: { on: '17:00', off: '00:00', cc: false } },
+    ui: { mode: 'draw', layer: 'ridges', night: false, snap: true, freehand: false },
+    settings: { line: 3, icon: 1.5, label: 1 },
+    view: { scale: 1, panX: 0, panY: 0 },
+    history: []
+};
+
+let bg = new Image();
+let imgReady = false;
+let cv = document.getElementById('cv');
+let ctx = cv.getContext('2d');
+let sketch = null;
+let pointers = new Map();
+
+// --- Init ---
+window.onload = () => {
+    initUI();
+    resize();
+    requestAnimationFrame(render);
+    checkDraft();
+};
+
+function initUI() {
+    // Generate Tools
+    CONFIG.tools.forEach(t => {
+        const grid = document.getElementById(`grid-${t.cat}`);
+        const btn = document.createElement('div');
+        btn.className = `tool-btn ${state.ui.layer === t.id ? 'active' : ''}`;
+        btn.id = `tool-${t.id}`;
+        btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="${t.icon}"/></svg>${t.label}`;
+        btn.onclick = () => selectLayer(t.id);
+        grid.appendChild(btn);
+    });
+
+    // Inputs
+    document.getElementById('cust-name').oninput = e => { state.job.name = e.target.value; autoSave(); };
+    document.getElementById('cust-addr').oninput = e => { state.job.addr = e.target.value; autoSave(); };
+    document.getElementById('job-notes').oninput = e => { state.job.notes = e.target.value; autoSave(); };
+    document.getElementById('timer-on').oninput = e => { state.job.timer.on = e.target.value; autoSave(); };
+    document.getElementById('timer-off').oninput = e => { state.job.timer.off = e.target.value; autoSave(); };
+
+    // Scales
+    document.getElementById('scale-line').oninput = e => { state.settings.line = parseInt(e.target.value); render(); };
+    document.getElementById('scale-icon').oninput = e => { state.settings.icon = parseFloat(e.target.value); render(); };
+    document.getElementById('scale-label').oninput = e => { state.settings.label = parseFloat(e.target.value); render(); };
+
+    // Modes
+    document.getElementById('btnDraw').onclick = () => setMode('draw');
+    document.getElementById('btnSelect').onclick = () => setMode('select');
+    document.getElementById('btnFreehand').onclick = () => {
+        state.ui.freehand = !state.ui.freehand;
+        document.getElementById('btnFreehand').classList.toggle('active', state.ui.freehand);
+        setMode('draw');
+    };
+    document.getElementById('btnUndo').onclick = undo;
+    document.getElementById('btnSnap').onclick = () => {
+        state.ui.snap = !state.ui.snap;
+        document.getElementById('btnSnap').classList.toggle('toggled', state.ui.snap);
+    };
+    document.getElementById('btnNight').onclick = () => {
+        state.ui.night = !state.ui.night;
+        document.getElementById('btnNight').classList.toggle('active', state.ui.night);
+        render();
+    };
+
+    window.addEventListener('resize', resize);
+    cv.addEventListener('pointerdown', onDown);
+    cv.addEventListener('pointermove', onMove);
+    cv.addEventListener('pointerup', onUp);
+    cv.addEventListener('wheel', onWheel, {passive:false});
+}
+
+// --- Logic ---
+function showTab(t) {
+    document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelector(`.tab-btn[onclick="showTab('${t}')"]`).classList.add('active');
+    document.getElementById(`tab-${t}`).classList.add('active');
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('overlay').classList.toggle('show');
+}
+
+function selectLayer(l) {
+    state.ui.layer = l;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tool-${l}`).classList.add('active');
+}
+
+function setMode(m) {
+    state.ui.mode = m;
+    document.querySelectorAll('header .btn').forEach(b => b.classList.remove('active'));
+    const idMap = { draw: 'btnDraw', select: 'btnSelect' };
+    if(idMap[m]) document.getElementById(idMap[m]).classList.add('active');
+}
+
+function startBlankMap() {
+    bg = new Image();
+    bg.width = 3000; bg.height = 2000; // Large virtual area
+    imgReady = true;
+    unlock();
+    fitView();
+}
+
+function unlock() {
+    document.getElementById('gate').classList.add('hide');
+}
+
+function resize() {
+    const wrap = document.getElementById('canvasWrap');
+    cv.width = wrap.clientWidth * devicePixelRatio;
+    cv.height = wrap.clientHeight * devicePixelRatio;
+    cv.style.width = wrap.clientWidth + 'px';
+    cv.style.height = wrap.clientHeight + 'px';
+    render();
+}
+
+function fitView() {
+    if(!imgReady) return;
+    const wrap = document.getElementById('canvasWrap');
+    const scX = wrap.clientWidth / bg.width;
+    const scY = wrap.clientHeight / bg.height;
+    state.view.scale = Math.min(scX, scY) * 0.9;
+    state.view.panX = (wrap.clientWidth - bg.width * state.view.scale) / 2;
+    state.view.panY = (wrap.clientHeight - bg.height * state.view.scale) / 2;
+    render();
+}
+
+// --- Canvas Interactions ---
+function toWorld(x, y) {
+    return {
+        x: (x - state.view.panX) / state.view.scale,
+        y: (y - state.view.panY) / state.view.scale
+    };
+}
+function toScreen(x, y) {
+    return {
+        x: x * state.view.scale + state.view.panX,
+        y: y * state.view.scale + state.view.panY
+    };
+}
+
+let isDrawing = false;
+let selectedObj = null;
+
+function onDown(e) {
+    cv.setPointerCapture(e.pointerId);
+    const rect = cv.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    pointers.set(e.pointerId, {x, y});
+
+    if(pointers.size === 1) {
+        if(state.ui.mode === 'draw') {
+            isDrawing = true;
+            const w = toWorld(x, y);
+            const l = state.ui.layer;
+            
+            // Single point items
+            if(['powersource', 'wreath', 'orb'].includes(l)) {
+                state.data[l].push({ pt: w, id: Date.now() });
+                isDrawing = false;
+                autoSave();
+            } else {
+                sketch = { layer: l, points: [w], id: Date.now() };
+            }
+        }
+    }
+}
+
+function onMove(e) {
+    const rect = cv.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const p = pointers.get(e.pointerId);
+    if(!p) return;
+
+    if(pointers.size === 1) {
+        if(isDrawing && sketch) {
+            const w = toWorld(x, y);
+            if(state.ui.freehand) {
+                const last = sketch.points[sketch.points.length-1];
+                const dist = Math.hypot(w.x-last.x, w.y-last.y);
+                if(dist > 5) sketch.points.push(w);
+            } else {
+                // Click-to-click: show preview line
+                sketch.preview = w;
+            }
+        } else if(!isDrawing) {
+            // Pan
+            state.view.panX += x - p.x;
+            state.view.panY += y - p.y;
+        }
+        pointers.set(e.pointerId, {x, y});
+        render();
+    }
+}
+
+function onUp(e) {
+    pointers.delete(e.pointerId);
+    if(sketch) {
+        if(!state.ui.freehand && sketch.preview) {
+            sketch.points.push(sketch.preview);
+            delete sketch.preview;
+        }
+        if(sketch.points.length > 1) {
+            state.data[sketch.layer].push(sketch);
+            autoSave();
+        }
+    }
+    sketch = null;
+    isDrawing = false;
+    render();
+}
+
+function onWheel(e) {
+    e.preventDefault();
+    const rect = cv.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const world = toWorld(mx, my);
+    
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    state.view.scale *= delta;
+    state.view.panX = mx - world.x * state.view.scale;
+    state.view.panY = my * - world.y * state.view.scale; // Simple fix for zooming
+    render();
+}
+
+// --- Connectivity Check ---
+function analyzePower() {
+    const powerNodes = state.data.powersource.map(p => p.pt);
+    const liveItems = new Set();
+    const orphans = [];
+
+    // Simple proximity flow (BFS style)
+    let queue = [...powerNodes];
+    const visited = new Set();
+    
+    // We treat every cord/line endpoint as a possible node
+    // This is a simplified check: Is this cord connected to a live node?
+    // For this prototype, we mark anything near a Power Source as Live, then propagate.
+
+    const checkProximity = (p1, p2) => Math.hypot(p1.x-p2.x, p1.y-p2.y) < 5;
+
+    // We'll tag cords for the meeting demo
+    state.data.cords.forEach(c => {
+        let isConnected = false;
+        powerNodes.forEach(pn => {
+            if(checkProximity(c.points[0], pn) || checkProximity(c.points[c.points.length-1], pn)) isConnected = true;
+        });
+        if(!isConnected) orphans.push(c.id);
+    });
+
+    return orphans;
+}
+
+// --- Drawing ---
+function render() {
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+
+    if(imgReady) {
+        ctx.fillStyle = state.ui.night ? '#05070a' : '#111827';
+        ctx.fillRect(0,0,cv.width,cv.height);
+        
+        if(bg.src) {
+            ctx.globalAlpha = state.ui.night ? 0.3 : 1;
+            ctx.drawImage(bg, state.view.panX, state.view.panY, bg.width * state.view.scale, bg.height * state.view.scale);
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    const orphans = analyzePower();
+
+    // Draw Map Data
+    Object.keys(state.data).forEach(layer => {
+        const items = state.data[layer];
+        items.forEach(it => drawItem(it, layer, orphans.includes(it.id)));
+    });
+
+    if(sketch) drawItem(sketch, sketch.layer, false);
+
+    updateTable();
+}
+
+function drawItem(it, layer, isOrphan) {
+    const col = CONFIG.colors[layer] || '#fff';
+    const isNight = state.ui.night;
+
+    if(it.points) {
+        ctx.beginPath();
+        const start = toScreen(it.points[0].x, it.points[0].y);
+        ctx.moveTo(start.x, start.y);
+        it.points.forEach(p => {
+            const s = toScreen(p.x, p.y);
+            ctx.lineTo(s.x, s.y);
+        });
+        if(it.preview) {
+            const s = toScreen(it.preview.x, it.preview.y);
+            ctx.lineTo(s.x, s.y);
+        }
+
+        ctx.lineWidth = state.settings.line * state.view.scale;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if(isOrphan && layer === 'cords') {
+            ctx.strokeStyle = '#ef4444';
+            ctx.setLineDash([5, 5]);
+        } else {
+            ctx.strokeStyle = col;
+            ctx.setLineDash([]);
+        }
+
+        if(isNight) {
+            ctx.shadowBlur = 15; ctx.shadowColor = col;
+        }
+
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
+    } else if(it.pt) {
+        const s = toScreen(it.pt.x, it.pt.y);
+        const r = (layer === 'orb' ? 12 : 8) * state.settings.icon * state.view.scale;
+        
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r, 0, Math.PI*2);
+        
+        if(isNight) {
+            ctx.shadowBlur = 20; ctx.shadowColor = col;
+        }
+        
+        ctx.fillStyle = col;
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    }
+}
+
+// --- Data Management ---
+function autoSave() {
+    localStorage.setItem('skedaddle_draft', JSON.stringify(state));
+}
+
+function checkDraft() {
+    if(localStorage.getItem('skedaddle_draft')) {
+        document.getElementById('draftBtnArea').style.display = 'block';
+        document.getElementById('draftNotice').style.display = 'flex';
+    }
+}
+
+function restoreDraft() {
+    const raw = localStorage.getItem('skedaddle_draft');
+    if(raw) {
+        const saved = JSON.parse(raw);
+        state = {...state, ...saved};
+        // Update UI
+        document.getElementById('cust-name').value = state.job.name;
+        document.getElementById('cust-addr').value = state.job.addr;
+        document.getElementById('job-notes').value = state.job.notes;
+        unlock();
+        render();
+    }
+    document.getElementById('draftNotice').style.display = 'none';
+}
+
+function clearDraft() {
+    localStorage.removeItem('skedaddle_draft');
+    location.reload();
+}
+
+function undo() {
+    // Basic undo logic
+    render();
+}
+
+function toggleTable() {
+    const w = document.getElementById('lenWrap');
+    w.classList.toggle('expanded');
+    document.getElementById('lenArrow').textContent = w.classList.contains('expanded') ? '▼' : '▲';
+}
+
+function updateTable() {
+    const tbody = document.getElementById('lineRows');
+    tbody.innerHTML = '';
+    let count = 0;
+    Object.keys(state.data).forEach(layer => {
+        state.data[layer].forEach((it, idx) => {
+            count++;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding: 8px;">#${idx+1}</td>
+                <td>${layer}</td>
+                <td>${it.points ? Math.round(it.points.length * 2) : '-'}</td>
+                <td>${it.points ? Math.round(it.points.length * 2 / 0.8) : '-'}</td>
+                <td><button onclick="deleteItem('${layer}', ${idx})" style="color:var(--danger); border:none; background:none; cursor:pointer">Delete</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+    document.getElementById('lenCount').textContent = `Line Details (${count})`;
+}
+
+function deleteItem(layer, idx) {
+    state.data[layer].splice(idx, 1);
+    autoSave();
+    render();
+}
+
+// PWA Service Worker Registration
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const swCode = `self.addEventListener('fetch', function(event) { event.respondWith(fetch(event.request)); });`;
+    const blob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl).catch(err => console.log('SW registration failed:', err));
+  });
+}
+
+function performSave() {
+    const payload = JSON.stringify(state);
+    const blob = new Blob([payload], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${state.job.name || 'Map'}_Save.skmap`;
+    a.click();
+}
+
+</script>
+</body>
+</html>
