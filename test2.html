@@ -218,8 +218,12 @@ textarea.input { resize: vertical; min-height: 80px; }
 }
 
 .clip-legend { padding: 8px 0; font-size: 12px; color: var(--text-muted); display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
-.clip-legend dt { font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: 4px; }
+.clip-legend dt { font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: 8px; }
 .clip-legend dd { margin: 0; color: var(--text); }
+
+/* Legend Icons */
+.leg-sq { width: 10px; height: 10px; background: var(--danger); display: inline-block; }
+.leg-tri { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 10px solid var(--warning); display: inline-block; }
 
 .slider-container { padding: 8px 0 16px; position: relative; }
 input[type=range].input {
@@ -344,12 +348,6 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 
 <div id="lblEditor"><input id="lblInput" placeholder="Note/Ft"></div>
 
-<div id="movePop" class="pop" style="display: none; flex-direction: row; gap: 8px;">
-  <button id="moveToolBtn" title="Move Object"><i data-lucide="hand"></i> Move</button>
-  <button id="moveLabelToolBtn" title="Move Label"><i data-lucide="arrow-left-right"></i> Label</button>
-  <button id="deleteToolBtn" title="Delete Object" style="color:var(--danger)"><i data-lucide="trash-2"></i> Delete</button>
-</div>
-
 <div id="app">
 <header>
   <button id="logoBtn" title="Menu"><img id="logo" src="https://i.imgur.com/zdJfkpg.png" alt=""></button>
@@ -371,7 +369,6 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
   <div style="width:1px; height:24px; background:var(--border); margin:0 4px"></div>
   <button id="btnUndo" class="btn" title="Undo"><i data-lucide="undo-2"></i></button>
   
-  <!-- Complete button moved between Undo and Redo -->
   <button id="btnComplete" class="btn" disabled title="Finish Line"><i data-lucide="check-circle"></i></button>
   
   <button id="btnRedo" class="btn" disabled title="Redo"><i data-lucide="redo-2"></i></button>
@@ -469,8 +466,8 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     <div class="group">
         <h3>Legend</h3>
         <dl class="clip-legend">
-            <dt><i data-lucide="zap" style="width:12px; height:12px; color:var(--danger)"></i> PS</dt><dd>Power Source</dd>
-            <dt><i data-lucide="git-fork" style="width:12px; height:12px; color:var(--warning)"></i> 3W</dt><dd>3-Way Adapter</dd>
+            <dt><div class="leg-sq"></div> PS</dt><dd>Power Source</dd>
+            <dt><div class="leg-tri"></div> 3W</dt><dd>3-Way Adapter</dd>
             <dt>ST</dt><dd>Shingle Tab (Eaves/Ridges)</dd>
             <dt>T</dt><dd>Tuff Clip (Fascia)</dd>
             <dt>Mag</dt><dd>Magnetic Clip</dd>
@@ -1023,7 +1020,6 @@ function selectTool(L, variant=null){
     else if(L==='wreath') toolBtn[currWreathSize==='32"'?'wreath32':'wreath42']?.classList.add('active');
     else toolBtn[L]?.classList.add('active');
     if(matchMedia('(max-width:900px)').matches) toggleMenu();
-    document.getElementById('movePop').style.display = 'none';
     document.getElementById('imgUploadPop').style.display = 'none';
     mode='draw'; 
     if (L === 'label') mode = 'label'; 
@@ -1066,7 +1062,6 @@ function updateModeTag(){
     document.getElementById('btnSelect').classList.remove('toggled');
     document.getElementById('btnMoveCanvas').classList.remove('toggled'); 
     
-    // Hide quick edit by default
     document.getElementById('selectionQuickEdit').style.display = 'none';
 
     if (mode === 'draw') {
@@ -1108,7 +1103,7 @@ function analyzePower(){
       const dx = nodes[i].x - p.x; const dy = nodes[i].y - p.y;
       if(dx*dx + dy*dy < TOL_SQR) return i;
     }
-    return nodes.push({x:p.x, y:p.y, dist:Infinity, adj:[]}) - 1;
+    return nodes.push({x:p.x, y:p.y, dist:Infinity, adj:[], type: null}) - 1;
   }
   const singlePathLayers = ['garland', 'groundstakes']; const singlePathEdges = new Map(); 
   ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'].forEach(L => {
@@ -1117,6 +1112,7 @@ function analyzePower(){
        let currentLength = 0; let pathSegments = [];
        for(let i=0; i<it.points.length-1; i++){
           const u = getId(it.points[i]); const v = getId(it.points[i+1]);
+          nodes[u].type = L; nodes[v].type = L;
           const edge = {u, v, type:L, cps:(it.cps?.[i] || null), index: i, line: it};
           edges.push(edge); nodes[u].adj.push(v); nodes[v].adj.push(u);
           if (singlePathLayers.includes(L)) {
@@ -1149,10 +1145,9 @@ function analyzePower(){
   const singleArrowEdges = [];
   singlePathEdges.forEach((pathInfo, line) => {
       const totalLength = pathInfo.totalLength; if (totalLength < 0.1) return;
-      
       const uFirst = getId(line.points[0]);
-      if (nodes[uFirst].dist === Infinity) return;
-
+      const vLast = getId(line.points[line.points.length-1]);
+      if (nodes[uFirst].dist === Infinity && nodes[vLast].dist === Infinity) return;
       const targetDist = totalLength * 0.5; let bestSegment = null;
       for (const seg of pathInfo.segments) { if (targetDist >= seg.startDist && targetDist <= (seg.startDist + seg.length)) { bestSegment = seg; break; } }
       if (bestSegment) {
@@ -1215,7 +1210,7 @@ function countConnections(junction) {
     });
     return count;
 }
-function find3WayAt(pt) { const TOL_SQR = 0.5 * 0.5; for(const tw of data.threeway){ if(Math.hypot(tw.pt.x - pt.x, pt.y - pt.y) < TOL_SQR) return tw; } return null; }
+function find3WayAt(pt) { const TOL_SQR = 0.5 * 0.5; for(const tw of data.threeway){ if(Math.hypot(tw.pt.x - pt.x, tw.pt.y - pt.y) < TOL_SQR) return tw; } return null; }
 
 let pendingCustomIcon = null;
 function placeCustomIcon(w, sx, sy, label, index) {
@@ -1275,11 +1270,20 @@ cv.addEventListener('pointerdown',e=>{
     cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
     pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
     document.getElementById('lblEditor').style.display = 'none';
-    document.getElementById('movePop').style.display = 'none'; 
     document.getElementById('imgUploadPop').style.display = 'none';
 
     if(pointers.size === 1) {
         isTapCandidate = true; tapDownX = ex; tapDownY = ey; dragStartX = ex; dragStartY = ey; dragPanStartX = panX; dragPanStartY = panY;
+        
+        // If something is selected and we are in select mode, check if we're hitting a point for drag exception
+        if (mode === 'select' && selectedItem) {
+            handleSelectDown(ex, ey); // This will set draggingPoint if hitting a vertex
+            if (draggingPoint) {
+                isTapCandidate = false;
+                return;
+            }
+        }
+
         if (mode === 'move' && selectedItem) {
              dragStartPt = { x: selectedItem.obj.pt ? selectedItem.obj.pt.x : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).x : 0),
                              y: selectedItem.obj.pt ? selectedItem.obj.pt.y : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).y : 0) };
@@ -1360,18 +1364,7 @@ cv.addEventListener('pointermove',e=>{
         return;
     }
     
-    // Pan Logic
-    if (pointers.size === 1) {
-        const dx = x - dragStartX; const dy = y - dragStartY;
-        // If the movement exceeds a threshold, it's a pan, not a point placement candidate
-        if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
-            isTapCandidate = false;
-            panX = dragPanStartX + dx; 
-            panY = dragPanStartY + dy; 
-            requestRender();
-        }
-    }
-
+    // Check if dragging logic is occurring
     if(mode === 'select' && draggingPoint){
         const w = toWorld(x, y); currentSnapLine = null; 
         if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree')) {
@@ -1391,8 +1384,7 @@ cv.addEventListener('pointermove',e=>{
             else if (draggingPoint.obj.points) draggingPoint.obj.points[draggingPoint.index] = ptVal;
         }
         markPowerDirty(); requestRender(); return;
-    }
-    if (mode === 'move' && selectedItem && dragStartPt) {
+    } else if (mode === 'move' && selectedItem && dragStartPt) {
         const w = toWorld(x, y); const wStart = toWorld(dragStartX, dragStartY); const dx = w.x - wStart.x; const dy = w.y - wStart.y;
         const obj = selectedItem.obj;
         if (obj.pt) { obj.pt.x = dragStartPt.x + dx; obj.pt.y = dragStartPt.y + dy; } 
@@ -1402,13 +1394,23 @@ cv.addEventListener('pointermove',e=>{
             if (obj.cps) obj.cps.forEach(cp => { if (cp) { cp.x += dx; cp.y += dy; } });
         }
         markPowerDirty(); requestRender(); return;
-    }
-    if (mode === 'move-label' && draggedLabelTarget) {
+    } else if (mode === 'move-label' && draggedLabelTarget) {
         const w = toWorld(x, y); const obj = draggedLabelTarget.item; const index = draggedLabelTarget.index; const type = draggedLabelTarget.type;
         if (type === 'point') { if(!obj.ptLabelPos) obj.ptLabelPos = {}; obj.ptLabelPos[index] = {x: w.x, y: w.y}; } 
         else if (type === 'seg') { if(!obj.segLabelPos) obj.segLabelPos = {}; obj.segLabelPos[index] = {x: w.x, y: w.y}; } 
         else if (type === 'simple') { obj.pt.x = w.x; obj.pt.y = w.y; }
         requestRender(); return;
+    }
+
+    // Pan Logic - Only if no dragging occurring
+    if (pointers.size === 1) {
+        const dx = x - dragStartX; const dy = y - dragStartY;
+        if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
+            isTapCandidate = false;
+            panX = dragPanStartX + dx; 
+            panY = dragPanStartY + dy; 
+            requestRender();
+        }
     }
     requestRender();
 });
@@ -1419,7 +1421,6 @@ cv.addEventListener('pointerup',e=>{
     if (mode === 'move' && dragStartPt) dragStartPt = null;
     if (mode === 'move-label' && draggedLabelTarget) draggedLabelTarget = null;
     
-    // Handle tap vs drag
     if (!wasGesture && pointers.size === 1 && isTapCandidate) {
         const r=canvasWrap.getBoundingClientRect(); 
         const ex = e.clientX-r.left, ey = e.clientY-r.top;
@@ -1453,12 +1454,7 @@ iconFile.onchange = (e) => {
     reader.readAsDataURL(file);
 }
 
-document.addEventListener('keydown', (e) => {
-    if (selectedItem && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); deleteItem(selectedItem); selectedItem = null; document.getElementById('movePop').style.display = 'none'; requestRender(); updateModeTag(); }
-});
-document.getElementById('moveToolBtn').onclick = () => { if (selectedItem) { mode = 'move'; document.getElementById('movePop').style.display = 'none'; updateModeTag(); } };
-document.getElementById('moveLabelToolBtn').onclick = () => { if (selectedItem && selectedItem.obj.points) { mode = 'move-label'; document.getElementById('movePop').style.display = 'none'; updateModeTag(); } };
-document.getElementById('deleteToolBtn').onclick = () => { if (selectedItem) { deleteItem(selectedItem); selectedItem = null; document.getElementById('movePop').style.display = 'none'; updateModeTag(); } };
+// Global keyboard listeners removed to prevent accidental deletion during ID input.
 
 function checkCordLabelClick(sx, sy) {
     const w = toWorld(sx, sy);
@@ -1621,7 +1617,7 @@ function handleTap(sx,sy){
 }
 
 function handleSelectDown(sx, sy){
-    document.getElementById('movePop').style.display = 'none'; isMovingLabel = false;
+    isMovingLabel = false;
     let hitPoint = null; let bestPointDist = 45; 
     const searchPoints = (list, type, overrideHitbox=30) => {
         list.forEach((obj, i) => {
@@ -1650,8 +1646,8 @@ function handleSelectDown(sx, sy){
         }
         if(isCustomIconHandleDrag) return;
     });
-    if (isCustomIconHandleDrag) { selectedItem = { type: 'custom_icon', obj: draggingPoint.obj }; document.getElementById('movePop').style.display = 'none'; updateModeTag(); requestRender(); return; }
-    if (hitPoint && hitPoint.type !== 'label') { draggingPoint = hitPoint; selectedItem = { type: hitPoint.type, obj: hitPoint.obj }; document.getElementById('movePop').style.display = 'none'; updateModeTag(); requestRender(); return; }
+    if (isCustomIconHandleDrag) { selectedItem = { type: 'custom_icon', obj: draggingPoint.obj }; updateModeTag(); requestRender(); return; }
+    if (hitPoint && hitPoint.type !== 'label') { draggingPoint = hitPoint; selectedItem = { type: hitPoint.type, obj: hitPoint.obj }; updateModeTag(); requestRender(); return; }
 
     let bestObject = null; let bestObjectDist = 30; const w = toWorld(sx, sy);
     const searchObjects = (list, type) => {
@@ -1670,11 +1666,6 @@ function handleSelectDown(sx, sy){
     Object.keys(data).forEach(k => searchObjects(data[k], k));
     if (bestObject) {
         selectedItem = bestObject;
-        const c = getItemCenter(selectedItem.obj); const sc = toScr(c);
-        const popEl = document.getElementById('movePop');
-        popEl.style.left = `${sc.x}px`; popEl.style.top = `${sc.y + 20}px`; popEl.style.transform = 'translate(-50%, 0)'; popEl.style.display = 'flex';
-        const btnMoveLabel = document.getElementById('moveLabelToolBtn');
-        if (selectedItem.obj.points) btnMoveLabel.style.display = 'flex'; else btnMoveLabel.style.display = 'none';
         updateModeTag();
     } else { selectedItem = null; updateModeTag(); }
     requestRender();
@@ -1967,6 +1958,18 @@ function draw(){
         const sketchColor = getColorCode(sketch.col) || colorOf(sketch.layer);
         drawContinuousLine(skObj, sketchColor, sketch.layer); 
     }
+    
+    // Snapping Indicator (Shared across draw and selection)
+    if(chkSnap.checked && cv._mx!=null){
+         const sn = getSnap(cv._mx, cv._my, 25);
+         if(sn){ 
+             const s = toScr({x:sn.x, y:sn.y}); 
+             ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, Math.PI*2); 
+             ctx.fillStyle = 'rgba(234, 179, 8, 0.6)'; ctx.fill(); 
+             ctx.strokeStyle = '#000'; ctx.lineWidth=1; ctx.stroke(); 
+         }
+    }
+
     drawLabels(ctx);
 
     if(selectedItem){
@@ -1988,7 +1991,13 @@ const handleImg = (f)=>{
     r.readAsDataURL(f);
 };
 
-function startBlankMap() { bg.width = 1000; bg.height = 1000; imgDataUrl = null; imgReady = true; document.body.classList.add('white-bg'); resetView(); unlock(); }
+function startBlankMap() { 
+    // Clear data
+    for(const key in data) data[key] = [];
+    bg.width = 1000; bg.height = 1000; imgDataUrl = null; imgReady = true; 
+    document.body.classList.add('white-bg'); 
+    resetView(); refreshTable(); unlock(); 
+}
 
 function getCleanData() { const cleanData = JSON.parse(JSON.stringify(data)); if (cleanData.custom_icon) { cleanData.custom_icon.forEach(icon => { delete icon.imageObj; }); } return cleanData; }
 
@@ -2054,7 +2063,7 @@ document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly()
 
 function buildPayload() {
     return {
-        version:18, image:imgDataUrl, data: getCleanData(), 
+        version:19, image:imgDataUrl, data: getCleanData(), 
         job:{ name:document.getElementById('customer').value, address:document.getElementById('address').value, notes:document.getElementById('jobNotes').value },
         settings: settings, uiState: { isNightMode: isNightMode, isSnapOn: chkSnap.checked, isSwagOn: chkSwag.checked, isPillarOn: chkPillar.checked, isAutoCalcOn: document.getElementById('chkAutoCalc').checked }
     };
@@ -2094,6 +2103,12 @@ function initializeUI() {
 document.addEventListener('DOMContentLoaded', () => {
     initializeUI(); initializeAndSizeContext();
     document.getElementById('btnRelabelIDs').onclick = relabelIds;
+    
+    // Splash screen buttons
+    document.getElementById('gPickImg').onclick = () => document.getElementById('gImg').click();
+    document.getElementById('gPickBlank').onclick = startBlankMap;
+    document.getElementById('gPickMap').onclick = () => document.getElementById('gMap').click();
+    document.getElementById('closeGateBtn').onclick = unlock;
 });
 })();
 </script>
