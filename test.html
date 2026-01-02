@@ -4,706 +4,2278 @@
 <meta charset="utf-8"/>
 <title>Skedaddle Mobile Map Maker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, interactive-widget=resizes-content"/>
-<meta name="theme-color" content="#0d1117">
-<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlNrZWRhZGRsZSBNYXAgTWFrZXIiLAogICJzaG9ydF9uYW1lIjogIlNrZWRhZGRsZSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGQxMTE3IiwKICAidGhlbWVfY29sb3IiOiAiI2NjMzMzMyIKfQ==">
+<meta name="theme-color" content="#0f172a">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <!-- Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://www.google.com/jsapi?autoload={'modules':[{'name':'picker','version':'1.0','callback':'pickerLoaded'}]}"></script>
 
 <style>
 :root {
-    --bg: #0d1117;
-    --panel: #161b22;
-    --panel-hover: #1f2937;
-    --text: #e8eef6;
-    --accent: #64b5ff;
-    --festive-red: #cc3333;
-    --festive-gold: #ffcc66;
-    --border: #30363d;
-    --border2: #21262d;
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-hover: #334155;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --border: #334155;
+    --border-highlight: #475569;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --warning: #eab308;
+    
+    --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+    
+    --festive-gold: #fbbf24;
+    --festive-red: #ef4444;
 }
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-body, html { 
-    margin: 0; padding: 0; height: 100%; height: 100dvh; 
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: #000; color: var(--text); overflow: hidden;
-}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; height: 100dvh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-main); margin: 0; }
 
-/* Splash Gate */
+/* Blur Effect */
+body.blurred #app { filter: blur(12px); pointer-events: none; transition: filter 0.3s ease; }
+
+/* --- Splash Screen --- */
 #gate {
-    position: fixed; inset: 0; z-index: 9999;
-    background: rgba(13, 17, 23, 0.95);
-    backdrop-filter: blur(20px);
-    display: flex; align-items: center; justify-content: center;
-    transition: opacity 0.4s ease;
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 999;
+    background: radial-gradient(circle at center, rgba(15, 23, 42, 0.9), #0f172a);
+    backdrop-filter: blur(10px);
+    transition: opacity 0.3s, visibility 0.3s;
+    padding: 16px;
 }
-#gate.hide { opacity: 0; pointer-events: none; }
-.gcard {
-    background: var(--panel); border: 1px solid var(--border); border-top: 4px solid var(--festive-red);
-    padding: 32px; border-radius: 24px; width: 90%; max-width: 440px; text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-}
-.gcard h2 { color: var(--festive-gold); margin: 16px 0 8px; font-size: 24px; }
-.gcard p { color: #8b9bb4; font-size: 14px; margin-bottom: 24px; }
-.gbtn {
-    background: #21262d; border: 1px solid var(--border); color: white;
-    padding: 14px; border-radius: 12px; cursor: pointer; width: 100%;
-    margin-bottom: 10px; font-weight: 600; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;
-}
-.gbtn.primary { background: var(--festive-red); border-color: transparent; }
+#gate.hide { opacity: 0; visibility: hidden; pointer-events: none; }
 
-/* Layout */
-#app { display: flex; flex-direction: column; height: 100%; background: #000; }
+.gcard {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border-highlight);
+    border-radius: 24px;
+    padding: 40px;
+    width: min(480px, 100%);
+    text-align: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+/* Festive accent line on top */
+.gcard::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--festive-red), var(--festive-gold), var(--success));
+}
+
+.gcard h2 {
+    margin: 16px 0 8px; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.gcard p { margin: 0 0 32px; color: var(--text-muted); font-size: 15px; line-height: 1.5; }
+
+.close-btn {
+    position: absolute; top: 16px; right: 16px; background: transparent; border: none;
+    color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 50%;
+    transition: all 0.2s; display: none;
+}
+.close-btn:hover { background: var(--panel-hover); color: var(--text); }
+
+.grow { display: flex; flex-direction: column; gap: 12px; }
+
+/* Modern Button Style */
+.gbtn {
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    padding: 16px; border-radius: 12px; cursor: pointer; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.gbtn:hover { background: var(--panel-hover); border-color: var(--border-highlight); transform: translateY(-1px); }
+.gbtn:active { transform: translateY(0); }
+.gbtn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
+/* File inputs hidden */
+.grow input[type=file] { position: absolute; width: 0; height: 0; opacity: 0; }
+
+/* --- App Layout --- */
+#app { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
+
+/* Header */
 header {
-    height: 64px; background: var(--panel); border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; padding: 0 12px; gap: 8px; overflow-x: auto; scrollbar-width: none;
+    flex: 0 0 64px; display: flex; align-items: center; gap: 8px; padding: 0 16px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    z-index: 30; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 header::-webkit-scrollbar { display: none; }
 
-.header-logo { height: 42px; width: 42px; border-radius: 10px; border: 1px solid var(--border); }
-.header-title { font-weight: 800; font-size: 18px; color: var(--festive-gold); margin-right: 8px; white-space: nowrap; }
+#logoBtn { background: none; border: none; padding: 0; cursor: pointer; margin-right: 12px; }
+#logo { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border); }
+h1 { margin: 0 16px 0 0; font-size: 18px; font-weight: 600; color: var(--text); display: inline-block; vertical-align: middle; }
 
+/* Toolbar Buttons */
 .btn {
-    height: 42px; min-width: 42px; border-radius: 10px; background: #21262d;
-    border: 1px solid var(--border); color: var(--text); display: flex; align-items: center; justify-content: center;
-    cursor: pointer; padding: 0 12px; font-size: 14px; gap: 8px; transition: all 0.2s; white-space: nowrap;
+    background: transparent; border: 1px solid transparent; color: var(--text-muted);
+    border-radius: 8px; height: 40px; padding: 0 12px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 13px; font-weight: 500; transition: all 0.2s; white-space: nowrap;
 }
-.btn.active, .btn.toggled { background: var(--accent); border-color: var(--accent); color: white; }
-.btn svg { width: 20px; height: 20px; fill: currentColor; }
+.btn:hover:not(:disabled) { background: var(--panel-hover); color: var(--text); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.toggled { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: var(--accent); }
+
+/* Pill Badge */
+.pill {
+    background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2);
+    color: var(--accent); border-radius: 20px; padding: 6px 16px; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
+    margin-right: 8px;
+}
+.pill:hover { background: rgba(59, 130, 246, 0.2); }
+
+/* Main Canvas Area */
+.wrap { flex: 1; display: flex; position: relative; overflow: hidden; }
+main { flex: 1; display: flex; flex-direction: column; position: relative; background: #050505; }
+
+.canvasWrap {
+    flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
+    background: #0f172a;
+    /* Fancy background pattern */
+    background-image: radial-gradient(#1e293b 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+canvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: transparent; touch-action: none; display: block;
+    box-shadow: 0 0 0 1px var(--border);
+}
+body.white-bg .canvasWrap { background: #ffffff; background-image: none; }
 
 /* Sidebar */
-.wrap { flex: 1; display: flex; position: relative; overflow: hidden; }
 aside {
-    width: 340px; background: var(--panel); border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; z-index: 100; transition: transform 0.3s ease;
+    width: 320px; background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow-y: auto; padding: 16px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 20;
 }
-.aside-tabs { display: flex; border-bottom: 1px solid var(--border); background: #0d1117; }
-.tab-btn {
-    flex: 1; padding: 14px; border: none; background: transparent; color: #8b9bb4;
-    font-weight: 600; cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+.overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px);
+    z-index: 19; opacity: 0; pointer-events: none; transition: opacity 0.3s;
 }
-.tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
-.tab-content { flex: 1; overflow-y: auto; padding: 16px; display: none; }
-.tab-content.active { display: block; }
+.overlay.show { opacity: 1; pointer-events: auto; }
 
-@media (max-width: 900px) {
-    aside { position: absolute; inset: 0 0 0 0; width: 85%; transform: translateX(-105%); box-shadow: 20px 0 50px rgba(0,0,0,0.5); }
-    aside.open { transform: translateX(0); }
+/* Tool Groups */
+.group { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.group h3 {
+    margin: 0 0 12px; font-size: 11px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
 }
 
-/* Canvas & Table */
-main { flex: 1; display: flex; flex-direction: column; position: relative; }
-.canvas-container { flex: 1; position: relative; background: #05070a; overflow: hidden; }
-canvas { display: block; touch-action: none; }
+/* Inputs */
+.input {
+    width: 100%; background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit;
+    transition: border-color 0.2s;
+}
+.input:focus { outline: none; border-color: var(--accent); }
+textarea.input { resize: vertical; min-height: 80px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lbl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--text-muted); padding-left: 2px; }
 
+/* Accordion */
+.acc { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); margin-bottom: 8px; overflow: hidden; }
+.accHead {
+    display: flex; align-items: center; justify-content: space-between; cursor: pointer;
+    padding: 12px 14px; font-size: 14px; font-weight: 500; color: var(--text);
+    transition: background 0.2s;
+}
+.accHead:hover { background: var(--panel-hover); }
+.accHead svg { transition: transform 0.2s; width: 16px; height: 16px; color: var(--text-muted); }
+.acc.open .accHead svg { transform: rotate(90deg); color: var(--accent); }
+.accBody { display: none; padding: 10px; border-top: 1px solid var(--border); background: var(--bg); }
+.acc.open .accBody { display: block; }
+
+/* Grid Tools */
+.grid4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 8px; }
+.tool {
+    background: var(--panel); border: 1px solid var(--border); color: var(--text-muted);
+    border-radius: 8px; padding: 10px 4px; text-align: center; font-size: 11px;
+    cursor: pointer; min-height: 60px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.2s;
+}
+.tool svg { width: 20px; height: 20px; margin-bottom: 2px; }
+.tool:hover { background: var(--panel-hover); color: var(--text); border-color: var(--border-highlight); }
+.tool.active {
+    background: rgba(59, 130, 246, 0.1); border-color: var(--accent); color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Legends & Labels */
+.clip-legend { padding: 8px 0; font-size: 12px; color: var(--text-muted); display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+.clip-legend dt { font-weight: 600; color: var(--accent); }
+.clip-legend dd { margin: 0; color: var(--text); }
+.clip-fra-container { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fra-checkbox-label, .gg-checkbox-label { font-size: 11px; display: flex; align-items: center; gap: 4px; color: var(--text-muted); cursor: pointer; }
+
+/* Sliders */
+.slider-container { padding: 8px 0 16px; position: relative; }
+input[type=range].input {
+    -webkit-appearance: none; appearance: none; height: 6px; background: var(--border);
+    border-radius: 3px; border: none; padding: 0;
+}
+input[type=range].input::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
+    background: var(--accent); border: 4px solid var(--bg); border-radius: 50%;
+    cursor: pointer; box-shadow: 0 0 0 1px var(--border-highlight); transition: transform 0.1s;
+}
+input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
+
+/* Bottom Sheet (Lengths) */
 #lenWrap {
     background: var(--panel); border-top: 1px solid var(--border);
-    position: absolute; bottom: 0; left: 0; right: 0; height: 44px;
-    transition: height 0.3s; z-index: 50; overflow: hidden;
+    position: absolute; bottom: 0; left: 0; right: 0; max-height: 60%;
+    display: flex; flex-direction: column; z-index: 25;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(calc(100% - 48px));
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
 }
-#lenWrap.expanded { height: 45%; }
-.len-header { height: 44px; display: flex; align-items: center; padding: 0 16px; cursor: pointer; justify-content: space-between; font-weight: bold; }
-
-/* Form Elements */
-.group { margin-bottom: 20px; }
-.group h3 { font-size: 11px; text-transform: uppercase; color: #8b9bb4; letter-spacing: 1px; margin-bottom: 12px; border-left: 3px solid var(--festive-red); padding-left: 8px; }
-.input {
-    width: 100%; background: #0d1117; border: 1px solid var(--border); border-radius: 8px;
-    padding: 10px; color: var(--text); font-size: 14px; margin-bottom: 8px; font-family: inherit;
+#lenWrap.open { transform: translateY(0); }
+#lenHead {
+    display: flex; justify-content: space-between; align-items: center; padding: 0 16px;
+    background: var(--panel); cursor: pointer; height: 48px; flex: 0 0 48px;
+    border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;
 }
-.tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 8px; }
-.tool-btn {
-    background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
-    padding: 10px 4px; text-align: center; color: var(--text); cursor: pointer; font-size: 11px;
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
+#lenBody { overflow-y: auto; flex: 1; background: var(--bg); padding-bottom: 30px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid var(--border); padding: 12px 8px; font-size: 13px; text-align: left; vertical-align: middle; }
+th { color: var(--text-muted); font-weight: 600; background: var(--panel); position: sticky; top: 0; z-index: 2; font-size: 12px; text-transform: uppercase; }
+td .edit { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 8px; width: 100%; }
+.xbtn {
+    background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--danger); border-radius: 6px; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 16px; line-height: 1;
 }
-.tool-btn.active { border-color: var(--accent); background: #1c263a; }
-.tool-btn svg { width: 22px; height: 22px; margin-bottom: 2px; }
+.xbtn:hover { background: var(--danger); color: white; }
 
-/* Popups & Overlays */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 90; display: none; }
-.overlay.show { display: block; }
+/* Popups & Modals */
+.pop {
+    position: fixed; z-index: 9999; background: var(--panel); border: 1px solid var(--border-highlight);
+    border-radius: 12px; display: none; padding: 8px; gap: 8px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.pop button {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 500;
+}
+.pop button:hover { background: var(--panel-hover); }
 
-.pop { position: fixed; z-index: 9999; background: #0f1727; border: 1px solid #456; border-radius: 12px; display: none; padding: 8px; gap: 8px; }
-.pop button { background: #151b2b; border: 1px solid #345; color: #fff; border-radius: 8px; padding: 10px; cursor: pointer; flex: 1; }
+#modalBack, #modalAlert {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000;
+    display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+.card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; width: 90%; max-width: 400px; text-align: center;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+.card h3 { margin: 0 0 12px; color: var(--text); font-size: 18px; font-weight: 600; }
+.card p { margin: 0 0 24px; color: var(--text-muted); font-size: 14px; }
+.card .row { display: flex; gap: 12px; justify-content: center; }
+.card button { flex: 1; padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
+.btn-stay { background: var(--border); color: var(--text); }
+.btn-leave { background: var(--danger); color: white; }
+.btn-ok { background: var(--accent); color: white; width: 100%; }
 
-#lblEditor { position: fixed; z-index: 5000; display: none; transform: translate(-50%, -120%); }
-#lblInput { background: #111827; color: #fff; border: 1px solid #3b82f6; padding: 8px; border-radius: 8px; width: 120px; text-align: center; }
+/* Label Editor */
+#lblEditor { position: fixed; z-index: 5000; transform: translate(-50%, -120%); }
+#lblInput {
+    background: var(--panel); color: white; border: 1px solid var(--accent);
+    padding: 6px 12px; border-radius: 8px; font-size: 13px; min-width: 100px; text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
 
-/* Table Styles */
-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-th { text-align: left; color: #8b9bb4; padding: 8px; font-size: 12px; border-bottom: 1px solid var(--border); }
-td { padding: 8px; border-bottom: 1px solid var(--border2); }
-.edit { background: #0d1117; border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px; width: 100%; font-size: 12px; }
-
-#draftNotice {
-    position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
-    background: var(--panel); border: 1px solid var(--border); border-radius: 30px;
-    padding: 8px 16px; font-size: 13px; z-index: 1000; display: none; gap: 12px; align-items: center;
+/* Mobile */
+@media (max-width: 900px) {
+    aside { position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(-105%); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
+    aside.open { transform: translateX(0); }
+    #lenWrap { width: 100%; }
+    h1 { display: none; }
+    header { justify-content: space-between; }
+    header .btn { padding: 0 8px; }
+    .btn span { display: none; } /* Hide labels on mobile header, icons only */
+    .btn i { margin: 0; }
 }
 </style>
 </head>
-<body>
-
+<body class="blurred">
 <div id="gate">
-    <div class="gcard">
-        <img src="https://i.imgur.com/zdJfkpg.png" class="header-logo" style="width: 80px; height: 80px; margin-bottom: 10px;">
-        <h2>Xmas Map Maker</h2>
-        <p>Ready to light up the neighborhood?</p>
-        <button class="gbtn primary" onclick="startBlankMap()">✨ Start New Blank Map</button>
-        <button class="gbtn" onclick="document.getElementById('gImg').click()">📷 Upload Photo</button>
-        <button class="gbtn" onclick="document.getElementById('gMap').click()">📂 Load Save (.skmap)</button>
-        <button id="gLoadDrive" class="gbtn" disabled>☁️ Load from Google Drive</button>
-        <div id="draftBtnArea" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; display: none;">
-            <button class="gbtn" style="color: var(--accent);" onclick="restoreDraft()">🔄 Restore Last Draft</button>
-        </div>
-        <input type="file" id="gImg" accept="image/*" style="display:none">
-        <input type="file" id="gMap" accept=".skmap" style="display:none">
+  <div class="gcard">
+    <button class="close-btn" id="closeGateBtn" title="Continue Editing"><i data-lucide="x"></i></button>
+    <div style="margin-bottom: 20px;">
+        <img src="https://i.imgur.com/zdJfkpg.png" alt="logo" style="width:80px; height:80px; border-radius:16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 2px solid var(--border);">
     </div>
+    <h2>Christmas Map Maker</h2>
+    <p>Design stunning holiday light displays.<br>Upload a photo or start from scratch.</p>
+    <div class="grow">
+      <button id="gPickImg" class="gbtn"><i data-lucide="image-plus"></i> Upload Property Photo</button>
+      <button id="gPickBlank" class="gbtn"><i data-lucide="file-plus"></i> Start Blank Map</button>
+      <button id="gPickMap" class="gbtn"><i data-lucide="folder-open"></i> Load Existing Map</button>
+      <button id="gLoadDrive" class="gbtn" disabled><i data-lucide="cloud"></i> Load from Drive</button>
+      
+      <input id="gImg" type="file" accept="image/*"/>
+      <input id="gMap" type="file" accept=".skmap,.json,application/json"/>
+    </div>
+  </div>
 </div>
 
-<div id="app">
-    <header>
-        <button class="btn" onclick="toggleSidebar()"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
-        <div class="header-title">Skedaddle</div>
-        
-        <button class="btn active" id="btnDraw" title="Point-to-Point"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/></svg> Draw</button>
-        <button class="btn" id="btnFreehand" title="Freehand Drawing"><svg viewBox="0 0 24 24"><path d="M13.49 5.48c1.1 0 2.15.43 2.93 1.21L17.3 7.55c.78.78 1.21 1.83 1.21 2.93v2.01h-2.01c-1.1 0-2.15-.43-2.93-1.21l-.86-.86c-.78-.78-1.21-1.83-1.21-2.93V5.48h2.01zM4.5 3h15c.83 0 1.5.67 1.5 1.5v15c0 .83-.67 1.5-1.5 1.5h-15c-.83 0-1.5-.67-1.5-1.5v-15c0-.83.67-1.5 1.5-1.5z"/></svg> Pen</button>
-        <button class="btn" id="btnSelect" title="Select & Move"><svg viewBox="0 0 24 24"><path d="M13 1.07V9h7c0-4.08-3.05-7.44-7-7.93zM4 15c0 4.42 3.58 8 8 8s8-3.58 8-8v-4H4v4z"/></svg> Move</button>
-        
-        <div style="width: 1px; height: 24px; background: var(--border); margin: 0 4px;"></div>
-        
-        <button class="btn" id="btnUndo"><svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg></button>
-        <button class="btn active" id="btnSnap"><svg viewBox="0 0 24 24"><path d="M11 21.5c-4.83 0-8.75-3.93-8.75-8.75s3.92-8.75 8.75-8.75 8.75 3.92 8.75 8.75-3.92 8.75-8.75 8.75z"/></svg> Snap</button>
-        <button class="btn" id="btnNight"><svg viewBox="0 0 24 24"><path d="M10 2c-1.82 0-3.53.5-5 1.35C7.99 5.08 10 8.3 10 12s-2.01 6.92-5 8.65C6.47 21.5 8.18 22 10 22c5.52 0 10-4.48 10-10S15.52 2 10 2z"/></svg> Night</button>
-        
-        <div style="flex: 1"></div>
-        <button class="btn" style="background: var(--festive-red); border: none;" onclick="performSave()">💾 Save All</button>
-    </header>
-
-    <div class="wrap">
-        <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
-        <aside id="sidebar">
-            <div class="aside-tabs">
-                <button class="tab-btn active" onclick="showTab('tools')">Tools</button>
-                <button class="tab-btn" onclick="showTab('details')">Job</button>
-                <button class="tab-btn" onclick="showTab('settings')">Settings</button>
-            </div>
-            
-            <div id="tab-tools" class="tab-content active">
-                <div class="group">
-                    <h3>C9 & Ridge</h3>
-                    <div class="tool-grid" id="grid-c9"></div>
-                </div>
-                <div class="group">
-                    <h3>Minis & Greenery</h3>
-                    <div class="tool-grid" id="grid-minis"></div>
-                </div>
-                <div class="group">
-                    <h3>Power & Specials</h3>
-                    <div class="tool-grid" id="grid-power"></div>
-                </div>
-                <div class="group">
-                    <h3>Bulk Actions</h3>
-                    <input id="inputAllCol" class="input" placeholder="Set ALL Colors (e.g. Multi, Warm White)...">
-                    <button class="btn" style="width: 100%;" onclick="relabelIds()">🔄 Relabel IDs (Left-to-Right)</button>
-                </div>
-            </div>
-            
-            <div id="tab-details" class="tab-content">
-                <div class="group">
-                    <h3>Job Info</h3>
-                    <input class="input" id="cust-name" placeholder="Customer Name">
-                    <input class="input" id="cust-addr" placeholder="Address">
-                    <textarea class="input" id="job-notes" placeholder="Site specific notes..." rows="5"></textarea>
-                </div>
-                <div class="group">
-                    <h3>Timers</h3>
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                        <input class="input" type="time" id="on1" value="17:00"><input class="input" type="time" id="off1" value="00:00">
-                    </div>
-                    <button class="btn" style="width: 100%;" id="btnCC" onclick="toggleCC()">Customer Controlled</button>
-                </div>
-            </div>
-            
-            <div id="tab-settings" class="tab-content">
-                <div class="group">
-                    <h3>Scales</h3>
-                    <label style="font-size: 11px; color: #8b9bb4;">Line Thickness</label>
-                    <input type="range" id="scale-line" min="1" max="10" value="3" style="width: 100%;">
-                    <label style="font-size: 11px; color: #8b9bb4;">Icon Size</label>
-                    <input type="range" id="scale-icon" min="0.5" max="5" step="0.1" value="1.5" style="width: 100%;">
-                    <label style="font-size: 11px; color: #8b9bb4;">Label Size</label>
-                    <input type="range" id="scale-label" min="0.5" max="3" step="0.1" value="3" style="width: 100%;">
-                </div>
-                <div class="group">
-                    <h3>Manage</h3>
-                    <button class="btn" style="width:100%" onclick="clearDraft()">🗑️ Clear Draft & Reset</button>
-                </div>
-            </div>
-        </aside>
-
-        <main>
-            <div class="canvas-container" id="canvasWrap">
-                <canvas id="cv"></canvas>
-            </div>
-            
-            <div id="lenWrap">
-                <div class="len-header" onclick="toggleTable()">
-                    <span>📏 Material List & Line Details</span>
-                    <span id="lenArrow">▲</span>
-                </div>
-                <div style="padding: 12px; overflow: auto; height: calc(100% - 44px);">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Type</th><th>ID</th><th>Ft</th><th>Bulbs</th><th>Clip</th><th>Colour</th><th>Notes</th><th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="lineRows"></tbody>
-                    </table>
-                </div>
-            </div>
-        </main>
+<!-- Modals -->
+<div id="modalBack">
+    <div class="card">
+        <h3>Unsaved Changes</h3>
+        <p>You have unsaved work. Are you sure you want to leave?</p>
+        <div class="row"><button id="btnStay" class="btn-stay">Stay</button><button id="btnLeave" class="btn-leave">Leave</button></div>
+    </div>
+</div>
+<div id="modalAlert">
+    <div class="card">
+        <h3>Notice</h3>
+        <p id="alertMsg">Message</p>
+        <div class="row"><button onclick="document.getElementById('modalAlert').style.display='none'" class="btn-ok">OK</button></div>
     </div>
 </div>
 
 <div id="lblEditor"><input id="lblInput" placeholder="Note/Ft"></div>
-<div id="wreathPop" class="pop"><button data-bow="none">No Bow</button><button data-bow="bottom">Bot Bow</button><button data-bow="top">Top Bow</button></div>
-<div id="tolPop" class="pop"><button data-size="3">3'</button><button data-size="6">6'</button><button data-size="9">9'</button><button data-size="12">12'</button></div>
-<div id="draftNotice"><span>Draft Recovered</span><button class="btn active" onclick="restoreDraft()">Restore</button></div>
+
+<div id="movePop" class="pop" style="display: none; flex-direction: row; gap: 8px;">
+  <button id="moveToolBtn" title="Move Object"><i data-lucide="hand"></i> Move</button>
+  <button id="moveLabelToolBtn" title="Move Label"><i data-lucide="arrow-left-right"></i> Label</button>
+  <button id="deleteToolBtn" title="Delete Object" style="color:var(--danger)"><i data-lucide="trash-2"></i> Delete</button>
+</div>
+
+<div id="app">
+<header>
+  <button id="logoBtn" title="Menu"><img id="logo" src="https://i.imgur.com/zdJfkpg.png" alt=""></button>
+  <h1>Skedaddle</h1>
+  <span id="modeTag" class="pill" onclick="toggleMenu()">Draw</span>
+  
+  <div style="flex:1"></div> <!-- Spacer -->
+
+  <!-- Icons Only on Mobile (Text hidden via CSS) -->
+  <button id="btnDraw" class="btn" title="Draw Mode"><i data-lucide="pencil"></i><span>Draw</span></button>
+  <button id="btnSelect" class="btn" title="Select Mode"><i data-lucide="mouse-pointer-2"></i><span>Select</span></button>
+  <button id="btnMoveCanvas" class="btn" title="Pan Canvas"><i data-lucide="move"></i><span>Pan</span></button>
+  <div style="width:1px; height:24px; background:var(--border); margin:0 4px"></div>
+  <button id="btnUndo" class="btn" title="Undo"><i data-lucide="undo-2"></i></button>
+  <button id="btnRedo" class="btn" disabled title="Redo"><i data-lucide="redo-2"></i></button>
+  <div style="width:1px; height:24px; background:var(--border); margin:0 4px"></div>
+  
+  <button id="btnSwag" class="btn" style="display:none" title="Garland Swag"><i data-lucide="waves"></i><span>Swag</span></button>
+  <button id="btnPillar" class="btn" style="display:none" title="Pillar Mode"><i data-lucide="columns-2"></i><span>Pillar</span></button>
+  
+  <button id="btnComplete" class="btn" disabled title="Finish Line"><i data-lucide="check-circle"></i></button>
+  <button id="btnSnap" class="btn toggled" title="Snap to Points"><i data-lucide="magnet"></i></button>
+  <button id="btnFit" class="btn" title="Reset View"><i data-lucide="maximize"></i></button>
+  
+  <div style="width:1px; height:24px; background:var(--border); margin:0 4px"></div>
+  
+  <button id="btnSaveAll" class="btn" title="Save All"><i data-lucide="save"></i><span>Save</span></button>
+  <button id="btnSaveImageOnly" class="btn" title="Export PDF"><i data-lucide="file-down"></i></button>
+  <button id="btnSaveMapOnly" class="btn" title="Save File"><i data-lucide="download"></i></button>
+</header>
+
+<div class="wrap">
+  <div id="overlay" class="overlay"></div>
+  <aside id="side">
+    <div class="group">
+      <h3>Toolbox</h3>
+      <div id="accWrap"></div>
+    </div>
+    
+    <div class="group">
+      <h3>Project Details</h3>
+      <div class="grow" style="gap:8px">
+          <input id="customer" class="input" placeholder="Customer Name"/>
+          <input id="address" class="input" placeholder="Property Address"/>
+          <textarea id="jobNotes" class="input" placeholder="Installation notes..."></textarea>
+      </div>
+      
+      <div style="font-size:11px; color:var(--text-muted); margin-top:12px; font-weight:600; text-transform:uppercase">Bulk Colour</div>
+      <input id="inputAllCol" class="input" placeholder="Set color for all items..." style="margin-top:6px">
+    </div>
+    
+    <div class="group">
+        <h3>Timers</h3>
+        <button id="btnCustomerControlled" class="btn" style="width:100%; margin-bottom:12px; justify-content:center;">Customer Controlled</button>
+        <div id="timerInputs">
+            <div class="lbl-row"><span>On</span><span>Off</span></div>
+            <div class="row2"><input id="on1" type="time" class="input"/><input id="off1" type="time" class="input"/></div>
+            <div class="lbl-row" style="margin-top:8px"><span>On</span><span>Off</span></div>
+            <div class="row2"><input id="on2" type="time" class="input"/><input id="off2" type="time" class="input"/></div>
+            <button id="btnStd" class="btn" style="width:100%; margin-top:12px; justify-content:center; font-size:12px;">Set Standard Times</button>
+        </div>
+    </div>
+    
+    <div class="group">
+      <h3>Display Settings</h3>
+      
+      <div style="font-size:11px; margin-bottom:6px; color:var(--text-muted);">Line Thickness</div>
+      <div class="slider-container" id="lineScaleContainer">
+          <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Thin</span><span id="lineScaleValue" style="color:var(--text)">1.0x</span><span>Thick</span>
+          </div>
+      </div>
+      
+      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Flow Arrows</div>
+      <div class="slider-container" id="arrowFreqContainer">
+          <input id="arrowFreqInput" type="range" class="input" min="0.5" max="2.0" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Few</span><span id="arrowFreqValue" style="color:var(--text)">1.0x</span><span>Many</span>
+          </div>
+      </div>
+
+      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Decorations Size</div>
+      <div class="slider-container" id="iconScaleContainer">
+          <input id="iconScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.5"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="iconScaleValue" style="color:var(--text)">1.5x</span><span>Huge</span>
+          </div>
+      </div>
+      
+      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Power/Junction Size</div>
+      <div class="slider-container" id="junctionScaleContainer">
+          <input id="junctionScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="junctionScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
+          </div>
+      </div>
+
+      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Label Size</div>
+      <div class="slider-container" id="labelScaleContainer">
+          <input id="labelScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="3.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="labelScaleValue" style="color:var(--text)">3.0x</span><span>Large</span>
+          </div>
+      </div>
+    </div>
+    
+    <div class="group">
+        <h3>Legend</h3>
+        <dl class="clip-legend">
+            <dt>ST</dt><dd>Shingle Tab (Eaves/Ridges)</dd>
+            <dt>T</dt><dd>Tuff Clip (Fascia)</dd>
+            <dt>Mag</dt><dd>Magnetic Clip</dd>
+            <dt>FRA</dt><dd>Flat Roof Adapter</dd>
+            <dt>GG</dt><dd>Gutter Guard</dd>
+        </dl>
+    </div>
+  </aside>
+
+  <main>
+    <div class="canvasWrap"><canvas id="cv"></canvas></div>
+    <div id="lenWrap">
+      <div id="lenHead">
+          <div style="display:flex; align-items:center; gap:8px"><i data-lucide="ruler"></i> Line Information <span style="font-weight:400; color:var(--text-muted); font-size:12px">(Tap to view)</span></div>
+          <i data-lucide="chevron-up" id="lenChevron"></i>
+      </div>
+      <div id="lenBody">
+        <div style="padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-wrap:wrap">
+             <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); cursor:pointer;">
+                <input id="chkAutoCalc" type="checkbox" checked style="accent-color:var(--accent)"/> Auto-calculate bulbs/feet
+             </label>
+             <button id="btnRelabelIDs" class="btn" style="height:32px; font-size:12px; margin-left:auto"><i data-lucide="list-ordered"></i> Relabel IDs</button>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table id="matTable">
+            <thead><tr><th>Type</th><th style="width:60px">ID</th><th>Ft</th><th>Bulbs</th><th>Clip</th><th>Colour</th><th>Notes</th><th style="width:40px"></th></tr></thead>
+            <tbody id="lenRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</div>
+
+<div id="wreathPop" class="pop">
+  <button data-bow="none">No Bow</button><button data-bow="bottom">Bot Bow</button><button data-bow="top">Top Bow</button>
+</div>
+<div id="tolPop" class="pop">
+  <button data-size="3">3'</button><button data-size="6">6'</button><button data-size="9">9'</button><button data-size="12">12'</button><button data-size="15">15'</button>
+</div>
+
+<div id="imgUploadPop" class="pop" style="flex-direction: column; padding: 12px; min-width: 200px;">
+  <label for="iconFile" class="btn" style="margin-bottom: 8px; justify-content:center"><i data-lucide="upload"></i> Upload Image</label>
+  <input type="file" id="iconFile" accept="image/*" style="display:none;"/>
+  <button id="cancelIconUpload" class="btn" style="justify-content:center">Cancel</button>
+</div>
 
 <script>
-/**
- * SKEDADDLE MAP MAKER - FULL MERGED VERSION
- */
+(()=>{
+    
+/* --- ICON MAP FOR DYNAMIC BUTTONS --- */
+const iconMap = {
+    'ridges': 'home',
+    'fascia': 'minus',
+    'peaks': 'triangle',
+    'groundstakes': 'map-pin',
+    'shrub': 'cloud',
+    'windows': 'layout-grid',
+    'garland': 'waves',
+    'wreath': 'circle-dashed',
+    'wreath32': 'circle',
+    'wreath42': 'circle-dot',
+    'bow': 'gift',
+    'tree': 'tree-pine',
+    'tree:Trunk + Branch (Minis)': 'tree-deciduous',
+    'tree:Trunk + Canopy (Minis)': 'tree-pine',
+    'tree:C9 Tree': 'triangle', 
+    'tree:ToL': 'sprout',
+    'cords': 'plug',
+    'powersource': 'zap',
+    'threeway': 'git-fork', // or git-branch
+    'label': 'type',
+    'custom_icon': 'image',
+    'night_mode': 'moon'
+};
 
+
+/* ---------------------------------------------------------------------- */
+/* --------------------- GOOGLE DRIVE API INTEGRATION ------------------- */
+/* ---------------------------------------------------------------------- */
 const CLIENT_ID = '746571343552-88ogvei1lvtq9ojq3te7fn06d1rlgut4.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyCBB6UWp5-FCB7VMpRKsjQh7sR42qd4SN0';
 const APP_ID = '746571343552';
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata'; 
+const MAP_MIME_TYPE = 'application/json';
+const MAP_FILE_EXTENSION = '.skmap';
 
-const CATS = [
-    { name: 'c9', list: ['ridges','fascia','peaks','groundstakes'] },
-    { name: 'minis', list: ['shrub','windows','garland','wreath','bow','tree'] },
-    { name: 'power', list: ['powersource','cords','threeway','orb','label','custom_icon'] }
-];
+let accessToken = null;
+let tokenClient = null;
+let gapiReady = false;
+let gisReady = false;
 
-const PRETTY = { 
-    ridges:'Ridges', fascia:'Fascia', peaks:'Peaks', groundstakes:'Stakes', shrub:'Shrub', windows:'Windows', 
-    garland:'Garland', wreath:'Wreath', bow:'Bow', cords:'Cord', powersource:'Power', threeway:'3-Way', 
-    tree:'Tree', orb:'Light Orb', label:'Text Label', custom_icon:'Custom Image'
-};
+const gLoadDriveBtn = document.getElementById('gLoadDrive');
 
-const PFX = { ridges:'R', fascia:'F', peaks:'P', groundstakes:'GS', shrub:'S', windows:'W', garland:'GA', wreath:'WR', bow:'B', tree:'T', orb:'ORB', label:'LBL' };
-
-let state = {
-    data: { ridges:[], fascia:[], peaks:[], groundstakes:[], shrub:[], windows:[], garland:[], wreath:[], bow:[], cords:[], powersource:[], threeway:[], tree:[], orb:[], label:[], custom_icon:[] },
-    job: { name:'', addr:'', notes:'', timer:{ on1:'17:00', off1:'00:00', cc:false } },
-    ui: { mode:'draw', layer:'ridges', night:false, snap:true, freehand:false },
-    view: { scale:1, panX:0, panY:0 },
-    settings: { line:3, icon:1.5, label:3 }
-};
-
-let bg = new Image();
-let imgReady = false, imgDataUrl = null;
-let cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-let pointers = new Map(), sketch = null, actionCounter = 0;
-let redoStack = [], selectedItem = null, draggingPoint = null;
-
-// GDrive vars
-let accessToken = null, tokenClient = null, gapiReady = false, gisReady = false;
-
-window.onload = () => {
-    initUI();
-    resize();
-    requestAnimationFrame(loop);
-    checkDraft();
-    initGoogle();
-};
-
-function initUI() {
-    CATS.forEach(c => {
-        const grid = document.getElementById(`grid-${c.name}`);
-        c.list.forEach(id => {
-            const btn = document.createElement('div');
-            btn.className = 'tool-btn';
-            btn.id = `tool-${id}`;
-            btn.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.3"/></svg><span>${PRETTY[id]}</span>`;
-            btn.onclick = () => selectLayer(id);
-            grid.appendChild(btn);
-        });
-    });
-
-    document.getElementById('cust-name').oninput = e => { state.job.name = e.target.value; autoSave(); };
-    document.getElementById('cust-addr').oninput = e => { state.job.addr = e.target.value; autoSave(); };
-    document.getElementById('job-notes').oninput = e => { state.job.notes = e.target.value; autoSave(); };
-    
-    document.getElementById('scale-line').oninput = e => { state.settings.line = parseInt(e.target.value); render(); };
-    document.getElementById('scale-icon').oninput = e => { state.settings.icon = parseFloat(e.target.value); render(); };
-    document.getElementById('scale-label').oninput = e => { state.settings.label = parseFloat(e.target.value); render(); };
-
-    document.getElementById('btnDraw').onclick = () => setMode('draw');
-    document.getElementById('btnSelect').onclick = () => setMode('select');
-    document.getElementById('btnFreehand').onclick = () => { state.ui.freehand = !state.ui.freehand; document.getElementById('btnFreehand').classList.toggle('active', state.ui.freehand); };
-    document.getElementById('btnUndo').onclick = undo;
-    document.getElementById('btnSnap').onclick = () => { state.ui.snap = !state.ui.snap; document.getElementById('btnSnap').classList.toggle('active', state.ui.snap); };
-    document.getElementById('btnNight').onclick = () => { state.ui.night = !state.ui.night; document.getElementById('btnNight').classList.toggle('active', state.ui.night); render(); };
-
-    cv.addEventListener('pointerdown', onDown);
-    cv.addEventListener('pointermove', onMove);
-    cv.addEventListener('pointerup', onUp);
-    cv.addEventListener('wheel', onWheel, {passive:false});
-    window.addEventListener('resize', resize);
-    
-    selectLayer('ridges');
-    setMode('draw');
-}
-
-function showTab(t) {
-    document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelector(`[onclick="showTab('${t}')"]`).classList.add('active');
-    document.getElementById(`tab-${t}`).classList.add('active');
-}
-
-function toggleSidebar() { 
-    document.getElementById('sidebar').classList.toggle('open'); 
-    document.getElementById('overlay').classList.toggle('show'); 
-}
-
-function selectLayer(l) {
-    state.ui.layer = l;
-    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`tool-${l}`).classList.add('active');
-}
-
-function setMode(m) {
-    state.ui.mode = m;
-    document.querySelectorAll('header .btn').forEach(b => b.classList.remove('active'));
-    if(m === 'draw') document.getElementById('btnDraw').classList.add('active');
-    if(m === 'select') document.getElementById('btnSelect').classList.add('active');
-}
-
-function toggleTable() { 
-    document.getElementById('lenWrap').classList.toggle('expanded'); 
-    document.getElementById('lenArrow').textContent = document.getElementById('lenWrap').classList.contains('expanded') ? '▼' : '▲';
-}
-
-function resize() {
-    const w = document.getElementById('canvasWrap');
-    cv.width = w.clientWidth * devicePixelRatio;
-    cv.height = w.clientHeight * devicePixelRatio;
-    cv.style.width = w.clientWidth + 'px';
-    cv.style.height = w.clientHeight + 'px';
-    render();
-}
-
-function startBlankMap() {
-    bg = new Image(); bg.width = 3000; bg.height = 2000;
-    imgReady = true; imgDataUrl = null;
-    document.getElementById('gate').classList.add('hide');
-    fitView();
-}
-
-function fitView() {
-    const w = document.getElementById('canvasWrap');
-    const sc = Math.min(w.clientWidth / bg.width, w.clientHeight / bg.height) * 0.9;
-    state.view.scale = sc;
-    state.view.panX = (w.clientWidth - bg.width * sc) / 2;
-    state.view.panY = (w.clientHeight - bg.height * sc) / 2;
-    render();
-}
-
-// Coordinate Utils
-const toWorld = (sx, sy) => ({ x: (sx - state.view.panX) / state.view.scale, y: (sy - state.view.panY) / state.view.scale });
-const toScr = (p) => ({ x: p.x * state.view.scale + state.view.panX, y: p.y * state.view.scale + state.view.panY });
-
-// --- Interaction Logic ---
-function onDown(e) {
-    cv.setPointerCapture(e.pointerId);
-    const r = cv.getBoundingClientRect();
-    const ex = e.clientX - r.left, ey = e.clientY - r.top;
-    pointers.set(e.pointerId, { x: ex, y: ey });
-
-    if(pointers.size === 1) {
-        const w = toWorld(ex, ey);
-        if(state.ui.mode === 'draw') {
-            const l = state.ui.layer;
-            if(['wreath','tree','powersource','orb','bow','threeway'].includes(l)) {
-                placePointItem(l, w, ex, ey);
-            } else {
-                sketch = { layer: l, points: [w], id: Date.now() };
-            }
-        } else if(state.ui.mode === 'select') {
-            handleSelectDown(ex, ey);
-        }
-    }
-}
-
-function onMove(e) {
-    const r = cv.getBoundingClientRect();
-    const ex = e.clientX - r.left, ey = e.clientY - r.top;
-    const p = pointers.get(e.pointerId);
-    if(!p) return;
-
-    if(pointers.size === 1) {
-        const w = toWorld(ex, ey);
-        if(sketch) {
-            if(state.ui.freehand) {
-                const last = sketch.points[sketch.points.length-1];
-                if(Math.hypot(w.x-last.x, w.y-last.y) > 10) sketch.points.push(w);
-            } else {
-                sketch.preview = w;
-            }
-        } else if(draggingPoint) {
-            if(draggingPoint.obj.pt) draggingPoint.obj.pt = w;
-            else draggingPoint.obj.points[draggingPoint.idx] = w;
-        } else if(!selectedItem) {
-            state.view.panX += ex - p.x;
-            state.view.panY += ey - p.y;
-        }
-    } else if(pointers.size === 2) {
-        // Pinch zoom logic simplified for brevity
-    }
-    pointers.set(e.pointerId, { x: ex, y: ey });
-    render();
-}
-
-function onUp(e) {
-    pointers.delete(e.pointerId);
-    if(sketch) {
-        if(sketch.preview) sketch.points.push(sketch.preview);
-        if(sketch.points.length > 1) {
-            const idData = getNewItemData(sketch.layer);
-            sketch.label = idData.label;
-            state.data[sketch.layer].push(sketch);
-            autoSave();
-            refreshTable();
-        }
-        sketch = null;
-    }
-    draggingPoint = null;
-    render();
-}
-
-function onWheel(e) {
-    e.preventDefault();
-    const f = e.deltaY < 0 ? 1.1 : 0.9;
-    const r = cv.getBoundingClientRect();
-    const mx = e.clientX - r.left, my = e.clientY - r.top;
-    const w = toWorld(mx, my);
-    state.view.scale *= f;
-    state.view.panX = mx - w.x * state.view.scale;
-    state.view.panY = my - w.y * state.view.scale;
-    render();
-}
-
-function placePointItem(l, w, sx, sy) {
-    const idData = getNewItemData(l);
-    const item = { pt: w, label: idData.label, id: Date.now() };
-    if(l === 'wreath') {
-        openPop(document.getElementById('wreathPop'), sx, sy, b => { item.bow = b; state.data[l].push(item); autoSave(); refreshTable(); render(); });
-    } else if(l === 'tree') {
-        openPop(document.getElementById('tolPop'), sx, sy, s => { item.size = s; state.data[l].push(item); autoSave(); refreshTable(); render(); });
-    } else {
-        state.data[l].push(item);
-        autoSave(); refreshTable(); render();
-    }
-}
-
-function openPop(el, x, y, cb) {
-    el.style.display = 'flex'; el.style.left = x + 'px'; el.style.top = y + 'px';
-    const h = e => { const v = e.target.dataset.bow || e.target.dataset.size; if(v){ cb(v); el.style.display='none'; el.removeEventListener('click',h); } };
-    el.addEventListener('click', h);
-}
-
-function getNewItemData(l) {
-    const prefix = PFX[l] || 'L';
-    let i = 1;
-    const used = new Set();
-    Object.keys(state.data).forEach(k => state.data[k].forEach(it => { if(it.label && it.label.startsWith(prefix)) used.add(parseInt(it.label.slice(prefix.length))); }));
-    while(used.has(i)) i++;
-    return { label: prefix + i };
-}
-
-// --- Rendering Engine ---
-function render() {
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.clearRect(0,0,cv.width,cv.height);
-    ctx.scale(devicePixelRatio, devicePixelRatio);
-
-    if(!imgReady) return;
-
-    if(state.ui.night) {
-        ctx.fillStyle = '#05070a'; ctx.fillRect(0,0,cv.width,cv.height);
-        ctx.globalAlpha = 0.2;
-    } else {
-        ctx.fillStyle = '#111827'; ctx.fillRect(0,0,cv.width,cv.height);
-    }
-    
-    if(imgDataUrl) ctx.drawImage(bg, state.view.panX, state.view.panY, bg.width * state.view.scale, bg.height * state.view.scale);
-    ctx.globalAlpha = 1.0;
-
-    // Draw lines
-    const orphans = analyzePower();
-    Object.keys(state.data).forEach(l => {
-        state.data[l].forEach(it => drawItem(it, l, orphans.includes(it.id)));
-    });
-
-    if(sketch) drawItem(sketch, sketch.layer, false);
-    
-    // Draw labels
-    drawLabels();
-}
-
-function loop() { render(); requestAnimationFrame(loop); }
-
-function drawItem(it, layer, isOrphan) {
-    const col = CONFIG.colors[layer] || '#fff';
-    const isNight = state.ui.night;
-    const lScale = state.settings.line * state.view.scale;
-
-    if(it.points) {
-        ctx.beginPath();
-        it.points.forEach((p, i) => { const s = toScr(p); if(i===0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y); });
-        if(it.preview) { const s = toScr(it.preview); ctx.lineTo(s.x, s.y); }
-        
-        ctx.lineWidth = lScale; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        if(isOrphan && layer === 'cords') { ctx.strokeStyle = '#ef4444'; ctx.setLineDash([5,5]); }
-        else { ctx.strokeStyle = col; ctx.setLineDash([]); }
-        
-        if(isNight) { ctx.shadowBlur = 15; ctx.shadowColor = col; }
-        ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur = 0;
-    } else if(it.pt) {
-        const s = toScr(it.pt);
-        const r = 8 * state.settings.icon * state.view.scale;
-        ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI*2);
-        if(isNight) { ctx.shadowBlur = 20; ctx.shadowColor = col; }
-        ctx.fillStyle = col; ctx.fill();
-        ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
-        ctx.shadowBlur = 0;
-    }
-}
-
-function drawLabels() {
-    const fSize = 12 * state.settings.label * Math.max(0.4, state.view.scale);
-    if(fSize < 6) return;
-    ctx.font = `bold ${fSize}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    
-    Object.keys(state.data).forEach(l => {
-        state.data[l].forEach(it => {
-            if(!it.label) return;
-            const p = it.pt || getMidpoint(it.points);
-            const s = toScr(p);
-            const txt = it.label + (it.clip ? ` ${it.clip}` : '');
-            const w = ctx.measureText(txt).width + 8;
-            ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(s.x - w/2, s.y - fSize/2 - 4, w, fSize + 8);
-            ctx.fillStyle = '#fff'; ctx.fillText(txt, s.x, s.y);
-        });
-    });
-}
-
-function getMidpoint(pts) { if(!pts || pts.length < 2) return pts[0]; const m = pts[Math.floor(pts.length/2)]; return m; }
-
-// --- Power Logic ---
-function analyzePower() {
-    const orphans = [];
-    const sources = state.data.powersource.map(p => p.pt);
-    // Simplified: highlight any cord not connected at an endpoint to power
-    state.data.cords.forEach(c => {
-        let ok = false;
-        sources.forEach(s => { if(dist(c.points[0], s) < 10 || dist(c.points[c.points.length-1], s) < 10) ok = true; });
-        if(!ok) orphans.push(c.id);
-    });
-    return orphans;
-}
-const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-
-// --- Table & Editing ---
-function refreshTable() {
-    const body = document.getElementById('lineRows');
-    body.innerHTML = '';
-    let count = 0;
-    Object.keys(state.data).forEach(l => {
-        state.data[l].forEach((it, idx) => {
-            if(!it.label || l === 'label' || l === 'custom_icon') return;
-            count++;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${PRETTY[l]}</td>
-                <td><input class="edit" value="${it.label}" onchange="updateItem('${l}', ${idx}, 'label', this.value)"></td>
-                <td><input class="edit" placeholder="ft" value="${it.ft||''}" onchange="updateItem('${l}', ${idx}, 'ft', this.value)"></td>
-                <td><input class="edit" placeholder="#" value="${it.bulbs||''}" onchange="updateItem('${l}', ${idx}, 'bulbs', this.value)"></td>
-                <td>${getClipSelect(l, it)}</td>
-                <td><input class="edit" value="${it.col||''}" onchange="updateItem('${l}', ${idx}, 'col', this.value)"></td>
-                <td><input class="edit" value="${it.notes||''}" onchange="updateItem('${l}', ${idx}, 'notes', this.value)"></td>
-                <td><button onclick="deleteItem('${l}', ${idx})" style="color:var(--danger); border:none; background:none; cursor:pointer">×</button></td>
-            `;
-            body.appendChild(tr);
-        });
-    });
-}
-
-function getClipSelect(l, it) {
-    if(!['ridges','fascia','peaks'].includes(l)) return '-';
-    return `<select class="edit" onchange="updateItem('${l}', ${state.data[l].indexOf(it)}, 'clip', this.value)">
-        <option value="ST" ${it.clip==='ST'?'selected':''}>Shingle</option>
-        <option value="T" ${it.clip==='T'?'selected':''}>Tuff</option>
-        <option value="Mag" ${it.clip==='Mag'?'selected':''}>Mag</option>
-    </select>`;
-}
-
-function updateItem(l, idx, key, val) { state.data[l][idx][key] = val; autoSave(); render(); }
-function deleteItem(l, idx) { state.data[l].splice(idx,1); autoSave(); refreshTable(); render(); }
-function relabelIds() { /* Left-to-right sorting logic from original index.html */ }
-
-// --- Google Drive Integration ---
-function initGoogle() {
-    gapi.load('client:picker', async () => {
+gapi.load('client:picker', async () => {
+    try {
         await gapi.client.setApiKey(API_KEY);
-        await gapi.client.load('drive', 'v3');
-        gapiReady = true; checkReady();
-    });
+        await gapi.client.load('drive', 'v3'); 
+        gapiReady = true;
+        const checkGis = setInterval(() => {
+            if (window.google && window.google.accounts) {
+                clearInterval(checkGis);
+                initGis();
+            }
+        }, 100);
+    } catch (err) { console.error("Error loading GAPI:", err); }
+});
+
+function initGis() {
+    try {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID, scope: GDRIVE_SCOPES,
+            callback: (response) => {
+                if (response.error !== undefined) showAlert('Authorization Failed: ' + response.error);
+                else { accessToken = response.access_token; updateDriveUI(true); }
+            },
+        });
+        gisReady = true; checkApiReadiness();
+    } catch (err) { console.error("Error initializing GIS:", err); }
 }
-function checkReady() { 
-    if(gapiReady) {
-        tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: 'https://www.googleapis.com/auth/drive.file', callback: (resp) => { accessToken = resp.access_token; document.getElementById('gLoadDrive').disabled = false; } });
-        document.getElementById('gLoadDrive').disabled = false;
-        document.getElementById('gLoadDrive').onclick = () => tokenClient.requestAccessToken();
+
+function checkApiReadiness() {
+    if (gapiReady && gisReady) {
+        gLoadDriveBtn.disabled = false;
+        const authClickHandler = () => tokenClient.requestAccessToken({ prompt: '' });
+        gLoadDriveBtn.onclick = authClickHandler;
     }
 }
 
-// --- File Handling ---
-const handleImg = (f) => {
-    const reader = new FileReader();
-    reader.onload = () => { imgDataUrl = reader.result; bg.src = imgDataUrl; bg.onload = () => { imgReady = true; document.getElementById('gate').classList.add('hide'); fitView(); }; };
-    reader.readAsDataURL(f);
-};
-
-const handleMap = (f) => {
-    const reader = new FileReader();
-    reader.onload = () => { const o = JSON.parse(reader.result); state = {...state, ...o}; imgDataUrl = o.image; if(imgDataUrl) { bg.src = imgDataUrl; bg.onload = () => { imgReady = true; fitView(); }; } else { startBlankMap(); } unlock(); refreshTable(); };
-    reader.readAsText(f);
-};
-
-document.getElementById('gImg').onchange = e => handleImg(e.target.files[0]);
-document.getElementById('gMap').onchange = e => handleMap(e.target.files[0]);
-
-function performSave() {
-    const payload = JSON.stringify({ ...state, image: imgDataUrl });
-    const blob = new Blob([payload], {type: 'application/json'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${state.job.name || 'Map'}.skmap`; a.click();
+function updateDriveUI(isAuthenticated) {
+    if (isAuthenticated) {
+        gLoadDriveBtn.innerHTML = '<i data-lucide="cloud"></i> Load from Drive';
+        gLoadDriveBtn.onclick = () => createPicker('load');
+        lucide.createIcons();
+    }
 }
 
-function autoSave() { localStorage.setItem('skedaddle_draft', JSON.stringify({ ...state, image: imgDataUrl })); }
-function checkDraft() { if(localStorage.getItem('skedaddle_draft')) document.getElementById('draftNotice').style.display='flex'; }
-function restoreDraft() { const d = JSON.parse(localStorage.getItem('skedaddle_draft')); state = d; if(d.image) { bg.src = d.image; bg.onload = () => { imgReady=true; fitView(); }; } else { startBlankMap(); } document.getElementById('draftNotice').style.display='none'; refreshTable(); }
+async function createPicker(pickerType) {
+    if (!accessToken || !gapiReady || !gisReady) { showAlert('Please sign in to Google Drive first.'); return; }
+    let view = new google.picker.View(google.picker.ViewId.DOCS);
+    view.setMimeTypes(MAP_MIME_TYPE + ',text/plain,application/octet-stream'); 
+    view.setQuery(MAP_FILE_EXTENSION);
+    const picker = new google.picker.PickerBuilder()
+        .setAppId(APP_ID).setOAuthToken(accessToken).setDeveloperKey(API_KEY)
+        .addView(view).setCallback(pickerCallback).build();
+    picker.setVisible(true);
+}
 
-function undo() { /* undo logic */ }
+function pickerCallback(data) {
+    if (data.action === google.picker.Action.PICKED) {
+        const file = data.docs[0];
+        loadFromDrive(file[google.picker.Document.ID]);
+    }
+}
 
+async function loadFromDrive(fileId) {
+    showAlert('Loading map from Google Drive...');
+    try {
+        const response = await gapi.client.drive.files.get({ fileId: fileId, alt: 'media' });
+        const mapDataString = response.body;
+        const file = new File([mapDataString], 'downloaded_map.skmap', { type: MAP_MIME_TYPE });
+        handleMap(file); 
+        document.getElementById('modalAlert').style.display = 'none';
+    } catch (error) { showAlert('Error loading map content from Drive.'); }
+}
+
+/* ---------------------------------------------------------------------- */
+/* ------------------------ ORIGINAL MAP MAKER CODE --------------------- */
+/* ---------------------------------------------------------------------- */
+
+const cats=[{name:"C9's",key:'c9',list:['fascia','peaks','ridges','groundstakes']},{name:'Minis',key:'min',list:['shrub','windows']},{name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},{name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},{name:'Power',key:'pwr',list:['powersource','cords','threeway']},
+            {name:'Specials', key:'spec', list:['label', 'custom_icon', 'night_mode']}]; 
+const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label', custom_icon: 'Icon', night_mode: 'Night'};
+const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label:'LBL', custom_icon: 'CI'};
+const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],garland:[],wreath:[],bow:[],cords:[],powersource:[],threeway:[],tree:[], label:[], custom_icon:[]}; 
+
+function getColorCode(colorName) {
+    if (!colorName) return '#ddd';
+    const lowerName = colorName.toLowerCase();
+    if (lowerName.includes('multi') || lowerName === 'm' || lowerName.includes('multiple')) return 'Red/Blue/Green/Orange/Yellow';
+    if (colorName.includes(' ') || colorName.includes('/') || colorName.includes(',')) return colorName;
+    const cleanName = lowerName.replace(/[^a-z0-9#]/g, '');
+    switch (cleanName) {
+        case 'warmwhite': case 'softwhite': case 'white': case 'ww': case 'sw': case '#fffdf0': return '#fffdf0';
+        case 'red': return '#ef4444';
+        case 'blue': return '#3b82f6';
+        case 'green': return '#22c55e';
+        case 'yellow': return '#eab308';
+        case 'orange': return '#f97316';
+        case 'purple': case 'violet': return '#a855f7';
+        case 'pink': return '#ec4899';
+        case 'black': return '#000000';
+        default: if(colorName.startsWith('#') && colorName.length >= 4) return colorName; return '#ddd'; 
+    }
+}
+const colorOf=L=>({ridges:'#fffdf0',fascia:'#fffdf0',peaks:'#fffdf0',groundstakes:'#fffdf0',shrub:'#22c55e',windows:'#7dd3fc',garland:'#22c55e',wreath:'#22c55e',bow:'#ef4444',cords:'#000000',powersource:'#ef4444',threeway:'#eab308',tree:'#22c55e'}[L]||'#ddd');
+
+let settings = { iconScale: 1.5, junctionScale: 1.0, lineScale: 1.0, labelScale: 3.0, lineThickness: 3, arrowFreqFactor: 1.0 };
+let isNightMode = false;
+
+const aside=document.getElementById('side'), overlay=document.getElementById('overlay');
+function toggleMenu(){
+    const isOpen = aside.classList.contains('open');
+    if(isOpen) { aside.classList.remove('open'); overlay.classList.remove('show'); }
+    else { aside.classList.add('open'); overlay.classList.add('show'); }
+}
+document.getElementById('logoBtn').onclick=toggleMenu;
+overlay.onclick=toggleMenu;
+document.getElementById('modeTag').onclick=toggleMenu;
+
+const closeGateBtn = document.getElementById('closeGateBtn');
+function openGate(fromCanvas = false) {
+    document.body.classList.add('blurred');
+    document.getElementById('gate').classList.remove('hide');
+    closeGateBtn.style.display = fromCanvas ? 'block' : 'none';
+}
+function unlock(){
+    document.body.classList.remove('blurred');
+    document.getElementById('gate').classList.add('hide');
+    history.pushState(null, null, location.href);
+}
+
+const lenWrap = document.getElementById('lenWrap');
+const lenChevron = document.getElementById('lenChevron'); // Get Chevron Icon
+document.getElementById('lenHead').onclick=()=>{
+    lenWrap.classList.toggle('open');
+    if (lenWrap.classList.contains('open')) {
+        lenChevron.setAttribute('data-lucide', 'chevron-down');
+    } else {
+        lenChevron.setAttribute('data-lucide', 'chevron-up');
+    }
+    lucide.createIcons();
+};
+
+function showAlert(msg) {
+    document.getElementById('alertMsg').textContent = msg;
+    document.getElementById('modalAlert').style.display = 'flex';
+}
+
+const lineScaleInput = document.getElementById('lineScaleInput');
+const lineScaleValue = document.getElementById('lineScaleValue');
+const iconScaleInput = document.getElementById('iconScaleInput');
+const iconScaleValue = document.getElementById('iconScaleValue');
+const junctionScaleInput = document.getElementById('junctionScaleInput'); 
+const junctionScaleValue = document.getElementById('junctionScaleValue'); 
+const labelScaleInput = document.getElementById('labelScaleInput');
+const labelScaleValue = document.getElementById('labelScaleValue');
+const arrowFreqInput = document.getElementById('arrowFreqInput'); 
+const arrowFreqValue = document.getElementById('arrowFreqValue'); 
+
+function updateLineScaleUI() { settings.lineScale = parseFloat(lineScaleInput.value); lineScaleValue.textContent = `${settings.lineScale.toFixed(1)}x`; }
+function updateIconScaleUI() { settings.iconScale = parseFloat(iconScaleInput.value); iconScaleValue.textContent = `${settings.iconScale.toFixed(1)}x`; }
+function updateJunctionScaleUI() { settings.junctionScale = parseFloat(junctionScaleInput.value); junctionScaleValue.textContent = `${settings.junctionScale.toFixed(1)}x`; }
+function updateLabelScaleUI() { settings.labelScale = parseFloat(labelScaleInput.value); labelScaleValue.textContent = `${settings.labelScale.toFixed(1)}x`; }
+function updateArrowFreqUI() { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); arrowFreqValue.textContent = `${settings.arrowFreqFactor.toFixed(1)}x`; }
+
+lineScaleInput.oninput = (e) => { settings.lineScale = parseFloat(e.target.value); updateLineScaleUI(); markPowerDirty(); requestRender(); };
+iconScaleInput.oninput = (e) => { settings.iconScale = parseFloat(e.target.value); updateIconScaleUI(); requestRender(); };
+junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(e.target.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
+labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(e.target.value); updateLabelScaleUI(); requestRender(); };
+arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(e.target.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
+
+const btnNightMode = document.getElementById('btnNightMode');
+function toggleNightMode(isManualToggle=true) {
+    isNightMode = !isNightMode;
+    const nightModeToolButton = toolBtn['night_mode'];
+    if (nightModeToolButton) nightModeToolButton.classList.toggle('toggled', isNightMode);
+    if (mode === 'night_mode') { mode = 'draw'; updateModeTag(); }
+    requestRender();
+}
+
+const chkSnap = { checked: true };
+const btnSnap = document.getElementById('btnSnap');
+btnSnap.onclick = () => { chkSnap.checked = !chkSnap.checked; btnSnap.classList.toggle('toggled', chkSnap.checked); };
+
+const chkSwag = { checked: false };
+const btnSwag = document.getElementById('btnSwag');
+btnSwag.onclick = () => { chkSwag.checked = !chkSwag.checked; btnSwag.classList.toggle('toggled', chkSwag.checked); };
+
+const chkPillar = { checked: false };
+const btnPillar = document.getElementById('btnPillar');
+btnPillar.onclick = () => { chkPillar.checked = !chkPillar.checked; btnPillar.classList.toggle('toggled', chkPillar.checked); };
+
+function isMinis(L, item) {
+    if(L === 'tree') return item && item.kind !== 'C9 Tree'; 
+    const c = cats.find(x => x.key === 'min');
+    return c && c.list.includes(L);
+}
+function isC9(L) { const c = cats.find(x => x.key === 'c9'); return c && c.list.includes(L); }
+
+function relabelIds() {
+    let itemsToRelabel = [];
+    Object.keys(data).forEach(L => {
+        if (L === 'cords' || L === 'threeway' || L === 'powersource' || L === 'bow' || L === 'custom_icon') return; 
+        data[L].forEach(item => {
+            if (item.label || L === 'label') { 
+                let centerX = 0;
+                if (item.points && item.points.length > 0) {
+                    item.points.forEach(p => centerX += p.x); centerX /= item.points.length;
+                } else if (item.pt) centerX = item.pt.x;
+                itemsToRelabel.push({ item, L, centerX });
+            }
+        });
+    });
+    itemsToRelabel.sort((a, b) => a.centerX - b.centerX);
+    const nextIndices = {}; 
+    itemsToRelabel.forEach(record => {
+        const L = record.L; const prefix = pfx[L] || 'L';
+        if (!nextIndices[L]) nextIndices[L] = 1;
+        const newIndex = nextIndices[L]++;
+        record.item.label = prefix + newIndex;
+        if(L === 'label') record.item.text = prefix + newIndex; 
+    });
+    refreshTable(); markPowerDirty(); requestRender();
+}
+
+function shouldShowGutterGuard(layer, clipType) {
+    return layer === 'fascia' && (clipType === 'T' || clipType === 'ST');
+}
+
+function refreshTable(){
+    const tbody = document.getElementById('lenRows'); tbody.innerHTML='';
+    let rows=[];
+    Object.keys(data).forEach(k=>data[k].forEach(it=>{ 
+        if(it.label && k !== 'label' && k !== 'custom_icon') rows.push({item: it, L:k}); 
+    }));
+    rows.sort((a,b)=>a.item.label.localeCompare(b.item.label, undefined, {numeric:true}));
+    const chkAuto = document.getElementById('chkAutoCalc');
+
+    rows.forEach(r=>{
+        const tr=document.createElement('tr');
+        let clipHtml = '', showFRA = false, showGutterGuard = false, fraHtml = '', gguardHtml = '';
+        let clipFraContainerStart = '<div class="clip-fra-container">', clipFraContainerEnd = '</div>';
+
+        if(isC9(r.L)) {
+            if(r.L === 'groundstakes') { clipHtml = '<span style="color:#555">-</span>'; clipFraContainerStart = ''; clipFraContainerEnd = ''; } 
+            else {
+                if(!r.item.clip) r.item.clip = (r.L === 'ridges' || r.L === 'peaks') ? 'ST' : 'T';
+                let opts = [];
+                if(r.L === 'ridges') opts = [{v:'ST', l:'Shingle'}]; 
+                else if (r.L === 'peaks') opts = [{v:'ST', l:'Shingle'}, {v:'Mag', l:'Mag'}];
+                else if (r.L === 'fascia') opts = [{v:'T', l:'Tuff'}, {v:'ST', l:'Shingle'}, {v:'Mag', l:'Mag'}];
+                
+                let optStr = opts.map(o => `<option value="${o.v}" ${r.item.clip===o.v?'selected':''}>${o.l}</option>`).join('');
+                clipHtml = `<select class="edit clip-select" style="width:auto; padding:4px;">${optStr}</select>`;
+
+                if (r.item.clip === 'ST') {
+                    showFRA = true; if (r.item.fra === undefined) r.item.fra = false;
+                    fraHtml = `<label class="fra-checkbox-label" title="Flat Roof Adapter"><input type="checkbox" class="fra-checkbox" ${r.item.fra ? 'checked' : ''}/> FRA</label>`;
+                }
+                if (shouldShowGutterGuard(r.L, r.item.clip)) {
+                     showGutterGuard = true; if (r.item.gguard === undefined) r.item.gguard = false; 
+                     gguardHtml = `<label class="gg-checkbox-label" title="Gutter Guard"><input type="checkbox" class="gg-checkbox" ${r.item.gguard ? 'checked' : ''}/> GG</label>`;
+                }
+            }
+        } else { clipHtml = '<span style="color:#555">-</span>'; clipFraContainerStart = ''; clipFraContainerEnd = ''; }
+        const clipCellContent = clipFraContainerStart + clipHtml + fraHtml + gguardHtml + clipFraContainerEnd;
+
+        let colorInputHtml = '';
+        const rawColorValue = r.item.col || '';
+        const processedColorCode = getColorCode(rawColorValue);
+
+        if (r.L === 'garland' || r.L === 'wreath') { 
+             const color = getColorCode('green');
+             colorInputHtml = `<span style="color:#0f172a; font-weight:bold; background:${color}; padding: 2px 6px; border-radius: 4px; font-size:11px;">Green</span>`; 
+        } else if (r.L === 'cords') {
+             const color = getColorCode('black');
+             colorInputHtml = `<span style="color:#fff; font-weight:bold; background:${color}; padding: 2px 6px; border-radius: 4px; font-size:11px;">Black</span>`; 
+        } else {
+             const displayValue = processedColorCode.toLowerCase().includes('red/blue') ? 'Multi' : rawColorValue;
+             colorInputHtml = `<input class="edit" placeholder="Col" value="${displayValue}">`;
+        }
+
+        tr.innerHTML=`
+            <td>${pretty[r.L]}</td>
+            <td><input class="edit" style="width:50px" value="${r.item.label}"></td>
+            <td><input class="edit" placeholder="ft" style="width:40px" value="${r.item.ft||''}"></td>
+            <td><input class="edit" placeholder="#" style="width:40px" value="${r.item.bulbs||''}"></td>
+            <td>${clipCellContent}</td>
+            <td>${colorInputHtml}</td>
+            <td><input class="edit" placeholder="Notes" style="min-width:80px" value="${r.item.notes||''}"></td>
+            <td><button class="xbtn">×</button></td>`;
+        
+        const select = tr.querySelector('.clip-select');
+        const fraCheck = tr.querySelector('.fra-checkbox');
+        const gguardCheck = tr.querySelector('.gg-checkbox'); 
+        const inputId = tr.querySelector('input[style*="width:50px"]');
+        const inputCol = tr.querySelector('input[placeholder="Col"]');
+        const inputFt = tr.querySelector('input[placeholder="ft"]');
+        const inputBulbs = tr.querySelector('input[placeholder="#"]');
+        const inputNotes = tr.querySelector('input[placeholder="Notes"]');
+        
+        if (inputId) inputId.onchange = e => { r.item.label = e.target.value; markPowerDirty(); requestRender(); };
+        if (inputCol) {
+            inputCol.oninput=e=>{
+                 const val = e.target.value; const lowerVal = val.toLowerCase();
+                 const cleanedV = val.replace(/\s/g, '/').replace(/,/g, '/');
+                 if (lowerVal.includes('multi') || lowerVal === 'm' || lowerVal.includes('multiple')) {
+                     r.item.col = getColorCode('multi'); e.target.value = 'Multi'; 
+                 } else {
+                     r.item.col = cleanedV; 
+                     if (cleanedV.includes('/')) e.target.value = cleanedV; else e.target.value = val;
+                 }
+            };
+            inputCol.onchange=()=>requestRender(); 
+        }
+        if (inputFt) {
+            inputFt.oninput=e=>{ r.item.ft = e.target.value; };
+            inputFt.onchange=e=>{
+                if(chkAuto.checked && e.target.value) {
+                    if(r.L === 'garland' || r.L === 'wreath') return; 
+                    const val = parseFloat(e.target.value);
+                    if(!isNaN(val)) {
+                        let b = Math.round(val / 0.8);
+                        if(isMinis(r.L, r.item)) {
+                            b = val * 2; b = Math.ceil(b / 50) * 50; const balls = b / 50;
+                            if(inputNotes) inputNotes.value = `${balls} Ball${balls > 1 ? 's' : ''}`;
+                            r.item.notes = inputNotes ? inputNotes.value : r.item.notes;
+                            r.item.ft = b / 2; inputFt.value = b / 2;
+                        }
+                        if(inputBulbs) inputBulbs.value = b; r.item.bulbs = b;
+                    }
+                }
+            };
+        }
+        if (inputBulbs) {
+            inputBulbs.oninput=e=>{ r.item.bulbs = e.target.value; };
+            inputBulbs.onchange=e=>{
+                if(chkAuto.checked && e.target.value) {
+                    if(r.L === 'garland' || r.L === 'wreath') return; 
+                    const val = parseFloat(e.target.value);
+                    if(!isNaN(val)) {
+                        let f = Math.round(val / 0.8); 
+                        if(isMinis(r.L, r.item)) {
+                            const balls = Math.ceil(val / 50); const exactBulbs = balls * 50;
+                            f = exactBulbs / 2; 
+                            if(inputNotes) inputNotes.value = `${balls} Ball${balls > 1 ? 's' : ''}`;
+                            r.item.notes = inputNotes ? inputNotes.value : r.item.notes;
+                            r.item.bulbs = exactBulbs; inputBulbs.value = exactBulbs;
+                        }
+                        if(inputFt) inputFt.value = f; r.item.ft = f;
+                    }
+                }
+            };
+        }
+        if (inputNotes) inputNotes.oninput=e=>r.item.notes=e.target.value;
+        if(select) select.onchange = e => { 
+            r.item.clip = e.target.value; r.item.fra = false; r.item.gguard = false; 
+            refreshTable(); requestRender(); 
+        };
+        if(fraCheck) fraCheck.onchange = e => { r.item.fra = e.target.checked; requestRender(); };
+        if(gguardCheck) gguardCheck.onchange = e => { r.item.gguard = e.target.checked; requestRender(); };
+        tr.querySelector('.xbtn').onclick=()=>{ 
+            const idx=data[r.L].indexOf(r.item); 
+            if(idx>-1){ data[r.L].splice(idx,1); refreshTable(); markPowerDirty(); requestRender(); } 
+        };
+        tbody.appendChild(tr);
+    });
+}
+
+let cv = document.getElementById('cv');
+let ctx = cv.getContext('2d', {alpha: true}); 
+const canvasWrap = cv.parentElement;
+let DPR=1; let scale=1, panX=0, panY=0; 
+let imgReady=false; let imgDataUrl=null;
+const bg=new Image(); const logo=new Image(); logo.crossOrigin='anonymous'; logo.src='https://i.imgur.com/zdJfkpg.png'; logo.onload=()=>requestRender();
+let lastWidth = 0, lastHeight = 0; let actionCounter = 0; let isTapCandidate = false; let tapDownX = 0, tapDownY = 0;
+const TAP_THRESHOLD = 25; let activeLabelTarget = null; let dragStartPt = null; let isMovingLabel = false;
+
+function initializeAndSizeContext() {
+    const r = canvasWrap.getBoundingClientRect();
+    const width = r.width; const height = r.height;
+    if (width === 0 || height === 0) { requestRender(); return; }
+    if (width !== lastWidth || height !== lastHeight) {
+        DPR = Math.min(devicePixelRatio || 1, 2);
+        cv.width = Math.floor(width * DPR); cv.height = Math.floor(height * DPR);
+        lastWidth = width; lastHeight = height;
+        if (!ctx) ctx = cv.getContext('2d', {alpha: true});
+        if (ctx) ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        cv.style.width = width + 'px'; cv.style.height = height + 'px';
+        requestRender();
+    }
+    requestRender();
+}
+function resetView(){
+  if(!imgReady) return;
+  const r = canvasWrap.getBoundingClientRect();
+  const imgW = bg.naturalWidth || bg.width || 1000;
+  const imgH = bg.naturalHeight || bg.height || 1000;
+  const targetWidth = r.width * 0.9; 
+  scale = targetWidth / imgW;
+  if(!isFinite(scale) || scale <= 0) scale = 0.1;
+  panX = (r.width - imgW * scale) / 2;
+  panY = (r.height - imgH * scale) / 2;
+  requestRender();
+}
+document.getElementById('btnFit').onclick=resetView;
+
+const accWrap=document.getElementById('accWrap'); const toolBtn={};
+function buildTools(){
+  accWrap.innerHTML='';
+  cats.forEach(cat=>{
+    const acc=document.createElement('div');acc.className='acc';
+    const head=document.createElement('div');head.className='accHead';
+    head.innerHTML=`<b>${cat.name}</b><i data-lucide="chevron-right"></i>`;
+    head.onclick=()=>{
+        document.querySelectorAll('.acc.open').forEach(el=>{if(el!==acc)el.classList.remove('open')});
+        acc.classList.toggle('open');
+    };
+    const body=document.createElement('div');body.className='accBody';
+    const grid=document.createElement('div');grid.className='grid4';
+    cat.list.forEach(k=>{
+      const btn=document.createElement('button');btn.className='tool';
+      const iconName = iconMap[k] || 'circle';
+      const iconHtml = `<i data-lucide="${iconName}"></i>`;
+      
+      let displayText = pretty[k]||k;
+      if(k.startsWith('tree:')) displayText = k.slice(5).split('(')[0].trim();
+      else if(k.startsWith('wreath')) displayText = k==='wreath32'?'Wr 32"':'Wr 42"';
+      else if (k === 'custom_icon') displayText = 'Icon';
+      else if (k === 'night_mode') displayText = 'Night';
+
+      btn.innerHTML = `${iconHtml}<span>${displayText}</span>`;
+      
+      if(k.startsWith('tree:')){
+          const t=k.slice(5); btn.onclick=()=>selectTool('tree',t); toolBtn[k]=btn;
+      } else if(k.startsWith('wreath')){
+          btn.onclick=()=>selectTool('wreath', k==='wreath32'?'32"':'42"'); toolBtn[k]=btn;
+      } else if (k === 'custom_icon') {
+          btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
+      } else if (k === 'night_mode') {
+          btn.onclick=()=>toggleNightMode(); toolBtn[k]=btn;
+          btn.classList.toggle('toggled', isNightMode); 
+      } else {
+          btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
+      }
+      grid.appendChild(btn);
+    });
+    body.appendChild(grid);acc.append(head,body);accWrap.appendChild(acc);
+  });
+  // Re-init icons after dynamic creation
+  if(window.lucide) lucide.createIcons();
+}
+
+let mode='draw',currLayer='ridges',currTreeKind='Trunk + Branch (Minis)',currWreathSize='32"', currLabelTarget='point'; 
+function selectTool(L, variant=null){
+    currLayer=L;
+    if(L==='tree') currTreeKind=variant;
+    else if(L==='wreath') currWreathSize=variant;
+    for(const k in toolBtn) toolBtn[k].classList.remove('active');
+    if(L==='tree') toolBtn['tree:'+currTreeKind]?.classList.add('active');
+    else if(L==='wreath') toolBtn[currWreathSize==='32"'?'wreath32':'wreath42']?.classList.add('active');
+    else toolBtn[L]?.classList.add('active');
+    if(matchMedia('(max-width:900px)').matches) toggleMenu();
+    document.getElementById('movePop').style.display = 'none';
+    document.getElementById('imgUploadPop').style.display = 'none';
+    mode='draw'; 
+    if (L === 'label') mode = 'label'; 
+    updateModeTag(); startNewSketch();
+    
+    if(currLayer === 'garland') {
+        document.getElementById('btnSwag').style.display = 'inline-flex';
+        document.getElementById('btnPillar').style.display = 'inline-flex'; 
+    } else {
+        document.getElementById('btnSwag').style.display = 'none';
+        document.getElementById('btnPillar').style.display = 'none'; 
+        chkPillar.checked = false; btnPillar.classList.remove('toggled');
+    }
+    redoStack = []; document.getElementById('btnRedo').disabled = true;
+}
+document.getElementById('btnDraw').onclick=()=>{mode='draw';updateModeTag()};
+document.getElementById('btnSelect').onclick=()=>{mode='select';updateModeTag()};
+document.getElementById('btnMoveCanvas').onclick=()=>{mode='move-canvas';updateModeTag()};
+
+function updateModeTag(){
+    const t = document.getElementById('modeTag');
+    document.getElementById('btnDraw').classList.remove('toggled');
+    document.getElementById('btnSelect').classList.remove('toggled');
+    document.getElementById('btnMoveCanvas').classList.remove('toggled'); 
+
+    if (mode === 'draw') {
+         t.textContent = pretty[currLayer] || 'Draw'; t.style.borderColor = '#64b5ff'; t.style.color = '#64b5ff';
+         document.getElementById('btnDraw').classList.add('toggled');
+    } else if (mode === 'select') {
+         t.textContent = 'Select'; t.style.borderColor = '#fbbf24'; t.style.color = '#fbbf24';
+         document.getElementById('btnSelect').classList.add('toggled');
+    } else if (mode === 'label') {
+         t.textContent = 'Label'; t.style.borderColor = '#22c55e'; t.style.color = '#22c55e';
+    } else if (mode === 'move-canvas') { 
+         t.textContent = 'Pan'; t.style.borderColor = '#f87171'; t.style.color = '#f87171';
+         document.getElementById('btnMoveCanvas').classList.add('toggled');
+    } else if (mode === 'move') {
+         t.textContent = 'Move'; t.style.borderColor = '#ff3b3b'; t.style.color = '#ff3b3b';
+    } else if (mode === 'move-label') { 
+         t.textContent = 'Label Move'; t.style.borderColor = '#3b82f6'; t.style.color = '#3b82f6';
+    }
+    
+    const MIN_SCALE = 0.5; 
+    if (settings.iconScale < MIN_SCALE) settings.iconScale = 1.5;
+    if (settings.junctionScale < MIN_SCALE) settings.junctionScale = 1.0; 
+    if (settings.lineScale < MIN_SCALE) settings.lineScale = 1.5;
+    if (settings.labelScale < MIN_SCALE) settings.labelScale = 3.0; 
+    updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI();
+    selectedItem = null; draggingPoint = null; isMovingLabel = false; requestRender();
+}
+
+let powerGraph = null, powerDirty = true;
+function markPowerDirty(){ powerDirty = true; }
+function analyzePower(){
+  if(!powerDirty && powerGraph) return powerGraph;
+  const nodes = []; const edges = []; const TOL_SQR = 0.5 * 0.5;
+  function getId(p){
+    for(let i=0; i<nodes.length; i++){
+      const dx = nodes[i].x - p.x; const dy = nodes[i].y - p.y;
+      if(dx*dx + dy*dy < TOL_SQR) return i;
+    }
+    return nodes.push({x:p.x, y:p.y, dist:Infinity, adj:[]}) - 1;
+  }
+  const singlePathLayers = ['garland', 'groundstakes']; const singlePathEdges = new Map(); 
+  ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'].forEach(L => {
+    data[L].forEach(it => {
+       if(it.points.length < 2) return;
+       let currentLength = 0; let pathSegments = [];
+       for(let i=0; i<it.points.length-1; i++){
+          const u = getId(it.points[i]); const v = getId(it.points[i+1]);
+          const edge = {u, v, type:L, cps:(it.cps?.[i] || null), index: i, line: it};
+          edges.push(edge); nodes[u].adj.push(v); nodes[v].adj.push(u);
+          if (singlePathLayers.includes(L)) {
+              const p1 = it.points[i]; const p2 = it.points[i+1]; const cp = it.cps ? it.cps[i] : null;
+              const len = segmentLength(p1, p2, cp); currentLength += len;
+              pathSegments.push({ edge, length: len, startDist: currentLength - len });
+          }
+       }
+       if (singlePathLayers.includes(L) && pathSegments.length > 0) singlePathEdges.set(it, { totalLength: currentLength, segments: pathSegments });
+    });
+  });
+  
+  const queue = [];
+  data.powersource.forEach(ps => { const id = getId(ps.pt); if(nodes[id]){ nodes[id].dist = 0; queue.push(id); } });
+  let head = 0;
+  while(head < queue.length){
+    const u = queue[head++]; const d = nodes[u].dist + 1;
+    nodes[u].adj.forEach(v => { if(nodes[v].dist === Infinity){ nodes[v].dist = d; queue.push(v); } });
+  }
+  const deadTips = [];
+  nodes.forEach((n, i)=>{ 
+    if(n.dist !== Infinity && n.dist > 0 && n.adj.length === 1){ 
+      const worldPos = {x:n.x, y:n.y}; let isDecoration = false;
+      ['wreath', 'tree', 'bow', 'custom_icon'].forEach(L => {
+        data[L].forEach(item => { if (item.pt && Math.hypot(item.pt.x - worldPos.x, item.pt.y - worldPos.y) < TOL_SQR) isDecoration = true; });
+      });
+      let isGarlandOrShrub = false;
+      edges.forEach(e => { if (['garland', 'shrub'].includes(e.type) && (e.u === i || e.v === i)) isGarlandOrShrub = true; });
+      if (!isDecoration && !isGarlandOrShrub) deadTips.push(i); 
+    } 
+  });
+  const singleArrowEdges = [];
+  singlePathEdges.forEach((pathInfo, line) => {
+      const totalLength = pathInfo.totalLength; if (totalLength < 0.1) return;
+      const targetDist = totalLength * 0.5; let bestSegment = null;
+      for (const seg of pathInfo.segments) { if (targetDist >= seg.startDist && targetDist <= (seg.startDist + seg.length)) { bestSegment = seg; break; } }
+      if (bestSegment) {
+          const edge = bestSegment.edge; const distInSegment = targetDist - bestSegment.startDist;
+          const uNode = nodes[edge.u]; const vNode = nodes[edge.v];
+          let isReversed = uNode.dist > vNode.dist;
+          singleArrowEdges.push({ edge: edge, distInSegment: distInSegment, isReversed: isReversed });
+      }
+  });
+  powerGraph = {nodes, edges, deadTips, singleArrowEdges}; powerDirty = false; return powerGraph;
+}
+function projOnSeg(p,a,b){ const ABx=b.x-a.x, ABy=b.y-a.y; const d=ABx*ABx+ABy*ABy||1; const t=((p.x-a.x)*ABx+(p.y-a.y)*ABy)/d; return{t,q:{x:a.x+ABx*t,y:a.y+ABy*t}}; }
+function nextIndex(prefix){const re=new RegExp('^'+prefix+'(\\d+)$','i');const used=new Set();for(const L in data){for(const it of data[L]){const m=(it.label||'').match(re);if(m)used.add(+m[1])}}let i=1;while(used.has(i))i++;return i}
+
+function getSnapLineOnly(wx, wy, thresholdW){
+    let best = null; let minD = thresholdW; const p = {x:wx, y:wy};
+    ['ridges','fascia','peaks','groundstakes','garland','shrub','windows'].forEach(L=>{
+        data[L].forEach(line=>{
+            for(let i=0; i<line.points.length-1; i++){
+                const a=line.points[i]; const b=line.points[i+1]; const proj=projOnSeg(p,a,b); const d=Math.hypot(p.x-proj.q.x, p.y-proj.q.y);
+                if(d<minD){ minD=d; best={x:proj.q.x, y:proj.q.y, type:'mid', host:line, seg:i}; }
+            }
+        });
+    });
+    return best;
+}
+
+function getSnap(sx, sy, thresholdS){
+    const w=toWorld(sx, sy); const thresholdW=thresholdS/scale; let best=null; let minD=thresholdW; const p = w;
+    ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'].forEach(L=>{
+        data[L].forEach(line=>{ if(line.points.length>0){ [line.points[0], line.points[line.points.length-1]].forEach(pt=>{ const d=Math.hypot(p.x-pt.x, p.y-pt.y); if(d<minD){ minD=d; best={x:pt.x, y:pt.y, type:'end', host:line}; } }); } });
+    });
+    ['powersource','threeway','wreath','bow','tree', 'custom_icon'].forEach(L=>{
+        data[L].forEach(it=>{ if(it.pt){ const d=Math.hypot(p.x-it.pt.x, p.y-it.pt.y); if(d<minD){ minD=d; best={x:it.pt.x, y:it.pt.y, type:'junction', host:it}; } } });
+    });
+    if(!best){
+        minD = thresholdW;
+        ['ridges','fascia','peaks','groundstakes','garland','shrub','windows'].forEach(L=>{
+            data[L].forEach(line=>{
+                for(let i=0; i<line.points.length-1; i++){
+                    const a=line.points[i]; const b=line.points[i+1]; const proj=projOnSeg(p,a,b);
+                    if(proj.t>=0 && proj.t<=1 && Math.hypot(p.x-proj.q.x, p.y-proj.q.y)<minD){ minD=Math.hypot(p.x-proj.q.x, p.y-proj.q.y); best={x:proj.q.x, y:proj.q.y, type:'proj', host:line, seg:i}; }
+                }
+            });
+        });
+    }
+    return best;
+}
+
+function countConnections(junction) {
+    let count = 0; const junctionWorld = junction.pt; const TOL_SQR = 0.5 * 0.5;
+    ['ridges', 'fascia', 'peaks', 'groundstakes', 'garland', 'cords', 'shrub', 'windows'].forEach(L => {
+        data[L].forEach(line => {
+            if (line.points.length > 0) {
+                if (Math.hypot(line.points[0].x - junctionWorld.x, line.points[0].y - junctionWorld.y) < TOL_SQR) count++;
+                const end = line.points[line.points.length - 1];
+                if (line.points.length > 1 && Math.hypot(end.x - junctionWorld.x, end.y - junctionWorld.y) < TOL_SQR) count++;
+            }
+        });
+    });
+    return count;
+}
+function find3WayAt(pt) { const TOL_SQR = 0.5 * 0.5; for(const tw of data.threeway){ if(Math.hypot(tw.pt.x - pt.x, pt.y - pt.y) < TOL_SQR) return tw; } return null; }
+
+let pendingCustomIcon = null;
+function placeCustomIcon(w, sx, sy, label, index) {
+    pendingCustomIcon = { pt: w, label: label, index: index, kind: 'custom_icon', tempX: sx, tempY: sy };
+    const popEl = document.getElementById('imgUploadPop');
+    popEl.style.left = sx + 'px'; popEl.style.top = sy + 'px'; popEl.style.transform = 'translate(-50%, -100%)'; popEl.style.display = 'flex';
+}
+
+function placeItem(L, w, sx, sy){
+    let item; const {label, index} = getNewItemData(L);
+    if(L==='tree') { placeTree(L, w, sx, sy, label, index); return; } 
+    else if(L==='wreath') { placeWreath(L, w, sx, sy, label, index); return; } 
+    else if(L==='custom_icon') { placeCustomIcon(w, sx, sy, label, index); return; }
+    item = {pt:w, label:label, index:index, kind: L};
+    data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
+}
+
+function placeTree(L, w, sx, sy, label, index) {
+    if (currTreeKind === 'ToL') {
+        openPop(document.getElementById('tolPop'), sx, sy, (size) => {
+            const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size)};
+            data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
+        });
+    } else {
+        const item = {pt:w, label:label, index:index, kind: currTreeKind};
+        data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
+    }
+}
+function placeWreath(L, w, sx, sy, label, index) {
+    openPop(document.getElementById('wreathPop'), sx, sy, (bow) => {
+        const item = {pt:w, label:label + (currWreathSize === '42"' ? ' (42)' : ''), index:index, size: currWreathSize, bow: bow};
+        data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
+    });
+}
+
+function completeSketch() {
+    if (!sketch || sketch.points.length < 2) return;
+    data[sketch.layer].push(sketch); 
+    sketch = null; document.getElementById('btnComplete').disabled = true; startNewSketch(); 
+    markPowerDirty(); refreshTable(); requestRender(); 
+}
+
+let pointers=new Map(),gesture=false,gMid=null,gScale=1,gPanX=0,gPanY=0,gDist=0;
+function mp(a,b){return{x:(a.x+b.x)/2,y:(a.y+b.y)/2}}
+function ds(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+const toWorld=(sx,sy)=>({x:(sx-panX)/scale,y:(sy-panY)/scale});
+const toScr=p=>({x:p.x*scale+panX,y:p.y*scale+panY});
+
+let selectedItem = null, draggingPoint = null;
+let currentSnapLine = null; let draggedLabelTarget = null;
+let dragStartX=0, dragStartY=0, dragPanStartX=0, dragPanStartY=0;
+
+cv.addEventListener('pointerdown',e=>{
+    cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
+    pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
+    document.getElementById('lblEditor').style.display = 'none';
+    document.getElementById('movePop').style.display = 'none'; 
+    document.getElementById('imgUploadPop').style.display = 'none';
+
+    if(pointers.size === 1) {
+        isTapCandidate = true; tapDownX = ex; tapDownY = ey; dragStartX = ex; dragStartY = ey; dragPanStartX = panX; dragPanStartY = panY;
+        if (mode === 'move' && selectedItem) {
+             dragStartPt = { x: selectedItem.obj.pt ? selectedItem.obj.pt.x : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).x : 0),
+                             y: selectedItem.obj.pt ? selectedItem.obj.pt.y : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).y : 0) };
+             return;
+        } else if (mode === 'move-label' && selectedItem) { 
+             const target = checkLabelClick(ex, ey, selectedItem.obj, selectedItem.type);
+             if (target) { draggedLabelTarget = target; return; }
+        }
+    }
+    if(pointers.size >= 2){
+        isTapCandidate = false; gesture=true; const v=[...pointers.values()];
+        gDist=ds(v[0],v[1]); gMid=mp(v[0],v[1]); gScale=scale; gPanX=panX; gPanY=panY; return;
+    }
+    if(mode === 'select' || mode === 'move') {
+        const w = toWorld(ex, ey); let clickedObj = null;
+        data.threeway.forEach(t => { if(Math.hypot(toScr(t.pt).x - ex, toScr(t.pt).y - ey) < 30) clickedObj = t; });
+        if(!clickedObj) data.powersource.forEach(t => { if(Math.hypot(toScr(t.pt).x - ex, toScr(t.pt).y - ey) < 30) clickedObj = t; });
+        if(clickedObj) attemptHeal(clickedObj.pt);
+        let hit = false;
+        const search = (list)=>{
+             list.forEach(obj=>{
+                 if(obj.points){
+                     for(let i=0; i<obj.points.length; i++) if(Math.hypot(ex-toScr(obj.points[i]).x, ey-toScr(obj.points[i]).y)<30) hit=true;
+                     if(!hit) {
+                         for(let i=0; i<obj.points.length-1; i++){
+                             const p=projOnSeg(w, obj.points[i], obj.points[i+1]);
+                             if(p.t>=0 && p.t<=1 && Math.hypot(ex-toScr(p.q).x, ey-toScr(p.q).y)<30) hit=true;
+                         }
+                     }
+                 } else if(obj.pt){ if(Math.hypot(ex-toScr(obj.pt).x, ey-toScr(obj.pt).y)<30) hit=true; }
+             });
+        };
+        Object.keys(data).forEach(k=>search(data[k]));
+        if(hit) handleSelectDown(ex, ey); 
+    }
+});
+
+function attemptHeal(pt) {
+    const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
+    let candidates = [];
+    lineLayers.forEach(L => {
+        data[L].forEach(line => {
+            if(line.points) {
+                const pStart = line.points[0]; const pEnd = line.points[line.points.length-1];
+                if(Math.hypot(pStart.x-pt.x, pStart.y-pt.y) < 0.1) candidates.push({line, L, end:'start'});
+                else if(Math.hypot(pEnd.x-pt.x, pEnd.y-pt.y) < 0.1) candidates.push({line, L, end:'end'});
+            }
+        });
+    });
+    if(candidates.length === 2 && candidates[0].L === candidates[1].L) {
+        const A = candidates[0].line; const B = candidates[1].line;
+        if (!A.isSplit || !B.isSplit) return; 
+        if(candidates[0].end === 'end' && candidates[1].end === 'start') mergeLines(candidates[0].L, A, B);
+        else if (candidates[1].end === 'end' && candidates[0].end === 'start') mergeLines(candidates[0].L, B, A);
+    }
+}
+function mergeLines(L, keepLine, mergeLine) {
+    const newPoints = keepLine.points.concat(mergeLine.points.slice(1));
+    const newCps = (keepLine.cps || []).concat(mergeLine.cps || []);
+    keepLine.points = newPoints; keepLine.cps = newCps;
+    const idx = data[L].indexOf(mergeLine);
+    if(idx > -1) data[L].splice(idx, 1);
+    refreshTable(); markPowerDirty();
+}
+
+cv.addEventListener('pointermove',e=>{
+    const r=canvasWrap.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+    if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x,y,id:e.pointerId});
+    cv._mx=x; cv._my=y;
+    if(gesture && pointers.size>=2){
+        const v=[...pointers.values()];
+        const currDist=ds(v[0],v[1]); const currMid=mp(v[0],v[1]);
+        if(gDist>0){
+            const nz = Math.max(0.1, Math.min(10, gScale * (currDist/gDist)));
+            const worldMid = {x:(gMid.x-gPanX)/gScale, y:(gMid.y-gPanY)/gScale};
+            scale = nz; panX = currMid.x - worldMid.x*scale; panY = currMid.y - worldMid.y*scale; requestRender();
+        }
+        return;
+    }
+    const isExplicitPanMode = mode === 'move-canvas';
+    const isImplicitPanAllowed = (mode !== 'label' && mode !== 'move' && mode !== 'move-label' && !draggingPoint);
+    if (pointers.size === 1 && (isExplicitPanMode || isImplicitPanAllowed)) {
+         const dx = x - dragStartX; const dy = y - dragStartY;
+         if(isExplicitPanMode || Math.hypot(dx, dy) > TAP_THRESHOLD) {
+            isTapCandidate = false; panX = dragPanStartX + dx; panY = dragPanStartY + dy; requestRender();
+         }
+    }
+    if(mode === 'select' && draggingPoint){
+        const w = toWorld(x, y); currentSnapLine = null; 
+        if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree')) {
+             const snap = getSnapLineOnly(w.x, w.y, 25 / scale); 
+             if (snap) { draggingPoint.obj.pt = {x: snap.x, y: snap.y}; if(snap.type === 'mid') currentSnapLine = snap; } 
+             else { draggingPoint.obj.pt = w; }
+        } else if (draggingPoint.type === 'custom_icon') {
+            const ci = draggingPoint.obj;
+            if (draggingPoint.handle === 'move' || draggingPoint.index === -1) { ci.pt.x = w.x; ci.pt.y = w.y; } 
+            else if (draggingPoint.handle === 'scale' || draggingPoint.index === -2) {
+                 const tlW = ci.pt; const newWorldW = w.x - tlW.x;
+                 if (newWorldW > 0.05) { const newScale = newWorldW / ci.w; ci.scale = newScale; }
+            }
+        } else {
+            let snap = getSnap(x, y, 25); const ptVal = snap ? {x:snap.x, y:snap.y} : w;
+            if (draggingPoint.index === -1 && draggingPoint.obj.pt) draggingPoint.obj.pt = ptVal;
+            else if (draggingPoint.obj.points) draggingPoint.obj.points[draggingPoint.index] = ptVal;
+        }
+        markPowerDirty(); requestRender(); return;
+    }
+    if (mode === 'move' && selectedItem && dragStartPt) {
+        const w = toWorld(x, y); const wStart = toWorld(dragStartX, dragStartY); const dx = w.x - wStart.x; const dy = w.y - wStart.y;
+        const obj = selectedItem.obj;
+        if (obj.pt) { obj.pt.x = dragStartPt.x + dx; obj.pt.y = dragStartPt.y + dy; } 
+        else if (obj.points) {
+            obj.points.forEach(p => { p.x += dx; p.y += dy; });
+            dragStartX = x; dragStartY = y; dragStartPt.x = obj.points[0].x; dragStartPt.y = obj.points[0].y; 
+            if (obj.cps) obj.cps.forEach(cp => { if (cp) { cp.x += dx; cp.y += dy; } });
+        }
+        markPowerDirty(); requestRender(); return;
+    }
+    if (mode === 'move-label' && draggedLabelTarget) {
+        const w = toWorld(x, y); const obj = draggedLabelTarget.item; const index = draggedLabelTarget.index; const type = draggedLabelTarget.type;
+        if (type === 'point') { if(!obj.ptLabelPos) obj.ptLabelPos = {}; obj.ptLabelPos[index] = {x: w.x, y: w.y}; } 
+        else if (type === 'seg') { if(!obj.segLabelPos) obj.segLabelPos = {}; obj.segLabelPos[index] = {x: w.x, y: w.y}; } 
+        else if (type === 'simple') { obj.pt.x = w.x; obj.pt.y = w.y; }
+        requestRender(); return;
+    }
+    requestRender();
+});
+
+cv.addEventListener('pointerup',e=>{
+    const wasGesture = gesture;
+    if (pointers.size === 1 && !wasGesture) { if (draggingPoint) { draggingPoint = null; markPowerDirty(); requestRender(); } }
+    if (mode === 'move' && dragStartPt) dragStartPt = null;
+    if (mode === 'move-label' && draggedLabelTarget) draggedLabelTarget = null;
+    pointers.delete(e.pointerId);
+    if (wasGesture) { dragStartX = cv._mx; dragStartY = cv._my; dragPanStartX = panX; dragPanStartY = panY; isTapCandidate = false; }
+    if(pointers.size<2) gesture=false;
+    if(!wasGesture && pointers.size === 0 && e.button===0) {
+        const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top; const dist = Math.hypot(ex - dragStartX, ey - dragStartY);
+        if(mode === 'move-canvas') return;
+        if(dist < TAP_THRESHOLD) {
+             if(mode === 'draw') handleTap(ex, ey);
+             else if (mode === 'label') checkCordLabelClick(ex, ey);
+             else if (mode === 'select' || mode === 'move' || mode === 'move-label') handleSelectDown(ex, ey);
+        }
+    }
+});
+
+const iconFile = document.getElementById('iconFile'); const imgUploadPop = document.getElementById('imgUploadPop');
+const cancelIconUpload = document.getElementById('cancelIconUpload');
+cancelIconUpload.onclick = () => { imgUploadPop.style.display = 'none'; pendingCustomIcon = null; iconFile.value = ''; requestRender(); }
+iconFile.onchange = (e) => {
+    const file = e.target.files[0]; if (!file || !pendingCustomIcon) { imgUploadPop.style.display = 'none'; pendingCustomIcon = null; return; }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            const iconData = pendingCustomIcon; iconData.url = event.target.result;
+            iconData.w = img.naturalWidth || 100; iconData.h = img.naturalHeight || 100; iconData.scale = 0.15; iconData.imageObj = img; 
+            data.custom_icon.push(iconData); pendingCustomIcon = null; imgUploadPop.style.display = 'none'; iconFile.value = ''; 
+            selectedItem = { type: 'custom_icon', obj: iconData }; markPowerDirty(); requestRender(); refreshTable();
+        };
+        img.onerror = () => { showAlert("Failed to load image"); pendingCustomIcon = null; imgUploadPop.style.display = 'none'; };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+document.addEventListener('keydown', (e) => {
+    if (selectedItem && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); deleteItem(selectedItem); selectedItem = null; document.getElementById('movePop').style.display = 'none'; requestRender(); updateModeTag(); }
+});
+document.getElementById('moveToolBtn').onclick = () => { if (selectedItem) { mode = 'move'; document.getElementById('movePop').style.display = 'none'; updateModeTag(); } };
+document.getElementById('moveLabelToolBtn').onclick = () => { if (selectedItem && selectedItem.obj.points) { mode = 'move-label'; document.getElementById('movePop').style.display = 'none'; updateModeTag(); } };
+document.getElementById('deleteToolBtn').onclick = () => { if (selectedItem) { deleteItem(selectedItem); selectedItem = null; document.getElementById('movePop').style.display = 'none'; updateModeTag(); } };
+
+function checkCordLabelClick(sx, sy) {
+    const w = toWorld(sx, sy);
+    for (const item of data.label) { const s = toScr(item.pt); if(Math.hypot(s.x - sx, s.y - sy) < 40) { showLabelEditor({ item: item, type: 'simple', index: -1, x: sx, y: sy }); return; } }
+    let best = checkLabelClick(sx, sy); if (best) { showLabelEditor(best); return; }
+    const {label, index} = getNewItemData('label');
+    if (!data.label) data.label = []; 
+    data.label.push({pt: w, label: label, index: index, text: ''});
+    showLabelEditor({ item: data.label[data.label.length - 1], type: 'simple', index: -1, x: sx, y: sy });
+}
+
+function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
+    const w = toWorld(sx, sy); let best = null;
+    const search = (item, L) => {
+        if (item.points) {
+            if(item.ptLabels) {
+                Object.keys(item.ptLabels).forEach(idx => {
+                    const i = parseInt(idx);
+                    const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
+                    const sc = toScr(labelPos);
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
+                    }
+                });
+            }
+            if(item.segLabels) {
+                Object.keys(item.segLabels).forEach(idx => {
+                    const i = parseInt(idx);
+                    let labelPos;
+                    if (item.segLabelPos && item.segLabelPos[i]) labelPos = item.segLabelPos[i];
+                    else labelPos = getPolylineMidpoint([item.points[i], item.points[i+1]]);
+                    const sc = toScr(labelPos);
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
+                    }
+                });
+            }
+        }
+    }
+    if (specificItem) search(specificItem, specificType);
+    else Object.keys(data).forEach(L => { if (L === 'label') return; data[L].forEach(item => search(item, L)); });
+    return best;
+}
+
+function showLabelEditor(target) {
+    activeLabelTarget = target; const el = document.getElementById('lblEditor'); const inp = document.getElementById('lblInput'); let val = '';
+    let worldPos;
+    if (target.type === 'simple') worldPos = target.item.pt;
+    else if (target.type === 'point') worldPos = target.item.ptLabelPos && target.item.ptLabelPos[target.index] ? target.item.ptLabelPos[target.index] : target.item.points[target.index];
+    else if (target.type === 'seg') worldPos = target.item.segLabelPos && target.item.segLabelPos[target.index] ? target.item.segLabelPos[target.index] : getPolylineMidpoint([target.item.points[target.index], target.item.points[target.index+1]]);
+    const s = toScr(worldPos);
+    if (target.type === 'point') { if(!target.item.ptLabels) target.item.ptLabels = {}; val = target.item.ptLabels[activeLabelTarget.index] || ''; inp.placeholder = 'Point Note'; } 
+    else if (target.type === 'seg') { if(!target.item.segLabels) target.item.segLabels = {}; val = target.item.segLabels[activeLabelTarget.index] || ''; inp.placeholder = 'Line Note'; } 
+    else if (target.type === 'simple') { val = target.item.text || ''; inp.placeholder = 'Label Text'; }
+    inp.value = val; el.style.left = s.x + 'px'; el.style.top = s.y + 'px'; el.style.display = 'block'; inp.focus();
+}
+
+document.getElementById('lblInput').onchange = (e) => {
+    if(!activeLabelTarget) return; const val = e.target.value; const item = activeLabelTarget.item;
+    if(activeLabelTarget.type === 'point') { item.ptLabels[activeLabelTarget.index] = val; if(val) { if(!item.ptLabelPos) item.ptLabelPos = {}; item.ptLabelPos[activeLabelTarget.index] = null; } } 
+    else if (activeLabelTarget.type === 'seg') { item.segLabels[activeLabelTarget.index] = val; if(val) { if(!item.segLabelPos) item.segLabelPos = {}; item.segLabelPos[activeLabelTarget.index] = null; } } 
+    else if (activeLabelTarget.type === 'simple') { item.text = val; if (val === '') { const idx = data.label.indexOf(item); if(idx > -1) data.label.splice(idx, 1); } }
+    document.getElementById('lblEditor').style.display = 'none'; requestRender();
+};
+document.getElementById('lblInput').onblur = () => {
+    setTimeout(() => { 
+        if (activeLabelTarget && activeLabelTarget.type === 'simple' && activeLabelTarget.item.text === '') { const idx = data.label.indexOf(activeLabelTarget.item); if(idx > -1) data.label.splice(idx, 1); requestRender(); }
+        document.getElementById('lblEditor').style.display = 'none'; 
+    }, 200);
+};
+
+cv.addEventListener('wheel',e=>{
+    e.preventDefault(); const r=canvasWrap.getBoundingClientRect(); const mx=e.clientX-r.left, my=e.clientY-r.top;
+    const w=toWorld(mx,my); const f = e.deltaY<0 ? 1.1 : 0.9; const nz = Math.max(0.1, Math.min(10, scale*f));
+    panX = mx - w.x*nz; panY = my - w.y*nz; scale=nz; requestRender();
+},{passive:false});
+
+let redoStack = [];
+function getNewItemData(L){
+    actionCounter++; const p = pfx[L] || 'L'; let label = '';
+    if (L === 'wreath') { const pWreath = pfx.wreath || 'WR'; const indexWreath = nextIndex(pWreath); label = pWreath + indexWreath; } 
+    else if (L === 'label') { label = pfx.label + nextIndex(pfx.label); } 
+    else { label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow' || L==='custom_icon') ? '' : p + nextIndex(p); }
+    return {label, index: actionCounter};
+}
+
+document.getElementById('btnUndo').onclick=()=>{
+    if (sketch && sketch.points.length > 0) {
+        sketch.points.pop(); sketch.cps.pop(); document.getElementById('btnComplete').disabled = sketch.points.length<2;
+        markPowerDirty(); requestRender(); return;
+    }
+    let maxIndex = -1; let targetObj = null; let targetLayer = null; let targetIdxInArray = -1;
+    for (const L in data) {
+        if (!data[L]) continue; data[L].forEach((item, idx) => { if (item.index > maxIndex) { maxIndex = item.index; targetObj = item; targetLayer = L; targetIdxInArray = idx; } });
+    }
+    if (targetObj && targetLayer) {
+        redoStack.push({layer: targetLayer, item: targetObj}); document.getElementById('btnRedo').disabled = false;
+        data[targetLayer].splice(targetIdxInArray, 1); markPowerDirty(); requestRender(); refreshTable();
+    }
+};
+document.getElementById('btnRedo').onclick = () => {
+    if(redoStack.length === 0) return; const record = redoStack.pop(); if(redoStack.length === 0) document.getElementById('btnRedo').disabled = true;
+    if (record.layer === 'custom_icon' && record.item.url) { const img = new Image(); img.src = record.item.url; record.item.imageObj = img; }
+    data[record.layer].push(record.item); markPowerDirty(); requestRender(); refreshTable();
+};
+
+let sketch=null; 
+function startNewSketch(){
+    const data = getNewItemData(currLayer);
+    sketch={points:[],cps:[],layer:currLayer,label:data.label, index: data.index, firstHost:null, isPillarMode: chkPillar.checked}; 
+    document.getElementById('btnComplete').disabled=true;
+}
+document.getElementById('btnComplete').onclick = completeSketch;
+
+function handleTap(sx,sy){
+    if(!imgReady || mode!=='draw' || draggingPoint) return;
+    const w=toWorld(sx,sy); redoStack = []; document.getElementById('btnRedo').disabled = true;
+
+    if(['powersource','threeway','tree','wreath','bow', 'custom_icon'].includes(currLayer)){ placeItem(currLayer, w, sx, sy); return; }
+    if(!sketch) startNewSketch();
+    let pt = w; let snappedHost = null; let snappedSegIndex = -1;
+    if(chkSnap.checked){
+        const sn = getSnap(sx,sy,25); 
+        if(sn) {
+            pt = {x:sn.x, y:sn.y}; if(sketch.points.length===0) sketch.firstHost = sn.host;
+            if(sn.type === 'proj') { snappedHost = sn.host; snappedSegIndex = sn.seg; }
+            if(sn.host && data.threeway.includes(sn.host)){ if(countConnections(sn.host) >= 4){ showAlert("3-Way limit reached."); if(sketch.points.length === 0) return; } }
+        }
+    }
+    if(sketch.points.length > 0 && pt) {
+        const dest3Way = find3WayAt(pt); if(dest3Way) { if(countConnections(dest3Way) >= 4){ showAlert("Destination 3-Way limit reached."); return; } }
+    }
+    sketch.points.push(pt);
+    if(['garland','groundstakes','cords'].includes(currLayer)) {
+        if(sketch.points.length > 1) {
+            const p1 = sketch.points[sketch.points.length - 2]; const p2 = sketch.points[sketch.points.length - 1];
+            if(chkSwag.checked && currLayer === 'garland') {
+                const mx = (p1.x + p2.x) / 2; const my = (p1.y + p2.y) / 2; const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                sketch.cps.push({x: mx, y: my + (dist * 0.2)}); 
+            } else { sketch.cps.push(null); }
+        }
+    }
+    if(snappedHost && snappedSegIndex > -1){
+         const a = snappedHost.points[snappedSegIndex]; const b = snappedHost.points[snappedSegIndex+1];
+         if(Math.hypot(pt.x-a.x, pt.y-a.y)>0.1 && Math.hypot(pt.x-b.x, pt.y-b.y)>0.1) {
+             snappedHost.points.splice(snappedSegIndex+1, 0, {x:pt.x, y:pt.y}); if(snappedHost.cps) snappedHost.cps.splice(snappedSegIndex+1, 0, null); markPowerDirty();
+         }
+    }
+    document.getElementById('btnComplete').disabled = sketch.points.length < 2; markPowerDirty(); requestRender();
+}
+
+const CUSTOM_HANDLE_HITBOX = 30; 
+function handleSelectDown(sx, sy){
+    document.getElementById('movePop').style.display = 'none'; isMovingLabel = false;
+    let hitPoint = null; let bestPointDist = 45; 
+    const searchPoints = (list, type, overrideHitbox=30) => {
+        list.forEach((obj, i) => {
+            const currentHitbox = (type === 'threeway' || type === 'powersource') ? 45 : overrideHitbox; 
+            if (obj.points) {
+                obj.points.forEach((p, index) => {
+                    const d = Math.hypot(sx - toScr(p).x, sy - toScr(p).y);
+                    if (d < currentHitbox) { if (!hitPoint || d < hitPoint.d) hitPoint = { obj, index, type, d: d }; }
+                });
+            } else if (obj.pt) {
+                const scaleFactor = (type === 'threeway' || type === 'powersource') ? settings.junctionScale : settings.iconScale;
+                const scaledHitbox = (type === 'label') ? 40 : 30 * scaleFactor; 
+                const d = Math.hypot(sx - toScr(obj.pt).x, sy - toScr(obj.pt).y);
+                if (d < scaledHitbox) { if (!hitPoint || d < hitPoint.d) hitPoint = { obj, index: -1, type, d: d }; }
+            }
+        });
+    };
+    Object.keys(data).forEach(k => searchPoints(data[k], k, bestPointDist)); 
+    let isCustomIconHandleDrag = false;
+    data.custom_icon.forEach(ci => {
+        const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
+        const handles = [ { pos: sTL, handle: 'move' }, { pos: {x: sTL.x + scaledW, y: sTL.y + scaledH}, handle: 'scale' } ];
+        for (const { pos, handle } of handles) {
+            const d = Math.hypot(sx - pos.x, sy - pos.y);
+            if (d < CUSTOM_HANDLE_HITBOX) { draggingPoint = { obj: ci, index: (handle === 'scale') ? -2 : -1, type: 'custom_icon', d: d, handle: handle }; isCustomIconHandleDrag = true; break; }
+        }
+        if(isCustomIconHandleDrag) return;
+    });
+    if (isCustomIconHandleDrag) { selectedItem = { type: 'custom_icon', obj: draggingPoint.obj }; document.getElementById('movePop').style.display = 'none'; requestRender(); return; }
+    if (hitPoint && hitPoint.type !== 'label') { draggingPoint = hitPoint; selectedItem = { type: hitPoint.type, obj: hitPoint.obj }; document.getElementById('movePop').style.display = 'none'; requestRender(); return; }
+
+    let bestObject = null; let bestObjectDist = 30; const w = toWorld(sx, sy);
+    const searchObjects = (list, type) => {
+        list.forEach(obj => {
+            if (obj.points) {
+                for (let i = 0; i < obj.points.length - 1; i++) {
+                    const p = projOnSeg(w, obj.points[i], obj.points[i + 1]); const s = toScr(p.q); const d = Math.hypot(sx - s.x, sy - s.y);
+                    if (p.t >= 0 && p.t <= 1 && d < bestObjectDist) { bestObjectDist = d; bestObject = { type, obj }; }
+                }
+            } else if (obj.pt) {
+                 const d = Math.hypot(sx - toScr(obj.pt).x, sy - toScr(obj.pt).y);
+                 if (d < bestObjectDist) { bestObjectDist = d; bestObject = { type, obj }; }
+            }
+        });
+    };
+    Object.keys(data).forEach(k => searchObjects(data[k], k));
+    if (bestObject) {
+        selectedItem = bestObject;
+        const c = getItemCenter(selectedItem.obj); const sc = toScr(c);
+        const popEl = document.getElementById('movePop');
+        popEl.style.left = `${sc.x}px`; popEl.style.top = `${sc.y + 20}px`; popEl.style.transform = 'translate(-50%, 0)'; popEl.style.display = 'flex';
+        const btnMoveLabel = document.getElementById('moveLabelToolBtn');
+        if (selectedItem.obj.points) btnMoveLabel.style.display = 'flex'; else btnMoveLabel.style.display = 'none';
+    } else { selectedItem = null; }
+    requestRender();
+}
+
+function getItemCenter(obj){
+    if(obj.pt) { if (obj.kind === 'custom_icon') { const scaledW = obj.w * obj.scale; const scaledH = obj.h * obj.scale; return { x: obj.pt.x + scaledW / 2, y: obj.pt.y + scaledH / 2 }; } return obj.pt; }
+    if(obj.points){ let sx=0, sy=0; obj.points.forEach(p=>{sx+=p.x; sy+=p.y}); return {x:sx/obj.points.length, y:sy/obj.points.length}; } return {x:0,y:0};
+}
+function deleteItem(sel){
+    const arr = data[sel.type]; const idx = arr.indexOf(sel.obj); if(idx > -1) arr.splice(idx, 1);
+    markPowerDirty(); refreshTable(); redoStack = []; document.getElementById('btnRedo').disabled = true;
+}
+
+function openPop(el, x, y, cb){
+    el.style.display='flex'; el.style.left = '50%'; el.style.top = '50%'; el.style.transform = 'translate(-50%, -50%)';
+    const h = e=>{ const v = e.target.dataset.bow || e.target.dataset.size; if(v){ cb(v); el.style.display='none'; el.removeEventListener('click',h); } }
+    el.addEventListener('click',h);
+}
+
+function getPolylineMidpoint(points){
+    if(points.length < 2) return points[0];
+    let totalDist = 0; const segs = [];
+    for(let i=0; i<points.length-1; i++){ const d = Math.hypot(points[i+1].x - points[i].x, points[i+1].y - points[i].y); totalDist += d; segs.push(d); }
+    let target = totalDist / 2;
+    for(let i=0; i<segs.length; i++){
+        if(target <= segs[i]){ const t = target / segs[i]; return { x: points[i].x + (points[i+1].x - points[i].x) * t, y: points[i].y + (points[i+1].y - points[i].y) * t }; }
+        target -= segs[i];
+    }
+    return points[points.length-1];
+}
+
+function drawTreeIcon(ctx, p, kind, size, scale, itemScale) { 
+    const baseScale = 3.0; scale *= (itemScale * 0.25 * baseScale);
+    if(kind.includes('Branch')) { 
+        const h = 25 * scale;
+        ctx.strokeStyle = 'black'; ctx.lineWidth = 5 * scale; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - h); ctx.moveTo(p.x - 12*scale, p.y - h*0.4); ctx.quadraticCurveTo(p.x, p.y - h*0.1, p.x + 12*scale, p.y - h*0.4); ctx.moveTo(p.x - 10*scale, p.y - h*0.7); ctx.quadraticCurveTo(p.x, p.y - h*0.4, p.x + 10*scale, p.y - h*0.7); ctx.stroke();
+        ctx.strokeStyle = '#d4b483'; ctx.lineWidth = 3 * scale; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - h); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x - 12*scale, p.y - h*0.4); ctx.quadraticCurveTo(p.x, p.y - h*0.1, p.x + 12*scale, p.y - h*0.4); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x - 10*scale, p.y - h*0.7); ctx.quadraticCurveTo(p.x, p.y - h*0.4, p.x + 10*scale, p.y - h*0.7); ctx.stroke();
+    } else if(kind.includes('Canopy')) {
+        const h = 30 * scale; ctx.strokeStyle = 'black'; ctx.lineWidth = 5 * scale; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - h/2); ctx.stroke(); ctx.beginPath(); ctx.arc(p.x, p.y - h*0.6, 12*scale, 0, Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 3 * scale; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - h/2); ctx.stroke(); ctx.strokeStyle = '#22c55e'; ctx.beginPath(); ctx.arc(p.x, p.y - h*0.6, 12*scale, 0, Math.PI*2); ctx.stroke();
+    } else if(kind === 'C9 Tree') {
+        const startY = p.y - 8*scale; const triH = 12 * scale; const triW = 14 * scale;
+        ctx.strokeStyle = 'black'; ctx.lineWidth = 5 * scale; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - 8*scale); ctx.stroke();
+        for(let i=0; i<3; i++){ const yBase = startY - (i * triH * 0.6); ctx.beginPath(); ctx.moveTo(p.x - triW * (1 - i*0.1), yBase); ctx.lineTo(p.x + triW * (1 - i*0.1), yBase); ctx.lineTo(p.x, yBase - triH); ctx.closePath(); ctx.stroke(); }
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 3 * scale; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - 8*scale); ctx.stroke();
+        ctx.strokeStyle = '#22c55e'; for(let i=0; i<3; i++){ const yBase = startY - (i * triH * 0.6); ctx.beginPath(); ctx.moveTo(p.x - triW * (1 - i*0.1), yBase); ctx.lineTo(p.x + triW * (1 - i*0.1), yBase); ctx.lineTo(p.x, yBase - triH); ctx.closePath(); ctx.stroke(); }
+    } else if (kind === 'ToL') {
+        const h = (size || 9) * 3 * scale; const w = 8 * scale; ctx.beginPath(); ctx.moveTo(p.x, p.y - h); ctx.lineTo(p.x - w, p.y); ctx.lineTo(p.x + w, p.y); ctx.closePath(); ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.stroke(); ctx.fillStyle = '#22c55e'; ctx.fill(); ctx.lineWidth = 2; ctx.stroke();
+    } else { ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(p.x, p.y, 10*scale, 0, Math.PI*2); ctx.fill(); ctx.stroke(); }
+}
+
+function requestRender(){ window.requestAnimationFrame(draw); }
+
+function drawArrow(p, dir, color){
+    const L = 10 * settings.lineScale * scale; const ang = Math.atan2(dir.y, dir.x); const baseWidth = 4 * settings.lineScale * scale; const colorWidth = 2 * settings.lineScale * scale;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang-Math.PI/6), p.y - L*Math.sin(ang-Math.PI/6)); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang+Math.PI/6), p.y - L*Math.sin(ang+Math.PI/6)); ctx.strokeStyle = 'black'; ctx.lineWidth = baseWidth; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang-Math.PI/6), p.y - L*Math.sin(ang-Math.PI/6)); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang+Math.PI/6), p.y - L*Math.sin(ang+Math.PI/6)); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = colorWidth; ctx.stroke();
+}
+function drawDeadEnd(p, neighbor, color){
+    const capLen = 7.5 * settings.lineScale * scale; const sP = toScr(p); const sN = toScr(neighbor); const dx = sP.x - sN.x, dy = sN.y - sP.y; const ang = Math.atan2(dy, dx); 
+    const px = Math.cos(ang + Math.PI/2) * capLen; const py = Math.sin(ang + Math.PI/2) * capLen;
+    ctx.beginPath(); ctx.moveTo(sP.x - px, sP.y - py); ctx.lineTo(sP.x + px, sP.y + py); ctx.strokeStyle = '#000'; ctx.lineWidth = 4 * settings.lineScale * scale; ctx.stroke(); ctx.strokeStyle = color; ctx.lineWidth = 2 * settings.lineScale * scale; ctx.stroke();
+}
+function drawBow(x, y, scale, itemScale){
+    const baseBowSize = 20; const s = baseBowSize * itemScale * scale * 0.4; 
+    ctx.fillStyle = '#ef4444'; ctx.strokeStyle='black'; ctx.lineWidth=1 * itemScale * scale;
+    ctx.beginPath(); ctx.arc(x, y, s*0.25, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x-s*0.5, y-s*0.15, s*0.5, s*0.35, -0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x+s*0.5, y-s*0.15, s*0.5, s*0.35, 0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x-s*0.5, y+s*0.8, x-s*0.6, y+s*1.2); ctx.lineTo(x-s*0.3, y+s*1.2); ctx.quadraticCurveTo(x-s*0.2, y+s*0.8, x,y); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x+s*0.5, y+s*0.8, x+s*0.6, y+s*1.2); ctx.lineTo(x+s*0.3, y+s*1.2); ctx.quadraticCurveTo(x+s*0.2, y+s*0.8, x,y); ctx.fill(); ctx.stroke();
+}
+
+function segmentLength(p1, p2, cp = null) {
+    if (!cp) return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const d1 = Math.hypot(cp.x - p1.x, cp.y - p1.y); const d2 = Math.hypot(p2.x - cp.x, p2.y - p2.y); return d1 + d2; 
+}
+function getPointOnSegmentAtDist(p1, p2, dist, targetDist, cp = null) {
+    if (!cp) { const t = targetDist / dist; return { x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t, t: t, dx: (p2.x - p1.x) / dist, dy: (p2.y - p1.y) / dist }; }
+    const steps = 20; let accumulatedDist = 0; let prevP = p1;
+    for (let i = 1; i <= steps; i++) {
+        const t = i / steps; const mt = 1 - t; const qx = mt * mt * p1.x + 2 * mt * t * cp.x + t * t * p2.x; const qy = mt * mt * p1.y + 2 * mt * t * cp.y + t * t * p2.y; const currentP = { x: qx, y: qy };
+        const stepDist = Math.hypot(currentP.x - prevP.x, currentP.y - prevP.y);
+        if (accumulatedDist + stepDist >= targetDist) { const remaining = targetDist - accumulatedDist; const subT = remaining / stepDist; const px = prevP.x + (currentP.x - prevP.x) * subT; const py = prevP.y + (currentP.y-prevP.y) * subT; const dx = (currentP.x - prevP.x) / stepDist; const dy = (currentP.y - prevP.y) / stepDist; return { x: px, y: py, t: t, dx, dy }; }
+        accumulatedDist += stepDist; prevP = currentP;
+    }
+    return { x: p2.x, y: p2.y, t: 1, dx: 0, dy: 0 };
+}
+
+function drawContinuousLine(it, col, layerName) {
+    if (it.points.length < 2) return;
+    const points = it.points.map(p => toScr(p)); const cps = it.cps ? it.cps.map(p => p ? toScr(p) : null) : [];
+    const baseWidth = settings.lineThickness * settings.lineScale * scale; const strokeWidth = baseWidth + (4 * settings.lineScale * scale); 
+    const rawColorString = it.col || '';
+    const normalizedColorString = rawColorString.toLowerCase().replace(/\s/g, '/').replace(/,/g, '/');
+    let colors = [];
+    normalizedColorString.split('/').forEach(c => { const resolvedColor = getColorCode(c); if (resolvedColor.includes('/')) { resolvedColor.split('/').forEach(subC => { const subHex = getColorCode(subC); if (subHex !== '#ddd') colors.push(subHex); }); } else if (resolvedColor !== '#ddd') { colors.push(resolvedColor); } });
+    
+    if (layerName === 'garland' || layerName === 'wreath') colors = [getColorCode('green')];
+    else if (layerName === 'cords') colors = ['#000000']; 
+    else if (layerName === 'shrub' && colors.length === 0) colors = [getColorCode('green')];
+    
+    const finalColors = colors.length > 0 ? colors : [(isC9(layerName) ? colorOf('ridges') : col)]; 
+    let glowStrength = 0; let isLightElement = isC9(layerName) || ['windows', 'wreath', 'tree', 'bow', 'shrub'].includes(layerName);
+    const AMBIENT_MULTIPLIER = 15; const CORE_GLOW_BLUR = 2 * scale + (baseWidth * 1.5); 
+
+    if (isNightMode && isLightElement) { glowStrength = CORE_GLOW_BLUR; ctx.shadowBlur = glowStrength; } else { ctx.shadowBlur = 0; }
+    
+    const drawPathSegments = () => { for (let i = 0; i < points.length - 1; i++) { const p2 = points[i+1]; const cp = cps[i] || null; if (cp) ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y); else ctx.lineTo(p2.x, p2.y); } };
+    const drawDashedPath = (styleFn) => {
+        for (let i = 0; i < points.length - 1; i++) {
+            const p1 = points[i]; const p2 = points[i+1]; const cp = cps[i] || null;
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
+            const isDotted = it.isPillarMode && layerName === 'garland' && (i % 2 !== 0); 
+            if (isDotted) ctx.setLineDash([5 * settings.lineScale * scale, 5 * settings.lineScale * scale]); else ctx.setLineDash([]); 
+            if (cp) ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y); else ctx.lineTo(p2.x, p2.y);
+            styleFn(isDotted); ctx.stroke(); ctx.setLineDash([]); 
+        }
+    };
+
+    if (isNightMode && isLightElement && finalColors.length <= 1) { 
+        const ambientBlur = CORE_GLOW_BLUR * AMBIENT_MULTIPLIER * 3; 
+        ctx.globalAlpha = 0.05; ctx.shadowBlur = ambientBlur; ctx.shadowColor = finalColors[0]; ctx.strokeStyle = finalColors[0]; ctx.lineWidth = baseWidth * AMBIENT_MULTIPLIER * 1.5; 
+        ctx.beginPath(); if (points.length > 0) ctx.moveTo(points[0].x, points[0].y); drawPathSegments();
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); ctx.globalAlpha = 1.0;
+    }
+    ctx.shadowBlur = 0;
+
+    if (layerName !== 'cords') { 
+        ctx.strokeStyle = 'black'; ctx.lineWidth = strokeWidth; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        drawDashedPath(() => {});
+    }
+    if (finalColors.length <= 1) {
+        const color = finalColors[0];
+        if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
+        ctx.strokeStyle = color; ctx.lineWidth = baseWidth; 
+        drawDashedPath(() => {});
+        if (layerName === 'cords') {
+            ctx.shadowBlur = 0; ctx.strokeStyle = 'white'; ctx.lineWidth = baseWidth * 1.5; ctx.beginPath(); if (points.length > 0) ctx.moveTo(points[0].x, points[0].y); drawPathSegments(); ctx.stroke();
+            ctx.strokeStyle = '#000000'; ctx.lineWidth = baseWidth; ctx.beginPath(); if (points.length > 0) ctx.moveTo(points[0].x, points[0].y); drawPathSegments(); ctx.stroke();
+        }
+    } else {
+        const colorBlockLength = Math.max(10, 10 * settings.lineScale * scale); let colorIndex = 0;
+        for (let i = 0; i < points.length - 1; i++) {
+            const p1 = points[i]; const p2 = points[i+1]; const segDist = segmentLength(it.points[i], it.points[i+1], it.cps?.[i]) * scale;
+            const isDottedSegment = it.isPillarMode && layerName === 'garland' && (i % 2 !== 0);
+            let currentDistInSegment = 0; let lastDrawnPoint = p1;
+            while (currentDistInSegment < segDist) {
+                const color = finalColors[colorIndex % finalColors.length]; const remainingDistInSegment = segDist - currentDistInSegment; const blockDist = Math.min(colorBlockLength, remainingDistInSegment);
+                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]), (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
+                const endPoint = toScr({x: ptObj.x, y: ptObj.y});
+                if (blockDist > 0.1) {
+                    if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
+                    ctx.beginPath(); ctx.moveTo(lastDrawnPoint.x, lastDrawnPoint.y); ctx.lineTo(endPoint.x, endPoint.y);
+                    if (isDottedSegment) ctx.setLineDash([5 * settings.lineScale * scale, 5 * settings.lineScale * scale]); else ctx.setLineDash([]); 
+                    ctx.strokeStyle = color; ctx.lineWidth = baseWidth; ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur = 0; 
+                }
+                currentDistInSegment += blockDist; lastDrawnPoint = endPoint; colorIndex++; 
+            }
+        }
+    }
+    ctx.shadowBlur = 0; ctx.setLineDash([]); 
+}
+
+function drawCord(it, col, layerName) { if (it.points.length < 2) return; drawContinuousLine(it, col, layerName); }
+
+function roundRect(ctx, x, y, w, h, r) {
+    if (w < 2 * r) r = w / 2; if (h < 2 * r) r = h / 2;
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+function drawLabels(ctx, isExport=false) {
+    const nominalFontSize = 14; const fontScaleFactor = Math.min(1, scale * settings.labelScale); const currentFontSize = nominalFontSize * fontScaleFactor; 
+    if (currentFontSize > 5) { 
+        ctx.font=`bold ${currentFontSize}px "Inter", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        Object.keys(data).forEach(k=>data[k].forEach(it=>{
+            if(!it.label || k === 'label' || k === 'custom_icon') return;
+            let p, offY;
+            if(it.points) { p = getPolylineMidpoint(it.points); offY = -14 * fontScaleFactor; } 
+            else if (it.kind === 'ToL') { const treeScale = (k === 'tree') ? settings.iconScale : 1.0; const h = (it.size || 9) * 3 * scale * treeScale; p = {x: it.pt.x, y: it.pt.y - (h/2)/scale}; offY = 0; } 
+            else if (k === 'custom_icon') { const scaledW = it.w * it.scale; const scaledH = it.h * it.scale; p = { x: it.pt.x + scaledW / 2, y: it.pt.y + scaledH / 2 }; offY = 0; } 
+            else { p = it.pt; offY = 0; }
+            const s = toScr(p);
+            let suffix = ''; if(isC9(k) && it.clip) suffix = ` ${it.clip}`; if(k === 'wreath') suffix = ` ${it.size}`; if(it.fra) suffix += ' (FRA)'; if(it.gguard) suffix += ' (GG)';
+            const labelText = it.label + suffix; const metrics = ctx.measureText(labelText); const textWidth = metrics.width;
+            const padX = 6 * fontScaleFactor; const padY = 4 * fontScaleFactor; const boxWidth = textWidth + (2 * padX); const boxHeight = currentFontSize + (2 * padY); const radius = 6 * fontScaleFactor;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; roundRect(ctx, s.x - boxWidth/2, s.y + offY - boxHeight/2, boxWidth, boxHeight, radius); ctx.fill();
+            ctx.fillStyle='white'; ctx.fillText(labelText, s.x, s.y + offY);
+        }));
+    }
+    const nominalCordFontSize = 12; const cordFontScaleFactor = Math.min(1, scale * settings.labelScale); const currentCordFontSize = nominalCordFontSize * cordFontScaleFactor;
+    if (currentCordFontSize > 5) {
+        ctx.font=`bold ${currentCordFontSize}px "Inter", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        const drawLabelBox = (s, txt, scaleFactor) => {
+             const metrics = ctx.measureText(txt); const textWidth = metrics.width;
+             const padX = 4 * scaleFactor; const padY = 3 * scaleFactor; const boxWidth = textWidth + (2 * padX); const boxHeight = nominalCordFontSize * scaleFactor + (2 * padY); const radius = 4 * scaleFactor;
+             ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; roundRect(ctx, s.x - boxWidth/2, s.y - boxHeight/2, boxWidth, boxHeight, radius); ctx.fill();
+             ctx.fillStyle='white'; ctx.fillText(txt, s.x, s.y);
+        };
+        const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
+        lineLayers.forEach(lineLayer => {
+            data[lineLayer].forEach(line => {
+                if(line.segLabels) Object.keys(line.segLabels).forEach(idx => { const i = parseInt(idx); if(i < line.points.length - 1) { const wPos = line.segLabelPos && line.segLabelPos[i] ? line.segLabelPos[i] : getPolylineMidpoint([line.points[i], line.points[i+1]]); const txt = line.segLabels[idx]; if(txt) drawLabelBox(toScr(wPos), txt, cordFontScaleFactor); } });
+                if(line.ptLabels) Object.keys(line.ptLabels).forEach(idx => { const i = parseInt(idx); if(i < line.points.length) { const point = line.points[i]; let s; if (line.ptLabelPos && line.ptLabelPos[i]) s = toScr(line.ptLabelPos[i]); else { const offset = 15 * cordFontScaleFactor; const defaultScreenPos = toScr(point); s = {x: defaultScreenPos.x + offset, y: defaultScreenPos.y - offset}; } const txt = line.ptLabels[idx]; if(txt) drawLabelBox(s, txt, cordFontScaleFactor); } });
+            });
+        });
+        data.label.forEach(it => { if (!it.text) return; drawLabelBox(toScr(it.pt), it.text, cordFontScaleFactor); });
+    }
+}
+
+function draw(){
+    if (!ctx) return;
+    const r = canvasWrap.getBoundingClientRect(); const width = r.width; const height = r.height;
+    if (width !== lastWidth || height !== lastHeight) { initializeAndSizeContext(); return; }
+    const cw = cv.width / DPR; const ch = cv.height / DPR;
+    ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,cw,ch);
+    let isBlankMap = imgReady && !imgDataUrl;
+    if(isBlankMap){ ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch); } else { ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,cw,ch); }
+    let imageFilter = 'none'; if(imgReady && imgDataUrl && isNightMode) imageFilter = 'brightness(0.25) grayscale(0.2)'; 
+    if(imgReady && imgDataUrl){ ctx.filter = imageFilter; ctx.drawImage(bg, panX, panY, bg.width*scale, bg.height*scale); ctx.filter = 'none'; } 
+    else if (!imgReady) { 
+        ctx.fillStyle='#1e293b'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='16px "Inter", system-ui'; ctx.fillStyle='#64748b';
+        ctx.fillText('Load an image to start', cw/2, ch/2);
+    }
+    
+    ctx.shadowBlur = 0; const pg = analyzePower();
+    data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); }); 
+    ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
+    if(pg){
+        pg.edges.forEach(e => {
+            if(['garland', 'groundstakes'].includes(e.type)) return;
+            const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
+            if(uNode.dist !== Infinity && vNode.dist !== Infinity){
+                const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
+                let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else if(vNode.dist < uNode.dist) { from = vPos; to = uPos; isReversed = true; } else return; 
+                const cp = e.cps ? toScr(e.cps) : null; const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y);
+                let count = Math.floor(dist/150 * settings.arrowFreqFactor); if (e.type !== 'cords' && count === 0 && settings.arrowFreqFactor > 0.5) count = 1; 
+                if(cp) {
+                    for(let k=1; k<=count; k++){
+                        let t = k / (count+1); const invT = 1 - t;
+                        const px = invT*invT*uPos.x + 2*invT*t*cp.x + t*t*vPos.x; const py = invT*invT*uPos.y + 2*invT*t*cp.y + t*t*vPos.y; const tx = 2*invT*(cp.x - uPos.x) + 2*t*(vPos.x - cp.x); const ty = 2*invT*(cp.y - uPos.y) + 2*t*(vPos.y - cp.y);
+                        let dir = {x: tx, y: ty}; if(isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
+                        drawArrow({x: px, y: py}, dir, '#ef4444');
+                    }
+                } else { const dx = to.x - from.x, dy = to.y - from.y; for(let k=1; k<=count; k++){ const t = k / (count+1); drawArrow({x:from.x + dx*t, y:from.y + dy*t}, {x:dx, y:dy}, '#ef4444'); } }
+            }
+        });
+        pg.singleArrowEdges.forEach(a => {
+            const edge = a.edge; const uPos = toScr(edge.line.points[edge.index]); const vPos = toScr(edge.line.points[edge.index+1]);
+            const segDist = segmentLength(uPos, vPos, edge.cps ? toScr(edge.cps) : null);
+            const ptObj = getPointOnSegmentAtDist(uPos, vPos, segDist, a.distInSegment * scale, edge.cps ? toScr(edge.cps) : null);
+            let dir = {x: ptObj.dx, y: ptObj.dy}; if (a.isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
+            drawArrow({x: ptObj.x, y: ptObj.y}, dir, '#ef4444');
+        });
+        pg.deadTips.forEach(nodeIdx => { const n = pg.nodes[nodeIdx]; const neighborIdx = n.adj[0]; if(neighborIdx !== undefined){ drawDeadEnd(n, pg.nodes[neighborIdx], '#fffdf0'); } });
+    }
+
+    const itemScale = settings.iconScale; const junctionScale = settings.junctionScale; const labelScale = settings.labelScale; const CORE_GLOW_BLUR = 2; 
+
+    data.wreath.forEach(w=>{
+        const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75) * scale * itemScale; const wreathColor = colorOf('wreath'); 
+        if (isNightMode) { const ambientBlur = CORE_GLOW_BLUR * 3 * 15 * scale; ctx.globalAlpha = 0.05; ctx.shadowBlur = ambientBlur; ctx.shadowColor = wreathColor; ctx.beginPath(); ctx.arc(s.x,s.y,r*1.5,0,Math.PI*2); ctx.fillStyle = wreathColor; ctx.fill(); ctx.globalAlpha = 1.0; ctx.shadowBlur = CORE_GLOW_BLUR * 15 * scale; ctx.shadowColor = wreathColor; } else { ctx.shadowBlur = 0; }
+        ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2); ctx.fillStyle = colorOf('wreath'); ctx.fill();
+        ctx.shadowBlur = 0; ctx.strokeStyle='black'; ctx.lineWidth=6 * itemScale * scale; ctx.stroke(); ctx.strokeStyle=colorOf('wreath'); ctx.lineWidth=3 * itemScale * scale; ctx.stroke(); 
+        if(w.bow === 'top' || w.bow === 'bottom'){ const by = w.bow==='top' ? s.y - r : s.y + r; drawBow(s.x, by, scale, itemScale); }
+        ctx.shadowBlur = 0; 
+    });
+    ctx.shadowBlur = 0;
+
+    data.bow.forEach(b=>{ const s=toScr(b.pt); if (isNightMode) { ctx.shadowBlur = CORE_GLOW_BLUR * 15 * scale; ctx.shadowColor = '#ef4444'; } else { ctx.shadowBlur = 0; } drawBow(s.x, s.y, scale, itemScale); ctx.shadowBlur = 0; }); 
+    ctx.shadowBlur = 0;
+
+    data.tree.forEach(tr => {
+        const p = toScr(tr.pt); let treeGlowColor = colorOf('shrub'); if (tr.kind === 'C9 Tree') { const treeColor = getColorCode(tr.col || '') || colorOf('ridges'); treeGlowColor = treeColor; }
+        if (isNightMode) { const ambientBlur = CORE_GLOW_BLUR * 3 * 15 * scale; ctx.globalAlpha = 0.05; ctx.shadowBlur = ambientBlur; ctx.shadowColor = treeGlowColor; ctx.beginPath(); ctx.arc(p.x, p.y, 25 * itemScale * scale, 0, Math.PI*2); ctx.fillStyle = treeGlowColor; ctx.fill(); ctx.globalAlpha = 1.0; ctx.shadowBlur = CORE_GLOW_BLUR * 15 * scale; ctx.shadowColor = treeGlowColor; } else { ctx.shadowBlur = 0; }
+        drawTreeIcon(ctx, p, tr.kind, tr.size, scale, itemScale); ctx.shadowBlur = 0; 
+    });
+    ctx.shadowBlur = 0;
+    
+    data.powersource.forEach(ps=>{
+        const s=toScr(ps.pt); const size = 8 * junctionScale * scale; const strokeWidth = 3 * junctionScale * scale; 
+        ctx.shadowBlur = isNightMode ? 10 * junctionScale * scale : 0; ctx.shadowColor = '#ef4444'; ctx.fillStyle='#ef4444'; ctx.fillRect(s.x-size/2, s.y-size/2, size, size);
+        ctx.shadowBlur = 0; ctx.strokeStyle='black'; ctx.lineWidth=strokeWidth; ctx.strokeRect(s.x-size/2, s.y-size/2, size, size); ctx.strokeStyle='white'; ctx.lineWidth=strokeWidth/2; ctx.strokeRect(s.x-size/2, s.y-size/2, size, size); ctx.shadowBlur = 0; 
+    });
+    ctx.shadowBlur = 0;
+
+    if(data.threeway){
+        data.threeway.forEach(tw=>{
+            const s = toScr(tw.pt); const sz = 6 * scale * junctionScale; const strokeWidth = 3 * junctionScale * scale;
+            if (isNightMode) { ctx.shadowBlur = CORE_GLOW_BLUR * 15 * scale; ctx.shadowColor = '#eab308'; } else { ctx.shadowBlur = 0; }
+            ctx.beginPath(); ctx.moveTo(s.x, s.y - sz); ctx.lineTo(s.x + sz, s.y + sz); ctx.lineTo(s.x - sz, s.y + sz); ctx.closePath(); ctx.fillStyle = '#eab308'; ctx.fill();
+            ctx.shadowBlur = 0; ctx.strokeStyle = 'black'; ctx.lineWidth = strokeWidth; ctx.stroke(); ctx.strokeStyle = 'white'; ctx.lineWidth = strokeWidth/2; ctx.stroke(); ctx.shadowBlur = 0; 
+        });
+    }
+    ctx.shadowBlur = 0;
+    
+    data.custom_icon.forEach(ci => {
+        if (!ci.url) return;
+        const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
+        if (!ci.imageObj || ci.imageObj.src !== ci.url) { ci.imageObj = new Image(); ci.imageObj.src = ci.url; }
+        if (ci.imageObj.complete) { ctx.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH); }
+        if (selectedItem && selectedItem.type === 'custom_icon' && selectedItem.obj === ci) {
+             const HANDLE_SIZE = 8; const handles = [ sTL, {x: sTL.x + scaledW, y: sTL.y}, {x: sTL.x, y: sTL.y + scaledH}, {x: sTL.x + scaledW, y: sTL.y + scaledH} ];
+             ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.strokeRect(sTL.x, sTL.y, scaledW, scaledH); ctx.setLineDash([]); 
+             handles.forEach(h => { ctx.beginPath(); ctx.arc(h.x, h.y, HANDLE_SIZE, 0, Math.PI*2); ctx.fillStyle = h === handles[3] ? '#eab308' : 'white'; ctx.fill(); ctx.strokeStyle = '#3b82f6'; ctx.lineWidth=2; ctx.stroke(); });
+        }
+    });
+
+    if(sketch && sketch.points.length>0){
+        const cursor = cv._mx!=null ? toWorld(cv._mx, cv._my) : null; const pts = [...sketch.points]; if(cursor) pts.push(cursor);
+        const skObj = {points: pts, cps: sketch.cps || [], L: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode}; 
+        const sketchColor = getColorCode(sketch.col) || colorOf(sketch.layer);
+        drawContinuousLine(skObj, sketchColor, sketch.layer); 
+        if(chkSnap.checked && cv._mx!=null){
+             const sn = getSnap(cv._mx, cv._my, 25);
+             if(sn){ const s = toScr({x:sn.x, y:sn.y}); ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, Math.PI*2); ctx.fillStyle = '#eab308'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth=1; ctx.stroke(); }
+        }
+    }
+    drawLabels(ctx);
+
+    if(selectedItem){
+        const obj = selectedItem.obj; const selectionBaseScale = 1.0; 
+        if(obj.points){
+             obj.points.forEach(p=>{ const s = toScr(p); ctx.beginPath(); ctx.arc(s.x, s.y, 6 * selectionBaseScale, 0, Math.PI*2); ctx.fillStyle = 'white'; ctx.fill(); ctx.strokeStyle = '#3b82f6'; ctx.lineWidth=2 * selectionBaseScale; ctx.stroke(); });
+        } else if (obj.pt && obj.kind !== 'custom_icon'){
+            const s = toScr(obj.pt); ctx.beginPath(); ctx.arc(s.x, s.y, 15 * selectionBaseScale, 0, Math.PI*2); ctx.strokeStyle = '#3b82f6'; ctx.lineWidth=2 * selectionBaseScale; ctx.stroke();
+        }
+        if (mode === 'move') {
+            const c = getItemCenter(obj); const sc = toScr(c); ctx.fillStyle = 'rgba(239, 68, 68, 0.5)'; ctx.beginPath(); ctx.arc(sc.x, sc.y, 25, 0, Math.PI*2); ctx.fill();
+        }
+        if (mode === 'move-label') {
+             const labelTargets = checkLabelClick(cv._mx, cv._my, obj, selectedItem.type);
+             if (labelTargets) { ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(labelTargets.x, labelTargets.y, 25, 0, Math.PI*2); ctx.stroke(); }
+        }
+    }
+}
+
+window.addEventListener('popstate', () => { document.getElementById('modalBack').style.display = 'flex'; });
+document.getElementById('btnStay').onclick = () => { document.getElementById('modalBack').style.display = 'none'; history.pushState(null, null, location.href); };
+document.getElementById('btnLeave').onclick = () => { document.getElementById('modalBack').style.display = 'none'; history.back(); };
+const handleImg = (f)=>{
+    if(!f) return; const r=new FileReader();
+    r.onload=()=>{ imgDataUrl=r.result; bg.src=imgDataUrl; bg.onload=()=>{ imgReady=true; document.body.classList.remove('white-bg'); resetView(); unlock(); }; bg.onerror=()=>{ showAlert("Failed to load image"); }; };
+    r.readAsDataURL(f);
+};
+
+function startBlankMap() { bg.width = 1000; bg.height = 1000; imgDataUrl = null; imgReady = true; document.body.classList.add('white-bg'); resetView(); unlock(); }
+
+function getCleanData() { const cleanData = JSON.parse(JSON.stringify(data)); if (cleanData.custom_icon) { cleanData.custom_icon.forEach(icon => { delete icon.imageObj; }); } return cleanData; }
+
+function applyUIState(o) {
+    lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor; 
+    updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI(); 
+    const uiState = o.uiState || {};
+    isNightMode = uiState.isNightMode !== undefined ? uiState.isNightMode : false;
+    const nightModeToolButton = toolBtn['night_mode']; if (nightModeToolButton) nightModeToolButton.classList.toggle('toggled', isNightMode);
+    chkSnap.checked = uiState.isSnapOn !== undefined ? uiState.isSnapOn : true; btnSnap.classList.toggle('toggled', chkSnap.checked);
+    chkSwag.checked = uiState.isSwagOn !== undefined ? uiState.isSwagOn : false; btnSwag.classList.toggle('toggled', chkSwag.checked);
+    chkPillar.checked = uiState.isPillarOn !== undefined ? uiState.isPillarOn : false; btnPillar.classList.toggle('toggled', chkPillar.checked);
+    const chkAuto = document.getElementById('chkAutoCalc'); chkAuto.checked = uiState.isAutoCalcOn !== undefined ? uiState.isAutoCalcOn : true;
+    if (!imgDataUrl && Object.keys(data).some(k => data[k].length > 0)) { document.body.classList.add('white-bg'); } else if (imgDataUrl) { document.body.classList.remove('white-bg'); }
+    requestRender();
+}
+
+const handleMap = (f)=>{
+    if(!f) return; const r=new FileReader(); r.onload=()=>{ 
+        try{ 
+            const o=JSON.parse(r.result); imgDataUrl=o.image||null; 
+            if(o.data) {
+                 let maxIndex = 0; if (!o.data.label) o.data.label = []; if (!o.data.custom_icon) o.data.custom_icon = []; 
+                 for (const L in data) {
+                     data[L] = o.data[L] || [];
+                     data[L].forEach(item => {
+                         if(item.index > maxIndex) maxIndex = item.index;
+                         if(isC9(L) && item.clip && item.fra === undefined) item.fra = false; 
+                         if(isC9(L) && item.clip && item.gguard === undefined) item.gguard = false; 
+                         if(L === 'garland' && item.isPillarMode === undefined) item.isPillarMode = false; 
+                     });
+                 }
+                 actionCounter = maxIndex;
+                 data.custom_icon.forEach(item => { if (item.url) { const img = new Image(); img.src = item.url; item.imageObj = img; } });
+            }
+            const MIN_SCALE = 0.5; 
+            if (o.settings) {
+                settings.iconScale = Math.max(MIN_SCALE, o.settings.iconScale !== undefined ? o.settings.iconScale : 1.5);
+                settings.junctionScale = Math.max(MIN_SCALE, o.settings.junctionScale !== undefined ? o.settings.junctionScale : 1.0); 
+                settings.lineScale = Math.max(MIN_SCALE, o.settings.lineScale !== undefined ? o.settings.lineScale : 1.0); 
+                settings.labelScale = Math.max(MIN_SCALE, o.settings.labelScale !== undefined ? o.settings.labelScale : 3.0);
+                settings.arrowFreqFactor = Math.max(0.5, o.settings.arrowFreqFactor !== undefined ? o.settings.arrowFreqFactor : 1.0); 
+                if (o.settings.itemScale !== undefined && o.settings.iconScale === undefined) { settings.iconScale = Math.max(MIN_SCALE, o.settings.itemScale); settings.lineScale = Math.max(MIN_SCALE, o.settings.itemScale); settings.labelScale = 3.0; }
+            } else { settings.iconScale = 1.5; settings.junctionScale = 1.0; settings.lineScale = 1.0; settings.labelScale = 3.0; settings.arrowFreqFactor = 1.0; }
+            lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor;
+            updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI();
+            applyState(o); applyUIState(o); 
+            if(imgDataUrl){ 
+                bg.src=imgDataUrl; 
+                if (bg.complete && bg.naturalWidth !== 0) { imgReady=true; document.body.classList.remove('white-bg'); resetView(); unlock(); } 
+                else { bg.onload=()=>{ imgReady=true; document.body.classList.remove('white-bg'); resetView(); unlock(); }; bg.onerror=()=>{ imgReady=true; document.body.classList.remove('white-bg'); resetView(); unlock(); showAlert("Map image failed to load"); }; }
+            } else { bg.width = o.bg_width || 1000; bg.height = o.bg_height || 1000; imgReady = true; document.body.classList.add('white-bg'); resetView(); unlock(); } 
+        }catch(e){showAlert('Error loading map'); console.error('Error loading map:', e);} 
+    };
+    r.readAsText(f);
+};
+
+function applyState(o){
+    document.getElementById('customer').value=o.job?.name||''; document.getElementById('address').value=o.job?.address||''; document.getElementById('jobNotes').value=o.job?.notes||''; 
+    const timerInputs = document.getElementById('timerInputs'); const btnCC = document.getElementById('btnCustomerControlled');
+    if(o.job?.timer?.isCustomerControlled) { timerInputs.style.display = 'none'; btnCC.classList.add('toggled'); document.getElementById('on1').value = 'CC'; } 
+    else { timerInputs.style.display = 'block'; btnCC.classList.remove('toggled'); document.getElementById('on1').value = o.job?.timer?.on1 || ''; document.getElementById('off1').value = o.job?.timer?.off1 || ''; document.getElementById('on2').value = o.job?.timer?.on2 || ''; document.getElementById('off2').value = o.job?.timer?.off2 || ''; }
+    markPowerDirty(); refreshTable();
+}
+
+document.getElementById('btnStd').onclick=()=>{ 
+    document.getElementById('on1').value='06:00'; document.getElementById('off1').value='08:00'; document.getElementById('on2').value='17:00'; document.getElementById('off2').value='00:00'; 
+    document.getElementById('btnCustomerControlled').classList.remove('toggled'); document.getElementById('timerInputs').style.display = 'block';
+};
+document.getElementById('btnCustomerControlled').onclick = () => {
+    const timerInputs = document.getElementById('timerInputs'); const btnCC = document.getElementById('btnCustomerControlled'); const isActive = btnCC.classList.toggle('toggled');
+    if (isActive) { timerInputs.style.display = 'none'; document.getElementById('on1').value = 'CC'; document.getElementById('off1').value = 'CC'; document.getElementById('on2').value = 'CC'; document.getElementById('off2').value = 'CC'; } 
+    else { document.getElementById('on1').value = ''; document.getElementById('off1').value = ''; document.getElementById('on2').value = ''; document.getElementById('off2').value = ''; timerInputs.style.display = 'block'; }
+};
+
+document.getElementById('gPickImg').onclick=()=>document.getElementById('gImg').click();
+document.getElementById('gPickMap').onclick=()=>document.getElementById('gMap').click();
+document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.target.value=''; };
+document.getElementById('gMap').onchange=e=>{ handleMap(e.target.files[0]); e.target.value=''; };
+
+const delay = ms => new Promise(res => setTimeout(res, ms));
+document.getElementById('btnSaveAll').onclick = (e) => { e.preventDefault(); performDualSave(); };
+document.getElementById('btnSaveImageOnly').onclick = () => { performSavePdf(); };
+document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly(); };
+
+async function performDualSave() {
+    const pdfSuccess = await performSavePdf(); await delay(750); const mapSuccess = await performSaveMapOnly();
+    return pdfSuccess || mapSuccess;
+}
+
+function buildPayload() {
+    const isCC = document.getElementById('btnCustomerControlled').classList.contains('toggled');
+    const timerOn1 = document.getElementById('on1').value; const timerOff1 = document.getElementById('off1').value; const timerOn2 = document.getElementById('on2').value; const timerOff2 = document.getElementById('off2').value;
+    return {
+        version:17, image:imgDataUrl, data: getCleanData(), 
+        job:{ name:document.getElementById('customer').value, address:document.getElementById('address').value, notes:document.getElementById('jobNotes').value, timer: { on1: isCC ? 'CC' : timerOn1, off1: isCC ? 'CC' : timerOff1, on2: isCC ? 'CC' : timerOn2, off2: isCC ? 'CC' : timerOff2, isCustomerControlled: isCC } },
+        settings: settings, uiState: { isNightMode: isNightMode, isSnapOn: chkSnap.checked, isSwagOn: chkSwag.checked, isPillarOn: chkPillar.checked, isAutoCalcOn: document.getElementById('chkAutoCalc').checked }
+    };
+}
+
+function getFilenameBase() { const year = new Date().getFullYear(); const nm = (document.getElementById('customer').value || 'Untitled').trim(); return `${nm}_${year}_Map`.replace(/\s/g, '_'); }
+
+async function saveFileWithPicker(blob, filename, description, mimeType, extension) {
+    if (window.showSaveFilePicker) {
+        try { const handle = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description: description, accept: { [mimeType]: [extension] }, }], }); const writable = await handle.createWritable(); await writable.write(blob); await writable.close(); return true;
+        } catch (err) { if (err.name !== 'AbortError') console.warn('File picker failed:', err); else return false; }
+    }
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); return true;
+}
+
+async function performSaveMapOnly() {
+    const filenameMap = `${getFilenameBase()}.skmap`; const payload = buildPayload(); const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+    return await saveFileWithPicker(blob, filenameMap, 'Skedaddle Map File', 'application/json', '.skmap');
+}
+
+async function performSavePdf() {
+    const capture = captureCanvasData(); if(!capture) { showAlert("Error generating image data."); return false; }
+    const { url: pngData, width, height } = capture; const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: width > height ? 'l' : 'p', unit: 'px', format: [width, height] });
+    pdf.addImage(pngData, 'PNG', 0, 0, width, height); const filenamePdf = `${getFilenameBase()}.pdf`; const pdfData = pdf.output('blob');
+    return await saveFileWithPicker(pdfData, filenamePdf, 'PDF Document', 'application/pdf', '.pdf');
+}
+
+function captureCanvasData() {
+    if(!imgReady) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const checkPt = (p) => { if(p.x < minX) minX = p.x; if(p.y < minY) minY = p.y; if(p.x > maxX) maxX = p.x; if(p.y > maxY) maxY = p.y; };
+    let hasItems = false;
+    Object.keys(data).forEach(L => {
+        data[L].forEach(item => {
+             hasItems = true; if(item.points) item.points.forEach(checkPt);
+             if(item.pt) { checkPt(item.pt); if (L === 'custom_icon') { const scaledW = item.w * item.scale; const scaledH = item.h * item.scale; checkPt({x:item.pt.x + scaledW, y:item.pt.y + scaledH}); checkPt({x:item.pt.x - 50, y:item.pt.y - 50}); } else { checkPt({x:item.pt.x+50, y:item.pt.y+50}); checkPt({x:item.pt.x-50, y:item.pt.y-50}); } }
+        });
+    });
+    if(!hasItems) { minX = 0; minY = 0; maxX = bg.width; maxY = bg.height; } else { const pad = 50; minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad); maxX = Math.min(bg.width, maxX + pad); maxY = Math.min(bg.height, maxY + pad); }
+    const cropW = maxX - minX; const cropH = maxY - minY; const DPI = 2; const MAP_WIDTH_PX = 1000; const MAP_H_PX = Math.round((MAP_WIDTH_PX / cropW) * cropH);
+    const HEADER_H = 100; const FOOTER_ROW_H = 20; const FOOTER_TITLE_H = 30; const ITEM_COUNT = document.getElementById('lenRows').children.length; const FOOTER_H = ITEM_COUNT > 0 ? (FOOTER_TITLE_H + ITEM_COUNT * FOOTER_ROW_H + 20) : 0;
+    const OUT_W = MAP_WIDTH_PX; const OUT_H = HEADER_H + MAP_H_PX + FOOTER_H;
+    const out = document.createElement('canvas'); out.width = OUT_W * DPI; out.height = OUT_H * DPI; const o = out.getContext('2d'); o.scale(DPI, DPI); 
+    const oldScale = scale; const oldPanX = panX; const oldPanY = panY; const originalSettings = settings; const tempSettings = { ...originalSettings }; settings = tempSettings; const originalNightMode = isNightMode; isNightMode = false;
+    try {
+        const renderScale = MAP_WIDTH_PX / cropW; const renderPanX = -minX * renderScale; const renderPanY = HEADER_H - (minY * renderScale); 
+        scale = renderScale; panX = renderPanX; panY = renderPanY;
+        o.fillStyle = '#0f172a'; o.fillRect(0, 0, OUT_W, OUT_H);
+        const logoSize = 80; o.drawImage(logo, (OUT_W - logoSize) / 2, 10, logoSize, logoSize);
+        o.fillStyle = '#f1f5f9'; o.font = 'bold 13px "Inter", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
+        o.fillText(`CUSTOMER: ${document.getElementById('customer').value || 'N/A'}`, 12, 12 + 10);
+        o.fillText(`ADDRESS: ${document.getElementById('address').value || 'N/A'}`, 12, 12 + 25);
+        const jNotes = document.getElementById('jobNotes').value.replace(/\n/g, ' '); 
+        if(jNotes) { o.fillStyle = '#94a3b8'; o.font = 'italic 11px "Inter", system-ui'; const dispNotes = jNotes.length > 110 ? jNotes.substring(0, 110) + '...' : jNotes; o.fillText(`NOTES: ${dispNotes}`, 12, 12 + 45); }
+        o.fillStyle = '#f1f5f9'; o.font = 'bold 13px "Inter", system-ui'; o.textAlign = 'right';
+        const timerVal = document.getElementById('on1').value.trim(); let timerText;
+        if (document.getElementById('btnCustomerControlled').classList.contains('toggled') || timerVal === 'CC') { timerText = 'Timer: Customer Controlled'; } 
+        else { timerText = `TIMER 1: ${document.getElementById('on1').value || '--:--'} - ${document.getElementById('off1').value || '--:--'} / TIMER 2: ${document.getElementById('on2').value || '--:--'} - ${document.getElementById('off2').value || '--:--'}`; }
+        o.fillText(timerText, OUT_W - 12, 12 + 10); o.textBaseline = 'alphabetic';
+
+        if (imgReady && !imgDataUrl) { o.fillStyle = '#ffffff'; o.fillRect(0, HEADER_H, OUT_W, MAP_H_PX); } 
+        else { o.drawImage(bg, minX, minY, cropW, cropH, 0, HEADER_H, OUT_W, MAP_H_PX); }
+
+        const originalCtx = ctx; ctx = o; 
+        data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
+        ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
+        
+        const pg = analyzePower();
+        if(pg){
+             pg.edges.forEach(e => {
+                 if(['garland', 'groundstakes'].includes(e.type)) return;
+                 const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
+                 if(uNode.dist !== Infinity && vNode.dist !== Infinity){
+                     const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
+                     let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else if(vNode.dist < uNode.dist) { from = vPos; to = uPos; isReversed = true; } else return; 
+                     const cp = e.cps ? toScr(e.cps) : null; const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y);
+                     let count = Math.floor(dist/150 * settings.arrowFreqFactor); if (e.type !== 'cords' && count === 0 && settings.arrowFreqFactor > 0.5) count = 1; 
+                     if(cp) {
+                         for(let k=1; k<=count; k++){
+                             let t = k / (count+1); const invT = 1 - t;
+                             const px = invT*invT*uPos.x + 2*invT*t*cp.x + t*t*vPos.x; const py = invT*invT*uPos.y + 2*invT*t*cp.y + t*t*vPos.y; const tx = 2*invT*(cp.x - uPos.x) + 2*t*(vPos.x - cp.x); const ty = 2*invT*(cp.y - uPos.y) + 2*t*(vPos.y - cp.y);
+                             let dir = {x: tx, y: ty}; if(isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
+                             drawArrow({x: px, y: py}, dir, '#ef4444');
+                         }
+                     } else { const dx = to.x - from.x, dy = to.y - from.y; for(let k=1; k<=count; k++){ const t = k / (count+1); drawArrow({x:from.x + dx*t, y:from.y + dy*t}, {x:dx, y:dy}, '#ef4444'); } }
+                 }
+             });
+             pg.singleArrowEdges.forEach(a => {
+                const edge = a.edge; const uPos = toScr(edge.line.points[edge.index]); const vPos = toScr(edge.line.points[edge.index+1]);
+                const segDist = segmentLength(uPos, vPos, edge.cps ? toScr(edge.cps) : null); const ptObj = getPointOnSegmentAtDist(uPos, vPos, segDist, a.distInSegment * scale, edge.cps ? toScr(edge.cps) : null);
+                let dir = {x: ptObj.dx, y: ptObj.dy}; if (a.isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
+                drawArrow({x: ptObj.x, y: ptObj.y}, dir, '#ef4444');
+             });
+             pg.deadTips.forEach(nodeIdx => { const n = pg.nodes[nodeIdx]; const neighborIdx = n.adj[0]; if(neighborIdx !== undefined){ drawDeadEnd(n, pg.nodes[neighborIdx], '#fffdf0'); } });
+        }
+        data.wreath.forEach(w=>{
+            const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75)*scale * settings.iconScale; 
+            ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2); ctx.fillStyle = colorOf('wreath'); ctx.fill();
+            ctx.strokeStyle='black'; ctx.lineWidth=6 * settings.iconScale * scale; ctx.stroke(); ctx.strokeStyle=colorOf('wreath'); ctx.lineWidth=3 * settings.iconScale * scale; ctx.stroke(); 
+            if(w.bow === 'top' || w.bow === 'bottom'){ const by = w.bow==='top' ? s.y - r : s.y + r; drawBow(s.x, by, scale, settings.iconScale); }
+        });
+        data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, settings.iconScale); }); 
+        data.tree.forEach(tr => { const p = toScr(tr.pt); drawTreeIcon(ctx, p, tr.kind, tr.size, scale, settings.iconScale); });
+        data.powersource.forEach(ps=>{
+            const s=toScr(ps.pt); const size = 8 * settings.junctionScale * scale; const strokeWidth = 3 * settings.junctionScale * scale;
+            ctx.fillStyle='#ef4444'; ctx.fillRect(s.x-size/2, s.y-size/2, size, size); ctx.strokeStyle='black'; ctx.lineWidth=strokeWidth; ctx.strokeRect(s.x-size/2, s.y-size/2, size, size); ctx.strokeStyle='white'; ctx.lineWidth=strokeWidth/2; ctx.strokeRect(s.x-size/2, s.y-size/2, size, size);
+        });
+        if(data.threeway){
+            data.threeway.forEach(tw=>{
+                const s = toScr(tw.pt); const sz = 6 * scale * settings.junctionScale; const strokeWidth = 3 * settings.junctionScale * scale;
+                ctx.beginPath(); ctx.moveTo(s.x, s.y - sz); ctx.lineTo(s.x + sz, s.y + sz); ctx.lineTo(s.x - sz, s.y + sz); ctx.closePath(); ctx.fillStyle = '#eab308'; ctx.fill();
+                ctx.strokeStyle = 'black'; ctx.lineWidth = strokeWidth; ctx.stroke(); ctx.strokeStyle = 'white'; ctx.lineWidth = strokeWidth/2; ctx.stroke();
+            });
+        }
+        data.custom_icon.forEach(ci => {
+            if (!ci.url) return;
+            const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
+            if (!ci.imageObj || ci.imageObj.src !== ci.url) { ci.imageObj = new Image(); ci.imageObj.src = ci.url; }
+            if (ci.imageObj && ci.imageObj.complete) { ctx.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH); }
+        });
+        
+        drawLabels(ctx, true);
+        ctx = originalCtx;
+
+        if (ITEM_COUNT > 0) {
+            const footY = HEADER_H + MAP_H_PX;
+            o.fillStyle = '#1e293b'; o.fillRect(0, footY, OUT_W, FOOTER_H);
+            o.fillStyle = '#3b82f6'; o.font = 'bold 16px "Inter", system-ui'; o.textAlign = 'left'; o.fillText('Line Information', 12, footY + 20);
+            o.font = '13px "Inter", system-ui'; o.fillStyle = '#e2e8f0';
+            const columnData = collectRows(); columnData.sort((a,b)=>a.label.localeCompare(b.label, undefined, {numeric:true}));
+            let y = footY + FOOTER_TITLE_H;
+            const cols = [ { label: 'Type', width: 0.15 }, { label: 'ID', width: 0.1 }, { label: 'Ft', width: 0.08 }, { label: 'Bulbs', width: 0.1 }, { label: 'Clip', width: 0.1 }, { label: 'Colour', width: 0.15 }, { label: 'Notes', width: 0.32 } ];
+            let xOffset = 0; o.font = 'bold 13px "Inter", system-ui'; o.fillStyle = '#93c5fd';
+            cols.forEach(col => { o.fillText(col.label, 12 + xOffset, y + 5); xOffset += OUT_W * col.width; });
+            o.font = '13px "Inter", system-ui'; o.fillStyle = '#e2e8f0'; y += FOOTER_ROW_H;
+            columnData.forEach(r => {
+                xOffset = 0;
+                o.fillText(pretty[r.L] || r.L, 12 + xOffset, y + 5); xOffset += OUT_W * cols[0].width;
+                o.fillText(r.label, 12 + xOffset, y + 5); xOffset += OUT_W * cols[1].width;
+                o.fillText(r.ft || '-', 12 + xOffset, y + 5); xOffset += OUT_W * cols[2].width; 
+                o.fillText(r.bulbs || '-', 12 + xOffset, y + 5); xOffset += OUT_W * cols[3].width; 
+                let clipSuffix = r.clip || '-'; if(r.fra) clipSuffix += ' (FRA)'; if(r.gguard) clipSuffix += ' (GG)';
+                o.fillText(clipSuffix.trim(), 12 + xOffset, y + 5); xOffset += OUT_W * cols[4].width; 
+                let displayCol = r.col || '-';
+                const normalizedRCol = r.col ? r.col.toLowerCase().replace(/\s/g, '/').replace(/,/g, '/').replace(/ /g, '') : '';
+                if (r.L === 'garland' || r.L === 'wreath' || (r.L === 'shrub' && !r.col)) { displayCol = 'Green'; } else if (r.L === 'cords') { displayCol = 'Black'; } else { if (normalizedRCol.includes('multi')) { displayCol = 'Multi'; } else if (normalizedRCol.includes('/')) { displayCol = r.col; } else if (r.col === '') { displayCol = 'Warm White'; } else { displayCol = r.col; } }
+                o.fillText(displayCol, 12 + xOffset, y + 5); xOffset += OUT_W * cols[5].width;
+                o.fillText(r.notes || '-', 12 + xOffset, y + 5); xOffset += OUT_W * cols[6].width;
+                y += FOOTER_ROW_H;
+            });
+        }
+    } catch (error) { console.error("Export Drawing Error:", error); return null; } finally { scale = oldScale; panX = oldPanX; panY = oldPanY; settings = originalSettings; isNightMode = originalNightMode; updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI(); }
+    return { url: out.toDataURL('image/png'), width: OUT_W * DPI, height: OUT_H * DPI };
+}
+
+function collectRows() {
+    const rows = [];
+    Object.keys(data).forEach(L => {
+        data[L].forEach(it => {
+            if (it.label && L !== 'label' && L !== 'custom_icon') rows.push({ 
+                L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false 
+            });
+        });
+    });
+    return rows;
+}
+
+function initializeUI() {
+    document.getElementById('inputAllCol').oninput = (e) => {
+        const v = e.target.value; const cleanedV = v.replace(/\s/g, '/').replace(/,/g, '/'); const lowerV = cleanedV.toLowerCase();
+        let valueToSave = cleanedV; if (lowerV.includes('multi') || lowerV === 'm') valueToSave = getColorCode('multi');
+        Object.keys(data).forEach(k => { data[k].forEach(it => { if(it.label && k !== 'garland' && k !== 'shrub' && k !== 'cords' && k !== 'wreath' && k !== 'custom_icon') { it.col = valueToSave; } }); });
+        const rows = document.getElementById('lenRows').children;
+        for(let tr of rows) { 
+            const lineTypeCell = tr.querySelector('td:first-child'); const lineType = lineTypeCell.textContent.toLowerCase();
+            if (lineType !== 'garland' && lineType !== 'cord' && lineType !== 'shrub' && lineType !== 'wreath') { 
+                const inputCol = tr.querySelector('input[placeholder="Col"]'); 
+                if(inputCol) { if (lowerV.includes('multi') || lowerV === 'm' || lowerV.includes('multiple')) inputCol.value = 'Multi'; else if (cleanedV.includes('/')) inputCol.value = cleanedV; else inputCol.value = v; }
+            }
+        }
+        requestRender(); 
+    };
+    if (settings.iconScale === undefined || settings.lineScale === undefined || settings.labelScale === undefined || settings.junctionScale === undefined || settings.arrowFreqFactor === undefined) { settings.iconScale = 1.5; settings.junctionScale = 1.0; settings.lineScale = 1.0; settings.labelScale = 3.0; settings.arrowFreqFactor = 1.0; }
+    lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor;
+    updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI();
+    buildTools(); 
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initializeUI(); initializeAndSizeContext();
+    document.getElementById('btnRelabelIDs').onclick = relabelIds;
+    const gPickImg = document.getElementById('gPickImg'); const gPickBlank = document.getElementById('gPickBlank'); const gPickMap = document.getElementById('gPickMap');
+    const gImg = document.getElementById('gImg'); const gMap = document.getElementById('gMap'); const closeGateBtn = document.getElementById('closeGateBtn'); 
+    if (gPickImg) gPickImg.onclick = () => { if (gImg) gImg.click(); };
+    if (gPickBlank) gPickBlank.onclick = () => { startBlankMap(); }; 
+    if (gPickMap) gPickMap.onclick = () => { if (gMap) gMap.click(); };
+    if (closeGateBtn) closeGateBtn.onclick = () => { unlock(); }; 
+    if (gImg) gImg.onchange = e => { handleImg(e.target.files[0]); e.target.value=''; };
+    if (gMap) gMap.onchange = e => { handleMap(e.target.files[0]); e.target.value=''; };
+});
+})();
 </script>
 </body>
 </html>
