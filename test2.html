@@ -1048,12 +1048,8 @@ quickEditPrefix.oninput = (e) => {
         requestRender();
     }
 };
-document.getElementById('quickDeleteBtn').onclick = () => {
-    if (selectedItem) {
-        deleteItem(selectedItem);
-        selectedItem = null;
-        updateModeTag();
-    }
+quickEditPrefix.onchange = () => {
+    refreshTable();
 };
 
 function updateModeTag(){
@@ -1090,7 +1086,7 @@ function updateModeTag(){
     }
     
     updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI();
-    draggingPoint = null; isMovingLabel = false; requestRender();
+    isMovingLabel = false; requestRender();
 }
 
 let powerGraph = null, powerDirty = true;
@@ -1277,7 +1273,7 @@ cv.addEventListener('pointerdown',e=>{
         
         // If something is selected and we are in select mode, check if we're hitting a point for drag exception
         if (mode === 'select' && selectedItem) {
-            handleSelectDown(ex, ey); // This will set draggingPoint if hitting a vertex
+            handleSelectDown(ex, ey); // This sets draggingPoint if hitting a vertex
             if (draggingPoint) {
                 isTapCandidate = false;
                 return;
@@ -1364,7 +1360,7 @@ cv.addEventListener('pointermove',e=>{
         return;
     }
     
-    // Check if dragging logic is occurring
+    // Vertex/Point Dragging Logic
     if(mode === 'select' && draggingPoint){
         const w = toWorld(x, y); currentSnapLine = null; 
         if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree')) {
@@ -1379,7 +1375,7 @@ cv.addEventListener('pointermove',e=>{
                  if (newWorldW > 0.05) { const newScale = newWorldW / ci.w; ci.scale = newScale; }
             }
         } else {
-            let snap = getSnap(x, y, 25); const ptVal = snap ? {x:snap.x, y:snap.y} : w;
+            let snap = getSnap(x, y, 25); const ptVal = snap ? {x:snap.x, y:sn.y} : w;
             if (draggingPoint.index === -1 && draggingPoint.obj.pt) draggingPoint.obj.pt = ptVal;
             else if (draggingPoint.obj.points) draggingPoint.obj.points[draggingPoint.index] = ptVal;
         }
@@ -1402,7 +1398,7 @@ cv.addEventListener('pointermove',e=>{
         requestRender(); return;
     }
 
-    // Pan Logic - Only if no dragging occurring
+    // Pan Logic - Only if no specific dragging is active
     if (pointers.size === 1) {
         const dx = x - dragStartX; const dy = y - dragStartY;
         if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
@@ -1453,8 +1449,6 @@ iconFile.onchange = (e) => {
     };
     reader.readAsDataURL(file);
 }
-
-// Global keyboard listeners removed to prevent accidental deletion during ID input.
 
 function checkCordLabelClick(sx, sy) {
     const w = toWorld(sx, sy);
@@ -1619,6 +1613,7 @@ function handleTap(sx,sy){
 function handleSelectDown(sx, sy){
     isMovingLabel = false;
     let hitPoint = null; let bestPointDist = 45; 
+
     const searchPoints = (list, type, overrideHitbox=30) => {
         list.forEach((obj, i) => {
             const currentHitbox = (type === 'threeway' || type === 'powersource') ? 45 : overrideHitbox; 
@@ -1635,7 +1630,16 @@ function handleSelectDown(sx, sy){
             }
         });
     };
-    Object.keys(data).forEach(k => searchPoints(data[k], k, bestPointDist)); 
+
+    // Prioritize selected item first to ensure easy grabbing on mobile
+    if (selectedItem && selectedItem.obj) {
+        searchPoints([selectedItem.obj], selectedItem.type, 50); // Larger hitbox for active item
+    }
+
+    if (!hitPoint) {
+        Object.keys(data).forEach(k => searchPoints(data[k], k, bestPointDist)); 
+    }
+
     let isCustomIconHandleDrag = false;
     data.custom_icon.forEach(ci => {
         const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
@@ -1646,6 +1650,7 @@ function handleSelectDown(sx, sy){
         }
         if(isCustomIconHandleDrag) return;
     });
+
     if (isCustomIconHandleDrag) { selectedItem = { type: 'custom_icon', obj: draggingPoint.obj }; updateModeTag(); requestRender(); return; }
     if (hitPoint && hitPoint.type !== 'label') { draggingPoint = hitPoint; selectedItem = { type: hitPoint.type, obj: hitPoint.obj }; updateModeTag(); requestRender(); return; }
 
