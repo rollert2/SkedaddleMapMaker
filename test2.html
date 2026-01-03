@@ -1311,10 +1311,7 @@ function placeWreath(L, w, sx, sy, label, index) {
 function completeSketch() {
     if (!sketch || sketch.points.length < 2) return;
     data[sketch.layer].push(sketch); 
-    sketch = null; 
-    document.getElementById('btnComplete').disabled = true;
-    document.getElementById('btnComplete').classList.remove('selectable');
-    startNewSketch(); 
+    sketch = null; document.getElementById('btnComplete').disabled = true; startNewSketch(); 
     markPowerDirty(); refreshTable(); requestRender(); 
 }
 
@@ -2091,9 +2088,7 @@ const handleMap = (f)=>{
                  }
                  actionCounter = maxIndex;
             }
-            if (o.settings) {
-                settings = {...settings, ...o.settings};
-            }
+            if (o.settings) { settings = {...settings, ...o.settings}; }
             applyState(o); applyUIState(o); 
             if(imgDataUrl){ bg.src=imgDataUrl; bg.onload=()=>{ imgReady=true; document.body.classList.remove('white-bg'); resetView(); unlock(); }; } 
             else { bg.width = o.bg_width || 1000; bg.height = o.bg_height || 1000; imgReady = true; document.body.classList.add('white-bg'); resetView(); unlock(); } 
@@ -2156,7 +2151,7 @@ function buildPayload() {
     };
 }
 
-function getFilenameBase() { const year = new Date().getFullYear(); const nm = (document.getElementById('customer').value || 'Untitled').trim(); return `${nm}_-_${year}_Map`.replace(/\s/g, '_'); }
+function getFilenameBase() { const year = new Date().getFullYear(); const nm = (document.getElementById('customer').value || 'Untitled').trim(); return `(${nm} - ${year} Map)`; }
 
 async function performSaveMapOnly() {
     const filenameMap = `${getFilenameBase()}.skmap`; const payload = buildPayload(); const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
@@ -2257,19 +2252,20 @@ function captureCanvasData() {
         
         o.textAlign = 'right';
         o.fillStyle = '#1e293b'; 
-        roundRect(o, OUT_W - 200, 15, 188, 65, 8); o.fill(); 
+        const timerBoxW = 160; 
+        roundRect(o, OUT_W - timerBoxW - 12, 15, timerBoxW, 65, 8); o.fill(); 
         o.strokeStyle = '#334155'; o.stroke();
         
-        o.fillStyle = '#fbbf24'; o.font = 'bold 10px "Inter", system-ui';
-        o.fillText('TIMER SETTINGS', OUT_W - 25, 25);
+        o.fillStyle = '#fbbf24'; o.font = 'bold 10px "Inter", system-ui'; o.textAlign = 'center';
+        o.fillText('TIMER SETTINGS', OUT_W - (timerBoxW/2) - 12, 25);
         
         o.fillStyle = '#f1f5f9'; o.font = 'bold 12px "Inter", system-ui';
         o.textBaseline = 'middle';
         if (isCC) {
-            o.fillText('CUSTOMER CONTROLLED', OUT_W - 25, 52);
+            o.fillText('CUSTOMER CONTROLLED', OUT_W - (timerBoxW/2) - 12, 52);
         } else {
-            o.fillText(`T1: ${timerOn1 || '--'} to ${timerOff1 || '--'}`, OUT_W - 25, 45);
-            o.fillText(`T2: ${timerOn2 || '--'} to ${timerOff2 || '--'}`, OUT_W - 25, 62);
+            o.fillText(`T1: ${timerOn1 || '--'} to ${timerOff1 || '--'}`, OUT_W - (timerBoxW/2) - 12, 45);
+            o.fillText(`T2: ${timerOn2 || '--'} to ${timerOff2 || '--'}`, OUT_W - (timerBoxW/2) - 12, 62);
         }
         o.textBaseline = 'top';
 
@@ -2302,7 +2298,7 @@ function captureCanvasData() {
                  if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
                      let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
-                     const dist = ds(uPos, vPos); 
+                     const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y); 
                      
                      const workspaceDist = dist * (oldScale / scale);
                      let count = Math.floor(workspaceDist/150 * settings.arrowFreqFactor);
