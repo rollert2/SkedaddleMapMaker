@@ -728,7 +728,7 @@ lineScaleInput.oninput = (e) => { settings.lineScale = parseFloat(e.target.value
 iconScaleInput.oninput = (e) => { settings.iconScale = parseFloat(e.target.value); updateIconScaleUI(); requestRender(); };
 junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(e.target.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
 labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(e.target.value); updateLabelScaleUI(); requestRender(); };
-arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(e.target.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
+arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
 
 function toggleNightMode(isManualToggle=true) {
     isNightMode = !isNightMode;
@@ -1110,22 +1110,49 @@ function analyzePower(){
     return nodes.push({x:p.x, y:p.y, dist:Infinity, adj:[], type: null}) - 1;
   }
   const singlePathLayers = ['garland', 'groundstakes']; const singlePathEdges = new Map(); 
-  ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'].forEach(L => {
+  const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
+  
+  lineLayers.forEach(L => {
     data[L].forEach(it => {
        if(it.points.length < 2) return;
-       let currentLength = 0; let pathSegments = [];
        for(let i=0; i<it.points.length-1; i++){
-          const u = getId(it.points[i]); const v = getId(it.points[i+1]);
-          nodes[u].type = L; nodes[v].type = L;
-          const edge = {u, v, type:L, cps:(it.cps?.[i] || null), index: i, line: it};
-          edges.push(edge); nodes[u].adj.push(v); nodes[v].adj.push(u);
+          const p1 = it.points[i];
+          const p2 = it.points[i+1];
+          const u = getId(p1);
+          const v = getId(p2);
+          
+          // Identify all nodes that physically lie on this segment for virtual splicing
+          let midNodes = [];
+          for(let k=0; k<nodes.length; k++){
+              if(k === u || k === v) continue;
+              const node = nodes[k];
+              const proj = projOnSeg(node, p1, p2);
+              if(proj.t > 0.01 && proj.t < 0.99) {
+                  const d = Math.hypot(node.x - proj.q.x, node.y - proj.q.y);
+                  if(d < 0.5) midNodes.push({ id: k, t: proj.t });
+              }
+          }
+          midNodes.sort((a,b) => a.t - b.t);
+          
+          // Connect nodes in sequence to form a continuous path
+          let lastNode = u;
+          [...midNodes, {id: v}].forEach(step => {
+              const edge = {u: lastNode, v: step.id, type:L, cps:(it.cps?.[i] || null), index: i, line: it};
+              edges.push(edge);
+              nodes[lastNode].adj.push(step.id);
+              nodes[step.id].adj.push(lastNode);
+              lastNode = step.id;
+          });
+
           if (singlePathLayers.includes(L)) {
-              const p1 = it.points[i]; const p2 = it.points[i+1]; const cp = it.cps ? it.cps[i] : null;
-              const len = segmentLength(p1, p2, cp); currentLength += len;
-              pathSegments.push({ edge, length: len, startDist: currentLength - len });
+              const cp = it.cps ? it.cps[i] : null;
+              const len = segmentLength(p1, p2, cp);
+              if(!singlePathEdges.has(it)) singlePathEdges.set(it, { totalLength: 0, segments: [] });
+              const info = singlePathEdges.get(it);
+              info.segments.push({ u, v, length: len, startDist: info.totalLength, edgeRef: {u,v,type:L,line:it,index:i,cps:cp} });
+              info.totalLength += len;
           }
        }
-       if (singlePathLayers.includes(L) && pathSegments.length > 0) singlePathEdges.set(it, { totalLength: currentLength, segments: pathSegments });
     });
   });
   
@@ -1155,8 +1182,8 @@ function analyzePower(){
       const targetDist = totalLength * 0.5; let bestSegment = null;
       for (const seg of pathInfo.segments) { if (targetDist >= seg.startDist && targetDist <= (seg.startDist + seg.length)) { bestSegment = seg; break; } }
       if (bestSegment) {
-          const edge = bestSegment.edge; const distInSegment = targetDist - bestSegment.startDist;
-          const uNode = nodes[edge.u]; const vNode = nodes[edge.v];
+          const edge = bestSegment.edgeRef; const distInSegment = targetDist - bestSegment.startDist;
+          const uNode = nodes[bestSegment.u]; const vNode = nodes[bestSegment.v];
           let isReversed = uNode.dist > vNode.dist;
           singleArrowEdges.push({ edge: edge, distInSegment: distInSegment, isReversed: isReversed });
       }
@@ -1374,6 +1401,7 @@ cv.addEventListener('pointermove',e=>{
         return;
     }
     
+    // Vertex/Point Dragging Logic
     if(mode === 'select' && draggingPoint){
         const w = toWorld(x, y); currentSnapLine = null; 
         if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree')) {
@@ -1428,23 +1456,6 @@ cv.addEventListener('pointerup',e=>{
     const wasGesture = gesture;
     if (pointers.size === 1 && !wasGesture) { 
         if (draggingPoint) {
-            const r = canvasWrap.getBoundingClientRect();
-            const sx = e.clientX - r.left;
-            const sy = e.clientY - r.top;
-            
-            const sn = getSnap(sx, sy, 25, draggingPoint.obj);
-            
-            if (sn && sn.type === 'proj' && sn.host) {
-                const pt = {x: sn.x, y: sn.y};
-                const host = sn.host;
-                const idx = sn.seg;
-                
-                if(Math.hypot(pt.x - host.points[idx].x, pt.y - host.points[idx].y) > 0.1 &&
-                   Math.hypot(pt.x - host.points[idx+1].x, pt.y - host.points[idx+1].y) > 0.1) {
-                    host.points.splice(idx + 1, 0, {x: pt.x, y: pt.y});
-                    if(host.cps) host.cps.splice(idx + 1, 0, null);
-                }
-            }
             draggingPoint = null; 
             markPowerDirty(); 
             requestRender();
@@ -1612,12 +1623,11 @@ function handleTap(sx,sy){
 
     if(['powersource','threeway','tree','wreath','bow', 'custom_icon'].includes(currLayer)){ placeItem(currLayer, w, sx, sy); return; }
     if(!sketch) startNewSketch();
-    let pt = w; let snappedHost = null; let snappedSegIndex = -1;
+    let pt = w; 
     if(chkSnap.checked){
         const sn = getSnap(sx,sy,25); 
         if(sn) {
             pt = {x:sn.x, y:sn.y}; if(sketch.points.length===0) sketch.firstHost = sn.host;
-            if(sn.type === 'proj') { snappedHost = sn.host; snappedSegIndex = sn.seg; }
             if(sn.host && data.threeway.includes(sn.host)){ if(countConnections(sn.host) >= 4){ showAlert("3-Way limit reached."); if(sketch.points.length === 0) return; } }
         }
     }
@@ -1634,12 +1644,7 @@ function handleTap(sx,sy){
             } else { sketch.cps.push(null); }
         }
     }
-    if(snappedHost && snappedSegIndex > -1){
-         const a = snappedHost.points[snappedSegIndex]; const b = snappedHost.points[snappedSegIndex+1];
-         if(Math.hypot(pt.x-a.x, pt.y-a.y)>0.1 && Math.hypot(pt.x-b.x, pt.y-b.y)>0.1) {
-             snappedHost.points.splice(snappedSegIndex+1, 0, {x:pt.x, y:pt.y}); if(snappedHost.cps) snappedHost.cps.splice(snappedSegIndex+1, 0, null); markPowerDirty();
-         }
-    }
+
     const canComplete = sketch.points.length >= 2;
     document.getElementById('btnComplete').disabled = !canComplete;
     if (canComplete) document.getElementById('btnComplete').classList.add('selectable');
