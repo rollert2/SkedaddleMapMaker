@@ -1111,30 +1111,36 @@ function analyzePower(){
   }
   const singlePathLayers = ['garland', 'groundstakes']; const singlePathEdges = new Map(); 
   const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
+  const decorationLayers = ['powersource', 'threeway', 'wreath', 'tree', 'bow', 'custom_icon'];
+
+  // Pass 1: Identify ALL physical nodes first (vertices and objects)
+  decorationLayers.forEach(L => { if(data[L]) data[L].forEach(it => { if(it.pt) getId(it.pt); }); });
+  lineLayers.forEach(L => { if(data[L]) data[L].forEach(it => { if(it.points) it.points.forEach(p => getId(p)); }); });
   
+  // Pass 2: Create virtualized edges by splitting segments that contain mid-point nodes
   lineLayers.forEach(L => {
+    if(!data[L]) return;
     data[L].forEach(it => {
-       if(it.points.length < 2) return;
+       if(!it.points || it.points.length < 2) return;
        for(let i=0; i<it.points.length-1; i++){
           const p1 = it.points[i];
           const p2 = it.points[i+1];
           const u = getId(p1);
           const v = getId(p2);
           
-          // Identify all nodes that physically lie on this segment for virtual splicing
           let midNodes = [];
           for(let k=0; k<nodes.length; k++){
               if(k === u || k === v) continue;
               const node = nodes[k];
               const proj = projOnSeg(node, p1, p2);
+              // Node lies on segment virtually
               if(proj.t > 0.01 && proj.t < 0.99) {
                   const d = Math.hypot(node.x - proj.q.x, node.y - proj.q.y);
-                  if(d < 0.5) midNodes.push({ id: k, t: proj.t });
+                  if(d < 0.8) midNodes.push({ id: k, t: proj.t });
               }
           }
           midNodes.sort((a,b) => a.t - b.t);
           
-          // Connect nodes in sequence to form a continuous path
           let lastNode = u;
           [...midNodes, {id: v}].forEach(step => {
               const edge = {u: lastNode, v: step.id, type:L, cps:(it.cps?.[i] || null), index: i, line: it};
@@ -1179,6 +1185,11 @@ function analyzePower(){
       const uFirst = getId(line.points[0]);
       const vLast = getId(line.points[line.points.length-1]);
       if (nodes[uFirst].dist === Infinity && nodes[vLast].dist === Infinity) return;
+      
+      // Garland Arrow Frequency Check - apply user factor
+      const interval = 150 / settings.arrowFreqFactor;
+      if (totalLength < interval) return; // Removed forced minimum arrow for Garland strings
+
       const targetDist = totalLength * 0.5; let bestSegment = null;
       for (const seg of pathInfo.segments) { if (targetDist >= seg.startDist && targetDist <= (seg.startDist + seg.length)) { bestSegment = seg; break; } }
       if (bestSegment) {
