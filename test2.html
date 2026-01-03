@@ -1851,7 +1851,6 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
 
     if (isNightMode && isLightElement) { glowStrength = CORE_GLOW_BLUR; ctx.shadowBlur = glowStrength; } else { ctx.shadowBlur = 0; }
     
-    const drawPathSegments = () => { for (let i = 0; i < points.length - 1; i++) { const p2 = points[i+1]; const cp = cps[i] || null; if (cp) ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y); else ctx.lineTo(p2.x, p2.y); } };
     const drawDashedPath = (styleFn) => {
         for (let i = 0; i < points.length - 1; i++) {
             const p1 = points[i]; const p2 = points[i+1]; const cp = cps[i] || null;
@@ -2237,6 +2236,7 @@ function captureCanvasData() {
 
         o.fillStyle = '#0f172a'; o.fillRect(0, 0, OUT_W, OUT_H);
 
+        // Header Section
         o.fillStyle = 'white'; o.font = 'bold 18px "Inter", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
         o.fillText(document.getElementById('customer').value || 'UNTITLED PROJECT', 12, 20);
         
@@ -2246,6 +2246,7 @@ function captureCanvasData() {
         o.fillStyle = '#3b82f6'; o.font = 'bold 12px "Inter", system-ui';
         o.fillText(`DATE: ${new Date().toLocaleDateString()}`, 12, 65);
 
+        // Timer Info Box
         const timerOn1 = document.getElementById('on1').value;
         const timerOff1 = document.getElementById('off1').value;
         const timerOn2 = document.getElementById('on2').value;
@@ -2271,6 +2272,7 @@ function captureCanvasData() {
         }
         o.textBaseline = 'top';
 
+        // Notes Area
         if(jNotes) {
             o.textAlign = 'left';
             o.fillStyle = '#fbbf24'; o.font = 'bold 11px "Inter", system-ui';
@@ -2279,8 +2281,10 @@ function captureCanvasData() {
             wrapText(o, jNotes, 12, 100, notesWidth, 15);
         }
         
-        const logoSize = 60; o.drawImage(logo, (OUT_W / 2) - (logoSize / 2), 15, logoSize, logoSize);
+        // Large Logo fills header space
+        const logoSize = 90; o.drawImage(logo, (OUT_W / 2) - (logoSize / 2), 10, logoSize, logoSize);
 
+        // Map rendering area (respecting current filters)
         let imageFilter = 'none'; 
         if(isNightMode) imageFilter = 'brightness(0.25) grayscale(0.2)';
         if(settings.bgBlur > 0) imageFilter = (imageFilter==='none'?'':imageFilter+' ') + `blur(${settings.bgBlur/5}px)`;
@@ -2289,6 +2293,7 @@ function captureCanvasData() {
         else { o.drawImage(bg, minX, minY, cropW, cropH, 0, HEADER_H, OUT_W, MAP_H_PX); }
         o.filter = 'none';
 
+        // Redraw Map Items
         data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
         ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
         
@@ -2302,6 +2307,7 @@ function captureCanvasData() {
                      let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
                      const dist = ds(uPos, vPos); 
                      
+                     // Density Match Logic: zoom-dependent density
                      const workspaceDist = dist * (oldScale / scale);
                      let count = Math.floor(workspaceDist/150 * settings.arrowFreqFactor);
                      
@@ -2323,6 +2329,7 @@ function captureCanvasData() {
 
         drawLabels(o);
 
+        // Summary Table Section
         if (ITEM_COUNT > 0) {
             const footY = HEADER_H + MAP_H_PX;
             o.fillStyle = '#1e293b'; o.fillRect(0, footY, OUT_W, FOOTER_H);
