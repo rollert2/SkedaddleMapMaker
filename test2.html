@@ -853,7 +853,7 @@ function refreshTable(){
         const select = tr.querySelector('.clip-select');
         const fraCheck = tr.querySelector('.fra-checkbox');
         const gguardCheck = tr.querySelector('.gg-checkbox'); 
-        const inputId = tr.querySelector('input[style*=\"width:50px\"]');
+        const inputId = tr.querySelector('input[style*="width:50px"]');
         const inputCol = tr.querySelector('input[placeholder="Col"]');
         const inputFt = tr.querySelector('input[placeholder="ft"]');
         const inputBulbs = tr.querySelector('input[placeholder="#"]');
@@ -1179,18 +1179,25 @@ function getSnapLineOnly(wx, wy, thresholdW){
     return best;
 }
 
-function getSnap(sx, sy, thresholdS){
+function getSnap(sx, sy, thresholdS, excludeObj = null){
     const w=toWorld(sx, sy); const thresholdW=thresholdS/scale; let best=null; let minD=thresholdW; const p = w;
     ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'].forEach(L=>{
-        data[L].forEach(line=>{ if(line.points.length>0){ [line.points[0], line.points[line.points.length-1]].forEach(pt=>{ const d=Math.hypot(p.x-pt.x, p.y-pt.y); if(d<minD){ minD=d; best={x:pt.x, y:pt.y, type:'end', host:line}; } }); } });
+        data[L].forEach(line=>{ 
+            if(line === excludeObj) return;
+            if(line.points.length>0){ [line.points[0], line.points[line.points.length-1]].forEach(pt=>{ const d=Math.hypot(p.x-pt.x, p.y-pt.y); if(d<minD){ minD=d; best={x:pt.x, y:pt.y, type:'end', host:line}; } }); } 
+        });
     });
     ['powersource','threeway','wreath','bow','tree', 'custom_icon'].forEach(L=>{
-        data[L].forEach(it=>{ if(it.pt){ const d=Math.hypot(p.x-it.pt.x, p.y-it.pt.y); if(d<minD){ minD=d; best={x:it.pt.x, y:it.pt.y, type:'junction', host:it}; } } });
+        data[L].forEach(it=>{ 
+            if(it === excludeObj) return;
+            if(it.pt){ const d=Math.hypot(p.x-it.pt.x, p.y-it.pt.y); if(d<minD){ minD=d; best={x:it.pt.x, y:it.pt.y, type:'junction', host:it}; } } 
+        });
     });
     if(!best){
         minD = thresholdW;
         ['ridges','fascia','peaks','groundstakes','garland','shrub','windows'].forEach(L=>{
             data[L].forEach(line=>{
+                if(line === excludeObj) return;
                 for(let i=0; i<line.points.length-1; i++){
                     const a=line.points[i]; const b=line.points[i+1]; const proj=projOnSeg(p,a,b);
                     if(proj.t>=0 && proj.t<=1 && Math.hypot(p.x-proj.q.x, p.y-proj.q.y)<minD){ minD=Math.hypot(p.x-proj.q.x, p.y-proj.q.y); best={x:proj.q.x, y:proj.q.y, type:'proj', host:line, seg:i}; }
@@ -1279,9 +1286,8 @@ cv.addEventListener('pointerdown',e=>{
     if(pointers.size === 1) {
         isTapCandidate = true; tapDownX = ex; tapDownY = ey; dragStartX = ex; dragStartY = ey; dragPanStartX = panX; dragPanStartY = panY;
         
-        // If something is selected and we are in select mode, check if we're hitting a point for drag exception
         if (mode === 'select' && selectedItem) {
-            handleSelectDown(ex, ey); // This sets draggingPoint if hitting a vertex
+            handleSelectDown(ex, ey); 
             if (draggingPoint) {
                 isTapCandidate = false;
                 return;
@@ -1368,7 +1374,6 @@ cv.addEventListener('pointermove',e=>{
         return;
     }
     
-    // Vertex/Point Dragging Logic
     if(mode === 'select' && draggingPoint){
         const w = toWorld(x, y); currentSnapLine = null; 
         if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree')) {
@@ -1383,7 +1388,8 @@ cv.addEventListener('pointermove',e=>{
                  if (newWorldW > 0.05) { const newScale = newWorldW / ci.w; ci.scale = newScale; }
             }
         } else {
-            let snap = getSnap(x, y, 25); const ptVal = snap ? {x:snap.x, y:snap.y} : w;
+            let snap = getSnap(x, y, 25, draggingPoint.obj); 
+            const ptVal = snap ? {x:snap.x, y:snap.y} : w;
             if (draggingPoint.index === -1 && draggingPoint.obj.pt) draggingPoint.obj.pt = ptVal;
             else if (draggingPoint.obj.points) draggingPoint.obj.points[draggingPoint.index] = ptVal;
         }
@@ -1406,7 +1412,6 @@ cv.addEventListener('pointermove',e=>{
         requestRender(); return;
     }
 
-    // Pan Logic - Only if no specific dragging is active
     if (pointers.size === 1) {
         const dx = x - dragStartX; const dy = y - dragStartY;
         if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
@@ -1423,20 +1428,22 @@ cv.addEventListener('pointerup',e=>{
     const wasGesture = gesture;
     if (pointers.size === 1 && !wasGesture) { 
         if (draggingPoint) {
-            // Logic to handle connecting a moved vertex to another line segment (splitting the segment)
             const r = canvasWrap.getBoundingClientRect();
             const sx = e.clientX - r.left;
             const sy = e.clientY - r.top;
-            const sn = getSnap(sx, sy, 25);
+            
+            // Check for segments to splice into, excluding the dragged item itself
+            const sn = getSnap(sx, sy, 25, draggingPoint.obj);
             
             if (sn && sn.type === 'proj' && sn.host) {
                 const pt = {x: sn.x, y: sn.y};
                 const host = sn.host;
                 const idx = sn.seg;
-                // Splice host line only if it's not already near an existing vertex
+                
+                // Ensure the snapped point isn't already close to an existing vertex of the host
                 if(Math.hypot(pt.x - host.points[idx].x, pt.y - host.points[idx].y) > 0.1 &&
                    Math.hypot(pt.x - host.points[idx+1].x, pt.y - host.points[idx+1].y) > 0.1) {
-                    host.points.splice(idx + 1, 0, pt);
+                    host.points.splice(idx + 1, 0, {x: pt.x, y: pt.y});
                     if(host.cps) host.cps.splice(idx + 1, 0, null);
                 }
             }
@@ -1663,9 +1670,8 @@ function handleSelectDown(sx, sy){
         });
     };
 
-    // Prioritize selected item first to ensure easy grabbing on mobile
     if (selectedItem && selectedItem.obj) {
-        searchPoints([selectedItem.obj], selectedItem.type, 50); // Larger hitbox for active item
+        searchPoints([selectedItem.obj], selectedItem.type, 50); 
     }
 
     if (!hitPoint) {
@@ -1998,7 +2004,7 @@ function draw(){
     
     // Snapping Indicator (Shared across draw and selection)
     if(chkSnap.checked && cv._mx!=null){
-         const sn = getSnap(cv._mx, cv._my, 25);
+         const sn = getSnap(cv._mx, cv._my, 25, (draggingPoint ? draggingPoint.obj : null));
          if(sn){ 
              const s = toScr({x:sn.x, y:sn.y}); 
              ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, Math.PI*2); 
