@@ -1133,7 +1133,6 @@ function analyzePower(){
               if(k === u || k === v) continue;
               const node = nodes[k];
               const proj = projOnSeg(node, p1, p2);
-              // Node lies on segment virtually
               if(proj.t > 0.01 && proj.t < 0.99) {
                   const d = Math.hypot(node.x - proj.q.x, node.y - proj.q.y);
                   if(d < 0.8) midNodes.push({ id: k, t: proj.t });
@@ -1186,10 +1185,6 @@ function analyzePower(){
       const vLast = getId(line.points[line.points.length-1]);
       if (nodes[uFirst].dist === Infinity && nodes[vLast].dist === Infinity) return;
       
-      // Garland Arrow Frequency Check - apply user factor
-      const interval = 150 / settings.arrowFreqFactor;
-      if (totalLength < interval) return; // Removed forced minimum arrow for Garland strings
-
       const targetDist = totalLength * 0.5; let bestSegment = null;
       for (const seg of pathInfo.segments) { if (targetDist >= seg.startDist && targetDist <= (seg.startDist + seg.length)) { bestSegment = seg; break; } }
       if (bestSegment) {
@@ -1784,17 +1779,9 @@ function drawArrow(p, dir, color){
     ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang-Math.PI/6), p.y - L*Math.sin(ang-Math.PI/6)); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang+Math.PI/6), p.y - L*Math.sin(ang+Math.PI/6)); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = colorWidth; ctx.stroke();
 }
 function drawDeadEnd(p, neighbor, color){
-    const capLen = 7.5 * settings.lineScale * scale; 
-    const sP = toScr(p); const sN = toScr(neighbor); 
-    const dx = sP.x - sN.x, dy = sP.y - sN.y; 
-    const ang = Math.atan2(dy, dx); 
-    const px = Math.cos(ang + Math.PI/2) * capLen; 
-    const py = Math.sin(ang + Math.PI/2) * capLen;
-    ctx.beginPath(); 
-    ctx.moveTo(sP.x - px, sP.y - py); 
-    ctx.lineTo(sP.x + px, sP.y + py); 
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 4 * settings.lineScale * scale; ctx.stroke(); 
-    ctx.strokeStyle = color; ctx.lineWidth = 2 * settings.lineScale * scale; ctx.stroke();
+    const capLen = 7.5 * settings.lineScale * scale; const sP = toScr(p); const sN = toScr(neighbor); const dx = sP.x - sN.x, dy = sN.y - sP.y; const ang = Math.atan2(dy, dx); 
+    const px = Math.cos(ang + Math.PI/2) * capLen; const py = Math.sin(ang + Math.PI/2) * capLen;
+    ctx.beginPath(); ctx.moveTo(sP.x - px, sP.y - py); ctx.lineTo(sP.x + px, sP.y + py); ctx.strokeStyle = '#000'; ctx.lineWidth = 4 * settings.lineScale * scale; ctx.stroke(); ctx.strokeStyle = color; ctx.lineWidth = 2 * settings.lineScale * scale; ctx.stroke();
 }
 function drawBow(x, y, scale, itemScale){
     const baseBowSize = 20; const s = baseBowSize * itemScale * scale * 0.4; 
@@ -1808,7 +1795,7 @@ function drawBow(x, y, scale, itemScale){
 
 function segmentLength(p1, p2, cp = null) {
     if (!cp) return Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    const d1 = Math.hypot(cp.x - p1.x, cp.y - p1.y); const d2 = Math.hypot(p2.x - cp.x, p2.y - p1.y); return d1 + d2; 
+    const d1 = Math.hypot(cp.x - p1.x, cp.y - p1.y); const d2 = Math.hypot(p2.x - cp.x, p2.y - p2.y); return d1 + d2; 
 }
 function getPointOnSegmentAtDist(p1, p2, dist, targetDist, cp = null) {
     if (!cp) { const t = targetDist / dist; return { x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t, t: t, dx: (p2.x - p1.x) / dist, dy: (p2.y - p1.y) / dist }; }
@@ -2134,18 +2121,128 @@ async function performSaveMapOnly() {
 }
 
 async function performSavePdf() {
-    const { url: pngData, width, height } = captureCanvasData(); const { jsPDF } = window.jspdf;
+    const capture = captureCanvasData(); if(!capture) { showAlert("Error generating image data."); return false; }
+    const { url: pngData, width, height } = capture; const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: width > height ? 'l' : 'p', unit: 'px', format: [width, height] });
     pdf.addImage(pngData, 'PNG', 0, 0, width, height); pdf.save(`${getFilenameBase()}.pdf`);
 }
 
 function captureCanvasData() {
-    const out = document.createElement('canvas'); out.width = cv.width; out.height = cv.height; const o = out.getContext('2d');
-    const oldDPR = DPR; DPR = 1;
-    const originalCtx = ctx; ctx = o;
-    draw();
-    ctx = originalCtx; DPR = oldDPR;
-    return { url: out.toDataURL('image/png'), width: out.width, height: out.height };
+    if(!imgReady) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const checkPt = (p) => { if(p.x < minX) minX = p.x; if(p.y < minY) minY = p.y; if(p.x > maxX) maxX = p.x; if(p.y > maxY) maxY = p.y; };
+    let hasItems = false;
+    Object.keys(data).forEach(L => {
+        data[L].forEach(item => {
+             hasItems = true; if(item.points) item.points.forEach(checkPt);
+             if(item.pt) { checkPt(item.pt); }
+        });
+    });
+    if(!hasItems) { minX = 0; minY = 0; maxX = bg.width; maxY = bg.height; } 
+    else { const pad = 50; minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad); maxX = Math.min(bg.width, maxX + pad); maxY = Math.min(bg.height, maxY + pad); }
+    
+    const cropW = maxX - minX; const cropH = maxY - minY; const DPI = 2; const MAP_WIDTH_PX = 1000; const MAP_H_PX = Math.round((MAP_WIDTH_PX / cropW) * cropH);
+    const HEADER_H = 100; const FOOTER_ROW_H = 20; const FOOTER_TITLE_H = 30; 
+    const items = collectRows();
+    const ITEM_COUNT = items.length; 
+    const FOOTER_H = ITEM_COUNT > 0 ? (FOOTER_TITLE_H + ITEM_COUNT * FOOTER_ROW_H + 30) : 0;
+    const OUT_W = MAP_WIDTH_PX; const OUT_H = HEADER_H + MAP_H_PX + FOOTER_H;
+
+    const out = document.createElement('canvas'); out.width = OUT_W * DPI; out.height = OUT_H * DPI; const o = out.getContext('2d'); o.scale(DPI, DPI); 
+    const oldScale = scale; const oldPanX = panX; const oldPanY = panY; const originalCtx = ctx; const originalNightMode = isNightMode;
+    
+    try {
+        const renderScale = MAP_WIDTH_PX / cropW; const renderPanX = -minX * renderScale; const renderPanY = HEADER_H - (minY * renderScale); 
+        scale = renderScale; panX = renderPanX; panY = renderPanY; ctx = o; isNightMode = false;
+
+        // Draw White Background for Printable PDF
+        o.fillStyle = 'white'; o.fillRect(0, 0, OUT_W, OUT_H);
+
+        // Header
+        o.fillStyle = 'black'; o.font = 'bold 13px "Inter", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
+        o.fillText(`CUSTOMER: ${document.getElementById('customer').value || 'N/A'}`, 12, 20);
+        o.fillText(`ADDRESS: ${document.getElementById('address').value || 'N/A'}`, 12, 40);
+        o.fillText(`DATE: ${new Date().toLocaleDateString()}`, 12, 60);
+
+        o.textAlign = 'right';
+        const timerVal = document.getElementById('on1').value.trim(); 
+        let timerText = timerVal === 'CC' ? 'Timer: Customer Controlled' : `TIMER: ${document.getElementById('on1').value || '--'} to ${document.getElementById('off1').value || '--'}`;
+        o.fillText(timerText, OUT_W - 12, 20);
+        
+        const logoSize = 60; o.drawImage(logo, (OUT_W - logoSize) / 2, 10, logoSize, logoSize);
+
+        // Map Area
+        if (imgReady && !imgDataUrl) { o.strokeStyle = '#eee'; o.strokeRect(0, HEADER_H, OUT_W, MAP_H_PX); } 
+        else { o.drawImage(bg, minX, minY, cropW, cropH, 0, HEADER_H, OUT_W, MAP_H_PX); }
+
+        // Items
+        data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
+        ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
+        
+        const pg = analyzePower();
+        if(pg){
+             pg.edges.forEach(e => {
+                 if(['garland', 'groundstakes'].includes(e.type)) return;
+                 const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
+                 if(uNode.dist !== Infinity && vNode.dist !== Infinity){
+                     const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
+                     let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
+                     const dist = ds(uPos, vPos); let count = Math.floor(dist/150 * settings.arrowFreqFactor);
+                     const dx = to.x - from.x, dy = to.y - from.y; for(let k=1; k<=count; k++){ const t = k / (count+1); drawArrow({x:from.x + dx*t, y:from.y + dy*t}, {x:dx, y:dy}, '#ef4444'); }
+                 }
+             });
+             pg.deadTips.forEach(nodeIdx => { drawDeadEnd(pg.nodes[nodeIdx], pg.nodes[pg.nodes[nodeIdx].adj[0]], '#000'); });
+        }
+        data.wreath.forEach(w=>{ const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2); ctx.fillStyle = colorOf('wreath'); ctx.fill(); ctx.stroke(); });
+        data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, settings.iconScale); }); 
+        data.tree.forEach(tr => { drawTreeIcon(o, toScr(tr.pt), tr.kind, tr.size, scale, settings.iconScale); });
+        data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
+        data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.stroke(); });
+
+        drawLabels(o);
+
+        // Footer Table
+        if (ITEM_COUNT > 0) {
+            const footY = HEADER_H + MAP_H_PX;
+            o.fillStyle = '#f8fafc'; o.fillRect(0, footY, OUT_W, FOOTER_H);
+            o.fillStyle = 'black'; o.font = 'bold 15px "Inter", system-ui'; o.textAlign = 'left'; o.fillText('LINE INFORMATION', 12, footY + 20);
+            
+            let y = footY + FOOTER_TITLE_H;
+            const cols = [ { label: 'Type', w: 0.15 }, { label: 'ID', w: 0.1 }, { label: 'Ft', w: 0.1 }, { label: 'Bulbs', w: 0.1 }, { label: 'Clip', w: 0.1 }, { label: 'Colour', w: 0.15 }, { label: 'Notes', w: 0.25 } ];
+            
+            o.font = 'bold 11px "Inter", system-ui';
+            let x = 12; cols.forEach(c => { o.fillText(c.label, x, y); x += OUT_W * c.w; });
+            
+            o.font = '11px "Inter", system-ui';
+            y += 18;
+            items.sort((a,b)=>a.label.localeCompare(b.label, undefined, {numeric:true})).forEach(r => {
+                x = 12;
+                o.fillText(pretty[r.L] || r.L, x, y); x += OUT_W * cols[0].w;
+                o.fillText(r.label, x, y); x += OUT_W * cols[1].w;
+                o.fillText(r.ft || '-', x, y); x += OUT_W * cols[2].w;
+                o.fillText(r.bulbs || '-', x, y); x += OUT_W * cols[3].w;
+                o.fillText(r.clip || '-', x, y); x += OUT_W * cols[4].w;
+                o.fillText(r.col || '-', x, y); x += OUT_W * cols[5].w;
+                o.fillText(r.notes || '-', x, y);
+                y += FOOTER_ROW_H;
+            });
+        }
+    } finally {
+        scale = oldScale; panX = oldPanX; panY = oldPanY; ctx = originalCtx; isNightMode = originalNightMode;
+    }
+    return { url: out.toDataURL('image/png'), width: OUT_W * DPI, height: OUT_H * DPI };
+}
+
+function collectRows() {
+    const rows = [];
+    Object.keys(data).forEach(L => {
+        data[L].forEach(it => {
+            if (it.label && L !== 'label' && L !== 'custom_icon') rows.push({ 
+                L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false 
+            });
+        });
+    });
+    return rows;
 }
 
 function initializeUI() {
@@ -2161,7 +2258,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeUI(); initializeAndSizeContext();
     document.getElementById('btnRelabelIDs').onclick = relabelIds;
     
-    // Splash screen buttons
     document.getElementById('gPickImg').onclick = () => document.getElementById('gImg').click();
     document.getElementById('gPickBlank').onclick = startBlankMap;
     document.getElementById('gPickMap').onclick = () => document.getElementById('gMap').click();
