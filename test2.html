@@ -119,6 +119,7 @@ h1 { margin: 0 16px 0 0; font-size: 18px; font-weight: 600; color: var(--text); 
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn.toggled { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: var(--accent); }
 
+/* Success state for Complete button */
 #btnComplete.selectable { 
     color: var(--success); 
     background: rgba(34, 197, 94, 0.1); 
@@ -126,6 +127,7 @@ h1 { margin: 0 16px 0 0; font-size: 18px; font-weight: 600; color: var(--text); 
     opacity: 1;
 }
 
+/* Quick Selection UI */
 #selectionQuickEdit {
     display: none;
     align-items: center;
@@ -219,6 +221,7 @@ textarea.input { resize: vertical; min-height: 80px; }
 .clip-legend dt { font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: 8px; }
 .clip-legend dd { margin: 0; color: var(--text); }
 
+/* Legend Icons */
 .leg-sq { width: 10px; height: 10px; background: var(--danger); display: inline-block; }
 .leg-tri { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 10px solid var(--warning); display: inline-block; }
 
@@ -645,7 +648,7 @@ async function loadFromDrive(fileId) {
 
 const cats=[{name:"C9's",key:'c9',list:['fascia','peaks','ridges','groundstakes']},{name:'Minis',key:'min',list:['shrub','windows']},{name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},{name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},{name:'Power',key:'pwr',list:['powersource','cords','threeway']},
             {name:'Specials', key:'spec', list:['label', 'custom_icon', 'night_mode']}]; 
-const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label', custom_icon: 'Icon', night_mode: 'Night'};
+const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label', custom_icon: 'Image', night_mode: 'Night'};
 const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label:'LBL', custom_icon: 'CI'};
 const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],garland:[],wreath:[],bow:[],cords:[],powersource:[],threeway:[],tree:[], label:[], custom_icon:[]}; 
 
@@ -737,7 +740,7 @@ iconScaleInput.oninput = (e) => { settings.iconScale = parseFloat(e.target.value
 bgBlurInput.oninput = (e) => { settings.bgBlur = parseInt(e.target.value); updateBgBlurUI(); requestRender(); };
 junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(e.target.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
 labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(e.target.value); updateLabelScaleUI(); requestRender(); };
-arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(e.target.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
+arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
 
 function toggleNightMode(isManualToggle=true) {
     isNightMode = !isNightMode;
@@ -995,7 +998,7 @@ function buildTools(){
       let displayText = pretty[k]||k;
       if(k.startsWith('tree:')) displayText = k.slice(5).split('(')[0].trim();
       else if(k.startsWith('wreath')) displayText = k==='wreath32'?'Wr 32"':'Wr 42"';
-      else if (k === 'custom_icon') displayText = 'Icon';
+      else if (k === 'custom_icon') displayText = 'Image';
       else if (k === 'night_mode') displayText = 'Night';
 
       btn.innerHTML = `${iconHtml}<span>${displayText}</span>`;
@@ -1930,7 +1933,7 @@ function draw(){
     let filterString = 'none'; 
     if(imgReady && imgDataUrl){ 
         if(isNightMode) filterString = 'brightness(0.25) grayscale(0.2)';
-        if(settings.bgBlur > 0) filterString += (filterString==='none'?'':' ') + `blur(${settings.bgBlur/5}px)`;
+        if(settings.bgBlur > 0) filterString = (filterString==='none'?'':filterString+' ') + `blur(${settings.bgBlur/5}px)`;
         ctx.filter = filterString; ctx.drawImage(bg, panX, panY, bg.width*scale, bg.height*scale); ctx.filter = 'none'; 
     } 
     
@@ -2211,7 +2214,7 @@ function captureCanvasData() {
 
     const HEADER_BASE = 110; 
     const HEADER_H = HEADER_BASE + estimatedNotesHeight;
-    const FOOTER_ROW_H = 22; const FOOTER_TITLE_H = 40; 
+    const FOOTER_ROW_H = 24; const FOOTER_TITLE_H = 40; 
     const items = collectRows();
     const ITEM_COUNT = items.length; 
     const FOOTER_H = ITEM_COUNT > 0 ? (FOOTER_TITLE_H + ITEM_COUNT * FOOTER_ROW_H + 40) : 0;
@@ -2246,15 +2249,15 @@ function captureCanvasData() {
         
         o.textAlign = 'right';
         o.fillStyle = '#1e293b'; 
-        roundRect(o, OUT_W - 320, 15, 308, 65, 8); o.fill();
+        roundRect(o, OUT_W - 240, 15, 228, 65, 8); o.fill(); // Narrower horizontal box
         o.strokeStyle = '#334155'; o.stroke();
         
-        o.fillStyle = '#f1f5f9'; o.font = 'bold 11px "Inter", system-ui';
+        o.fillStyle = '#f1f5f9'; o.font = 'bold 10px "Inter", system-ui';
         if (isCC) {
-            o.fillText('TIMER STATUS: CUSTOMER CONTROLLED', OUT_W - 25, 40);
+            o.fillText('CUSTOMER CONTROLLED', OUT_W - 25, 40);
         } else {
-            o.fillText(`TIMER 1: ${timerOn1 || '--'} to ${timerOff1 || '--'}`, OUT_W - 25, 30);
-            o.fillText(`TIMER 2: ${timerOn2 || '--'} to ${timerOff2 || '--'}`, OUT_W - 25, 50);
+            o.fillText(`T1: ${timerOn1 || '--'} to ${timerOff1 || '--'}`, OUT_W - 25, 30);
+            o.fillText(`T2: ${timerOn2 || '--'} to ${timerOff2 || '--'}`, OUT_W - 25, 50);
         }
 
         // Notes Area
@@ -2271,13 +2274,13 @@ function captureCanvasData() {
         // Map rendering area (apply filters like blur and night mode)
         let imageFilter = 'none'; 
         if(isNightMode) imageFilter = 'brightness(0.25) grayscale(0.2)';
-        if(settings.bgBlur > 0) imageFilter += (imageFilter==='none'?'':' ') + `blur(${settings.bgBlur/5}px)`;
+        if(settings.bgBlur > 0) imageFilter = (imageFilter==='none'?'':imageFilter+' ') + `blur(${settings.bgBlur/5}px)`;
         o.filter = imageFilter;
         if (imgReady && !imgDataUrl) { o.fillStyle = 'white'; o.fillRect(0, HEADER_H, OUT_W, MAP_H_PX); } 
         else { o.drawImage(bg, minX, minY, cropW, cropH, 0, HEADER_H, OUT_W, MAP_H_PX); }
         o.filter = 'none';
 
-        // Arrows & Map Objects
+        // Redraw Map Items for export
         data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
         ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
         
@@ -2291,8 +2294,7 @@ function captureCanvasData() {
                      let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
                      const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y); 
                      
-                     // Density Match Logic:
-                     // Calculate count based on the ORIGINAL workspace zoom scale to match what the user sees
+                     // Density Match Logic: zoom-dependent density
                      const workspaceDist = dist * (oldScale / scale);
                      let count = Math.floor(workspaceDist/150 * settings.arrowFreqFactor);
                      
@@ -2320,32 +2322,34 @@ function captureCanvasData() {
             o.fillStyle = '#1e293b'; o.fillRect(0, footY, OUT_W, FOOTER_H);
             
             o.fillStyle = '#3b82f6'; o.font = 'bold 15px "Inter", system-ui'; o.textAlign = 'left'; 
-            o.fillText('LINE INFORMATION SUMMARY', 12, footY + 20);
+            o.textBaseline = 'top';
+            o.fillText('LINE INFORMATION SUMMARY', 12, footY + 12);
             
             let y = footY + FOOTER_TITLE_H;
             const cols = [ { label: 'TYPE', w: 0.15 }, { label: 'ID', w: 0.08 }, { label: 'FT', w: 0.08 }, { label: 'BULBS', w: 0.08 }, { label: 'CLIP', w: 0.12 }, { label: 'COLOUR', w: 0.15 }, { label: 'NOTES', w: 0.3 } ];
             
             o.fillStyle = '#0f172a';
-            roundRect(o, 8, y-4, OUT_W-16, 22, 6); o.fill();
+            roundRect(o, 8, y-2, OUT_W-16, 22, 6); o.fill();
 
             o.fillStyle = '#3b82f6'; o.font = 'bold 10px "Inter", system-ui';
-            let headerX = 15; cols.forEach(c => { o.fillText(c.label, headerX, y); headerX += OUT_W * c.w; });
+            o.textBaseline = 'middle';
+            let headerX = 15; cols.forEach(c => { o.fillText(c.label, headerX, y + 9); headerX += OUT_W * c.w; });
             
             o.fillStyle = '#f1f5f9'; o.font = '11px "Inter", system-ui';
             y += 24;
             items.sort((a,b)=>a.label.localeCompare(b.label, undefined, {numeric:true})).forEach(r => {
                 let x = 15;
-                o.fillText(pretty[r.L] || r.L, x, y); x += OUT_W * cols[0].w;
-                o.fillText(r.label, x, y); x += OUT_W * cols[1].w;
-                o.fillText(r.ft || '-', x, y); x += OUT_W * cols[2].w;
-                o.fillText(r.bulbs || '-', x, y); x += OUT_W * cols[3].w;
-                o.fillText(r.clip || '-', x, y); x += OUT_W * cols[4].w;
-                o.fillText(r.col || '-', x, y); x += OUT_W * cols[5].w;
-                o.fillText(r.notes || '-', x, y);
+                o.fillText(pretty[r.L] || r.L, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[0].w;
+                o.fillText(r.label, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[1].w;
+                o.fillText(r.ft || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[2].w;
+                o.fillText(r.bulbs || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[3].w;
+                o.fillText(r.clip || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[4].w;
+                o.fillText(r.col || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[5].w;
+                o.fillText(r.notes || '-', x, y + FOOTER_ROW_H/2);
                 y += FOOTER_ROW_H;
                 
                 o.strokeStyle = '#334155'; o.lineWidth = 0.5;
-                o.beginPath(); o.moveTo(12, y - 4); o.lineTo(OUT_W - 12, y - 4); o.stroke();
+                o.beginPath(); o.moveTo(12, y); o.lineTo(OUT_W - 12, y); o.stroke();
             });
         }
     } finally {
