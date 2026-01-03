@@ -728,7 +728,7 @@ lineScaleInput.oninput = (e) => { settings.lineScale = parseFloat(e.target.value
 iconScaleInput.oninput = (e) => { settings.iconScale = parseFloat(e.target.value); updateIconScaleUI(); requestRender(); };
 junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(e.target.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
 labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(e.target.value); updateLabelScaleUI(); requestRender(); };
-arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(e.target.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
+arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
 
 function toggleNightMode(isManualToggle=true) {
     isNightMode = !isNightMode;
@@ -853,7 +853,7 @@ function refreshTable(){
         const select = tr.querySelector('.clip-select');
         const fraCheck = tr.querySelector('.fra-checkbox');
         const gguardCheck = tr.querySelector('.gg-checkbox'); 
-        const inputId = tr.querySelector('input[style*="width:50px"]');
+        const inputId = tr.querySelector('input[style*=\"width:50px\"]');
         const inputCol = tr.querySelector('input[placeholder="Col"]');
         const inputFt = tr.querySelector('input[placeholder="ft"]');
         const inputBulbs = tr.querySelector('input[placeholder="#"]');
@@ -1050,6 +1050,14 @@ quickEditPrefix.oninput = (e) => {
 };
 quickEditPrefix.onchange = () => {
     refreshTable();
+};
+
+document.getElementById('quickDeleteBtn').onclick = () => {
+    if (selectedItem) {
+        deleteItem(selectedItem);
+        selectedItem = null;
+        updateModeTag();
+    }
 };
 
 function updateModeTag(){
@@ -1375,7 +1383,7 @@ cv.addEventListener('pointermove',e=>{
                  if (newWorldW > 0.05) { const newScale = newWorldW / ci.w; ci.scale = newScale; }
             }
         } else {
-            let snap = getSnap(x, y, 25); const ptVal = snap ? {x:snap.x, y:sn.y} : w;
+            let snap = getSnap(x, y, 25); const ptVal = snap ? {x:snap.x, y:snap.y} : w;
             if (draggingPoint.index === -1 && draggingPoint.obj.pt) draggingPoint.obj.pt = ptVal;
             else if (draggingPoint.obj.points) draggingPoint.obj.points[draggingPoint.index] = ptVal;
         }
@@ -1413,7 +1421,31 @@ cv.addEventListener('pointermove',e=>{
 
 cv.addEventListener('pointerup',e=>{
     const wasGesture = gesture;
-    if (pointers.size === 1 && !wasGesture) { if (draggingPoint) { draggingPoint = null; markPowerDirty(); requestRender(); } }
+    if (pointers.size === 1 && !wasGesture) { 
+        if (draggingPoint) {
+            // Logic to handle connecting a moved vertex to another line segment (splitting the segment)
+            const r = canvasWrap.getBoundingClientRect();
+            const sx = e.clientX - r.left;
+            const sy = e.clientY - r.top;
+            const sn = getSnap(sx, sy, 25);
+            
+            if (sn && sn.type === 'proj' && sn.host) {
+                const pt = {x: sn.x, y: sn.y};
+                const host = sn.host;
+                const idx = sn.seg;
+                // Splice host line only if it's not already near an existing vertex
+                if(Math.hypot(pt.x - host.points[idx].x, pt.y - host.points[idx].y) > 0.1 &&
+                   Math.hypot(pt.x - host.points[idx+1].x, pt.y - host.points[idx+1].y) > 0.1) {
+                    host.points.splice(idx + 1, 0, pt);
+                    if(host.cps) host.cps.splice(idx + 1, 0, null);
+                }
+            }
+            draggingPoint = null; 
+            markPowerDirty(); 
+            requestRender();
+            refreshTable();
+        } 
+    }
     if (mode === 'move' && dragStartPt) dragStartPt = null;
     if (mode === 'move-label' && draggedLabelTarget) draggedLabelTarget = null;
     
