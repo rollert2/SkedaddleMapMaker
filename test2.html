@@ -855,7 +855,7 @@ function refreshTable(){
              const color = getColorCode('black');
              colorInputHtml = `<span style="color:#fff; font-weight:bold; background:${color}; padding: 2px 6px; border-radius: 4px; font-size:11px;">Black</span>`; 
         } else {
-             const displayValue = processedColorCode.toLowerCase().includes('red/blue') ? 'Multi' : rawColorValue;
+             const displayValue = (processedColorCode.toLowerCase().includes('red/blue') || rawColorValue.toLowerCase().includes('multi') || rawColorValue.toLowerCase() === 'm') ? 'Multi' : rawColorValue;
              colorInputHtml = `<input class="edit" placeholder="Col" value="${displayValue}">`;
         }
 
@@ -1851,6 +1851,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
 
     if (isNightMode && isLightElement) { glowStrength = CORE_GLOW_BLUR; ctx.shadowBlur = glowStrength; } else { ctx.shadowBlur = 0; }
     
+    const drawPathSegments = () => { for (let i = 0; i < points.length - 1; i++) { const p2 = points[i+1]; const cp = cps[i] || null; if (cp) ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y); else ctx.lineTo(p2.x, p2.y); } };
     const drawDashedPath = (styleFn) => {
         for (let i = 0; i < points.length - 1; i++) {
             const p1 = points[i]; const p2 = points[i+1]; const cp = cps[i] || null;
@@ -2151,7 +2152,7 @@ function buildPayload() {
     };
 }
 
-function getFilenameBase() { const year = new Date().getFullYear(); const nm = (document.getElementById('customer').value || 'Untitled').trim(); return `(${nm} - ${year} Map)`; }
+function getFilenameBase() { const year = new Date().getFullYear(); const nm = (document.getElementById('customer').value || 'Untitled').trim(); return `${nm} - ${year} Map`; }
 
 async function performSaveMapOnly() {
     const filenameMap = `${getFilenameBase()}.skmap`; const payload = buildPayload(); const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
@@ -2202,6 +2203,7 @@ function captureCanvasData() {
     
     const cropW = maxX - minX; const cropH = maxY - minY; const DPI = 2; const MAP_WIDTH_PX = 1000; const MAP_H_PX = Math.round((MAP_WIDTH_PX / cropW) * cropH);
     
+    // Virtual testing for word wrap height
     const testCanvas = document.createElement('canvas');
     const tCtx = testCanvas.getContext('2d');
     tCtx.font = 'italic 11px "Inter", system-ui';
@@ -2256,10 +2258,10 @@ function captureCanvasData() {
         roundRect(o, OUT_W - timerBoxW - 12, 15, timerBoxW, 65, 8); o.fill(); 
         o.strokeStyle = '#334155'; o.stroke();
         
-        o.fillStyle = '#fbbf24'; o.font = 'bold 10px "Inter", system-ui'; o.textAlign = 'center';
+        o.fillStyle = '#fbbf24'; o.font = 'bold 12px "Inter", system-ui'; o.textAlign = 'center';
         o.fillText('TIMER SETTINGS', OUT_W - (timerBoxW/2) - 12, 25);
         
-        o.fillStyle = '#f1f5f9'; o.font = 'bold 12px "Inter", system-ui';
+        o.fillStyle = '#f1f5f9'; o.font = 'bold 13px "Inter", system-ui';
         o.textBaseline = 'middle';
         if (isCC) {
             o.fillText('CUSTOMER CONTROLLED', OUT_W - (timerBoxW/2) - 12, 52);
@@ -2298,7 +2300,7 @@ function captureCanvasData() {
                  if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
                      let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
-                     const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y); 
+                     const dist = ds(uPos, vPos); 
                      
                      const workspaceDist = dist * (oldScale / scale);
                      let count = Math.floor(workspaceDist/150 * settings.arrowFreqFactor);
@@ -2354,7 +2356,7 @@ function captureCanvasData() {
                 if (r.L === 'garland' || r.L === 'wreath' || (r.L === 'shrub' && !r.col)) { displayCol = 'Green'; } 
                 else if (r.L === 'cords') { displayCol = 'Black'; } 
                 else { 
-                    if (normalizedRCol.includes('multi') || normalizedRCol.includes('red/blue')) { displayCol = 'Multi'; } 
+                    if (normalizedRCol.includes('multi') || normalizedRCol.includes('red/blue') || normalizedRCol === 'm') { displayCol = 'Multi'; } 
                     else if (r.col === '') { displayCol = 'Warm White'; } 
                     else { displayCol = r.col; } 
                 }
