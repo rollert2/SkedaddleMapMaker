@@ -226,6 +226,7 @@ textarea.input { resize: vertical; min-height: 80px; }
 .clip-legend dt { font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: 8px; }
 .clip-legend dd { margin: 0; color: var(--text); }
 
+/* Legend Icons */
 .leg-sq { width: 10px; height: 10px; background: var(--danger); display: inline-block; }
 .leg-tri { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 10px solid var(--warning); display: inline-block; }
 
@@ -742,7 +743,7 @@ function updateArrowFreqUI() { settings.arrowFreqFactor = parseFloat(arrowFreqIn
 lineScaleInput.oninput = (e) => { settings.lineScale = parseFloat(e.target.value); updateLineScaleUI(); markPowerDirty(); requestRender(); };
 iconScaleInput.oninput = (e) => { settings.iconScale = parseFloat(e.target.value); updateIconScaleUI(); requestRender(); };
 bgBlurInput.oninput = (e) => { settings.bgBlur = parseInt(e.target.value); updateBgBlurUI(); requestRender(); };
-junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(e.target.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
+junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(junctionScaleInput.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
 labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(e.target.value); updateLabelScaleUI(); requestRender(); };
 arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
 
@@ -2127,9 +2128,17 @@ document.getElementById('gPickMap').onclick=()=>document.getElementById('gMap').
 document.getElementById('gImg').onchange=e=>{ handleImg(e.target.files[0]); e.target.value=''; };
 document.getElementById('gMap').onchange=e=>{ handleMap(e.target.files[0]); e.target.value=''; };
 
-document.getElementById('btnSaveAll').onclick = (e) => { e.preventDefault(); performSaveMapOnly(); };
+const delay = ms => new Promise(res => setTimeout(res, ms));
+document.getElementById('btnSaveAll').onclick = (e) => { e.preventDefault(); performDualSave(); };
 document.getElementById('btnSaveImageOnly').onclick = () => { performSavePdf(); };
 document.getElementById('btnSaveMapOnly').onclick = () => { performSaveMapOnly(); };
+
+async function performDualSave() {
+    const mapSuccess = await performSaveMapOnly(); 
+    await delay(3000); 
+    const pdfSuccess = await performSavePdf();
+    return mapSuccess || pdfSuccess;
+}
 
 function buildPayload() {
     const isCC = document.getElementById('btnCustomerControlled').classList.contains('toggled');
@@ -2305,7 +2314,7 @@ function captureCanvasData() {
                  if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
                      let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
-                     const dist = ds(uPos, vPos); 
+                     const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y); 
                      
                      // Density Match Logic: zoom-dependent density
                      const workspaceDist = dist * (oldScale / scale);
