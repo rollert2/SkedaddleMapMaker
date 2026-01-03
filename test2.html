@@ -728,7 +728,7 @@ lineScaleInput.oninput = (e) => { settings.lineScale = parseFloat(e.target.value
 iconScaleInput.oninput = (e) => { settings.iconScale = parseFloat(e.target.value); updateIconScaleUI(); requestRender(); };
 junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(e.target.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
 labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(e.target.value); updateLabelScaleUI(); requestRender(); };
-arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
+arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(e.target.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
 
 function toggleNightMode(isManualToggle=true) {
     isNightMode = !isNightMode;
@@ -1432,7 +1432,6 @@ cv.addEventListener('pointerup',e=>{
             const sx = e.clientX - r.left;
             const sy = e.clientY - r.top;
             
-            // Check for segments to splice into, excluding the dragged item itself
             const sn = getSnap(sx, sy, 25, draggingPoint.obj);
             
             if (sn && sn.type === 'proj' && sn.host) {
@@ -1440,7 +1439,6 @@ cv.addEventListener('pointerup',e=>{
                 const host = sn.host;
                 const idx = sn.seg;
                 
-                // Ensure the snapped point isn't already close to an existing vertex of the host
                 if(Math.hypot(pt.x - host.points[idx].x, pt.y - host.points[idx].y) > 0.1 &&
                    Math.hypot(pt.x - host.points[idx+1].x, pt.y - host.points[idx+1].y) > 0.1) {
                     host.points.splice(idx + 1, 0, {x: pt.x, y: pt.y});
@@ -1929,7 +1927,7 @@ function draw(){
                 const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
                 let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else if(vNode.dist < uNode.dist) { from = vPos; to = uPos; isReversed = true; } else return; 
                 const cp = e.cps ? toScr(e.cps) : null; const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y);
-                let count = Math.floor(dist/150 * settings.arrowFreqFactor); if (e.type !== 'cords' && count === 0 && settings.arrowFreqFactor > 0.5) count = 1; 
+                let count = Math.floor(dist/150 * settings.arrowFreqFactor); 
                 if(cp) {
                     for(let k=1; k<=count; k++){
                         let t = k / (count+1); const invT = 1 - t;
