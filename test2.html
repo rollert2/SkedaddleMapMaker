@@ -581,7 +581,7 @@ const iconMap = {
 /* ------------------------ BETA: GITHUB CLOUD SAVING ------------------- */
 /* ---------------------------------------------------------------------- */
 const githubConfig = {
-    token: "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",
+    token: "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".trim(),
     owner: "rollert2",
     repo: "SkedaddleMapMaker",
     path: "maps/",
@@ -593,7 +593,7 @@ async function saveToGitHub(filename, content, isBase64 = false) {
     
     try {
         let sha = null;
-        const checkRes = await fetch(url, { headers: { "Authorization": `token ${githubConfig.token}` } });
+        const checkRes = await fetch(url, { headers: { "Authorization": `Bearer ${githubConfig.token}` } });
         if (checkRes.ok) {
             const data = await checkRes.json();
             sha = data.sha;
@@ -608,7 +608,7 @@ async function saveToGitHub(filename, content, isBase64 = false) {
         const saveRes = await fetch(url, {
             method: "PUT",
             headers: {
-                "Authorization": `token ${githubConfig.token}`,
+                "Authorization": `Bearer ${githubConfig.token}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify(body)
@@ -627,7 +627,7 @@ async function openGallery() {
 
     try {
         const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.path}`;
-        const res = await fetch(url, { headers: { "Authorization": `token ${githubConfig.token}` } });
+        const res = await fetch(url, { headers: { "Authorization": `Bearer ${githubConfig.token}` } });
         
         if (res.status === 404) {
             list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted)">No maps found in cloud folder.</div>';
@@ -881,7 +881,8 @@ const btnSwag = document.getElementById('btnSwag');
 btnSwag.onclick = () => { 
     chkSwag.checked = !chkSwag.checked; 
     btnSwag.classList.toggle('toggled', chkSwag.checked); 
-    if (sketch) sketch.isSwagMode = chkSwag.checked; // Sync with active sketch
+    if (sketch && sketch.layer === 'garland') sketch.isSwagMode = chkSwag.checked;
+    if (selectedItem && selectedItem.type === 'garland') { selectedItem.obj.isSwagMode = chkSwag.checked; markPowerDirty(); }
     requestRender();
 };
 
@@ -890,7 +891,8 @@ const btnPillar = document.getElementById('btnPillar');
 btnPillar.onclick = () => { 
     chkPillar.checked = !chkPillar.checked; 
     btnPillar.classList.toggle('toggled', chkPillar.checked); 
-    if (sketch) sketch.isPillarMode = chkPillar.checked; // Sync with active sketch
+    if (sketch && sketch.layer === 'garland') sketch.isPillarMode = chkPillar.checked;
+    if (selectedItem && selectedItem.type === 'garland') { selectedItem.obj.isPillarMode = chkPillar.checked; markPowerDirty(); }
     requestRender();
 };
 
@@ -1181,10 +1183,11 @@ function selectTool(L, variant=null){
     if(currLayer === 'garland') {
         document.getElementById('btnSwag').style.display = 'inline-flex';
         document.getElementById('btnPillar').style.display = 'inline-flex'; 
+        btnPillar.classList.toggle('toggled', chkPillar.checked);
+        btnSwag.classList.toggle('toggled', chkSwag.checked);
     } else {
         document.getElementById('btnSwag').style.display = 'none';
         document.getElementById('btnPillar').style.display = 'none'; 
-        chkPillar.checked = false; btnPillar.classList.remove('toggled');
     }
     redoStack = []; document.getElementById('btnRedo').disabled = true;
 }
@@ -1249,6 +1252,14 @@ function updateModeTag(){
              moveLabelToggleBtn.style.display = isLabelable ? 'inline-flex' : 'none';
              if (isLabelable) quickEditPrefix.value = selectedItem.obj.label || '';
              if (mode === 'move-label') moveLabelToggleBtn.classList.add('toggled');
+             
+             // Toggle Garland buttons contextually if a garland is selected
+             if (selectedItem.type === 'garland') {
+                 document.getElementById('btnSwag').style.display = 'inline-flex';
+                 document.getElementById('btnPillar').style.display = 'inline-flex';
+                 btnPillar.classList.toggle('toggled', !!selectedItem.obj.isPillarMode);
+                 btnSwag.classList.toggle('toggled', !!selectedItem.obj.isSwagMode);
+             }
          }
     } else if (mode === 'label') {
          t.textContent = 'Label'; t.style.borderColor = '#22c55e'; t.style.color = '#22c55e';
@@ -2063,7 +2074,12 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
             const p1 = points[i]; const p2 = points[i+1]; const cp = cps[i] || null;
             ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
             const isDotted = it.isPillarMode && layerName === 'garland' && (i % 2 !== 0); 
-            if (isDotted) ctx.setLineDash([5 * settings.lineScale * scale, 5 * settings.lineScale * scale]); else ctx.setLineDash([]); 
+            if (isDotted) {
+                const dashLen = 8 * settings.lineScale * scale;
+                ctx.setLineDash([dashLen, dashLen]);
+            } else {
+                ctx.setLineDash([]);
+            }
             if (cp) ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y); else ctx.lineTo(p2.x, p2.y);
             styleFn(isDotted); ctx.stroke(); ctx.setLineDash([]); 
         }
@@ -2095,7 +2111,12 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
                 if (blockDist > 0.1) {
                     if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
                     ctx.beginPath(); ctx.moveTo(lastDrawnPoint.x, lastDrawnPoint.y); ctx.lineTo(endPoint.x, endPoint.y);
-                    if (isDottedSegment) ctx.setLineDash([5 * settings.lineScale * scale, 5 * settings.lineScale * scale]); else ctx.setLineDash([]); 
+                    if (isDottedSegment) {
+                        const dashLen = 8 * settings.lineScale * scale;
+                        ctx.setLineDash([dashLen, dashLen]);
+                    } else {
+                        ctx.setLineDash([]);
+                    }
                     ctx.strokeStyle = color; ctx.lineWidth = baseWidth; ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur = 0; 
                 }
                 currentDistInSegment += blockDist; lastDrawnPoint = endPoint; colorIndex++; 
@@ -2259,7 +2280,7 @@ function draw(){
 
     if(sketch && sketch.points.length>0){
         const cursor = cv._mx!=null ? toWorld(cv._mx, cv._my) : null; const pts = [...sketch.points]; if(cursor) pts.push(cursor);
-        const skObj = {points: pts, cps: sketch.cps || [], layer: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode}; 
+        const skObj = {points: pts, cps: sketch.cps || [], layer: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode, isSwagMode: sketch.isSwagMode}; 
         const sketchColor = getColorCode(sketch.col) || colorOf(sketch.layer);
         drawContinuousLine(skObj, sketchColor, sketch.layer); 
     }
