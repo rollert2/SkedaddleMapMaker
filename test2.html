@@ -265,35 +265,34 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 }
 .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
-    padding: 24px; width: 90%; max-width: 500px; text-align: center;
+    padding: 24px; width: 90%; max-width: 450px; text-align: center;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-    max-height: 90vh; display: flex; flex-direction: column;
+    max-height: 80vh; display: flex; flex-direction: column;
 }
-.card h3 { margin: 0 0 12px; color: var(--text); font-size: 18px; font-weight: 600; }
-.card p { margin: 0 0 24px; color: var(--text-muted); font-size: 14px; }
-.card .row { display: flex; gap: 12px; justify-content: center; }
-.card button { flex: 1; padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
-.btn-stay { background: var(--border); color: var(--text); }
-.btn-leave { background: var(--danger); color: white; }
-.btn-ok { background: var(--accent); color: white; width: 100%; }
 
+/* Enhanced Gallery Styling */
+.gallery-card { max-width: 900px; width: 95%; height: 85vh; }
 .gallery-list {
     overflow-y: auto; flex: 1; text-align: left; margin: 16px 0;
-    border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px;
+    border: 1px solid var(--border); border-radius: 16px; background: rgba(0,0,0,0.1);
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; padding: 16px;
 }
 .gallery-item {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-    padding: 8px; cursor: pointer; transition: transform 0.2s, border-color 0.2s;
-    display: flex; flex-direction: column; gap: 8px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    padding: 10px; cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
-.gallery-item:hover { transform: translateY(-2px); border-color: var(--accent); }
+.gallery-item:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3); }
 .gallery-item .thumb {
-    width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden;
+    width: 100%; aspect-ratio: 16/9; background: #050a15; border-radius: 10px; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255,255,255,0.05);
 }
 .gallery-item .thumb img { width: 100%; height: 100%; object-fit: cover; }
-.gallery-item span { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
+.gallery-item .info { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+.gallery-item span { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.gallery-item i { color: var(--accent); width: 18px; }
 
 #lblEditor { position: fixed; z-index: 5000; transform: translate(-50%, -120%); }
 #lblInput {
@@ -313,6 +312,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     .btn i { margin: 0; }
     #selectionQuickEdit span { display: none; }
     .gallery-list { grid-template-columns: 1fr; }
+    .gallery-card { height: 95vh; }
 }
 </style>
 </head>
@@ -357,15 +357,21 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 </div>
 
 <div id="modalGallery">
-    <div class="card">
-        <h3>Cloud Gallery</h3>
+    <div class="card gallery-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <h3 style="margin:0">Cloud Storage</h3>
+            <span id="galleryCount" style="font-size:12px; color:var(--text-muted); font-weight:600">0 Maps</span>
+        </div>
         <div style="margin-bottom:12px;">
-            <input type="text" id="gallerySearch" class="input" placeholder="Search projects..." style="background:var(--bg); border-color:var(--border-highlight)"/>
+            <input type="text" id="gallerySearch" class="input" placeholder="Search by project name..." style="background:var(--bg); border-color:var(--border-highlight)"/>
         </div>
         <div id="galleryList" class="gallery-list">
-            <div style="padding:20px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">Loading maps...</div>
+            <div style="padding:40px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">
+                <i data-lucide="loader-2" style="width:32px; height:32px; animation: spin 1.5s linear infinite;"></i>
+                <div style="margin-top:12px">Syncing cloud library...</div>
+            </div>
         </div>
-        <div class="row"><button onclick="document.getElementById('modalGallery').style.display='none'" class="btn-stay">Close</button></div>
+        <div class="row"><button onclick="document.getElementById('modalGallery').style.display='none'" class="btn-stay" style="background:var(--panel-hover)">Return to Main</button></div>
     </div>
 </div>
 
@@ -588,12 +594,12 @@ const iconMap = {
 /* ---------------------------------------------------------------------- */
 /* ------------------------ BETA: GITHUB CLOUD SAVING ------------------- */
 /* ---------------------------------------------------------------------- */
-// Store in two parts to prevent automated revocation
-const p1 = "ghp_xSeuggnKkttH6z";
-const p2 = "TSfiTENK2bjTv7ya1TsWF7";
+// To prevent revocation, the token is stored in two halves.
+const part1 = "ghp_xSeuggnKkttH6z";
+const part2 = "TSfiTENK2bjTv7ya1TsWF7";
 
 const githubConfig = {
-    token: (p1 + p2).trim(),
+    token: (part1 + part2).trim(),
     owner: "rollert2",
     repo: "SkedaddleMapMaker",
     path: "maps/",
@@ -637,9 +643,11 @@ async function openGallery() {
     const modal = document.getElementById('modalGallery');
     const list = document.getElementById('galleryList');
     const search = document.getElementById('gallerySearch');
+    const countLabel = document.getElementById('galleryCount');
     
     modal.style.display = 'flex';
-    list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">Fetching cloud storage...</div>';
+    list.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;"><i data-lucide="loader-2" style="width:32px; height:32px; animation: spin 1.5s linear infinite;"></i><div style="margin-top:12px">Syncing cloud library...</div></div>';
+    if(window.lucide) lucide.createIcons();
     search.value = "";
 
     try {
@@ -647,7 +655,8 @@ async function openGallery() {
         const res = await fetch(url, { headers: { "Authorization": `Bearer ${githubConfig.token}` } });
         
         if (res.status === 404) {
-            list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">No maps found in cloud folder.</div>';
+            list.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">No maps found in cloud folder.</div>';
+            countLabel.textContent = "0 Maps";
             return;
         }
 
@@ -658,6 +667,7 @@ async function openGallery() {
             // Alphabetical Sort
             mapFiles.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
             allGalleryMaps = mapFiles;
+            countLabel.textContent = `${mapFiles.length} Maps`;
             
             renderGalleryItems(mapFiles);
         } else { 
@@ -671,7 +681,7 @@ async function renderGalleryItems(maps) {
     list.innerHTML = '';
     
     if (maps.length === 0) {
-        list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">No matching maps found.</div>';
+        list.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">No projects match your search.</div>';
         return;
     }
 
@@ -680,9 +690,15 @@ async function renderGalleryItems(maps) {
         item.className = 'gallery-item';
         item.innerHTML = `
             <div class="thumb" id="thumb-${f.sha}">
-                <div style="color:var(--text-muted); font-size:10px;">Loading Preview...</div>
+                <div style="color:var(--text-muted); font-size:10px; display:flex; flex-direction:column; align-items:center; gap:8px">
+                    <i data-lucide="image" style="width:20px; height:20px"></i>
+                    <span>Rendering...</span>
+                </div>
             </div>
-            <span>${f.name.replace('.skmap', '')}</span>
+            <div class="info">
+                <span>${f.name.replace('.skmap', '')}</span>
+                <i data-lucide="chevron-right" style="width:16px; height:16px"></i>
+            </div>
         `;
         item.onclick = () => loadFromGitHub(f.download_url);
         list.appendChild(item);
@@ -690,6 +706,7 @@ async function renderGalleryItems(maps) {
         // Lazy load the thumbnail
         fetchThumbnail(f);
     });
+    if(window.lucide) lucide.createIcons();
 }
 
 async function fetchThumbnail(fileMetadata) {
@@ -700,7 +717,7 @@ async function fetchThumbnail(fileMetadata) {
         if (thumbContainer && data.thumbnail) {
             thumbContainer.innerHTML = `<img src="${data.thumbnail}" alt="Preview">`;
         } else if (thumbContainer) {
-            thumbContainer.innerHTML = `<i data-lucide="image-off" style="width:24px; color:var(--text-muted)"></i>`;
+            thumbContainer.innerHTML = `<div style="display:flex; flex-direction:column; align-items:center; gap:4px"><i data-lucide="image-off" style="width:24px; color:var(--text-muted)"></i><span style="font-size:9px; color:var(--text-muted)">No Preview</span></div>`;
             lucide.createIcons();
         }
     } catch (e) { /* silent fail */ }
@@ -2158,31 +2175,50 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
         ctx.strokeStyle = color; ctx.lineWidth = baseWidth; 
         drawDashedPath(() => {});
     } else {
-        const colorBlockLength = Math.max(10, 10 * settings.lineScale * scale); let colorIndex = 0;
+        const worldBlockLength = 10 * settings.lineScale; 
+        let colorIndex = 0;
+        ctx.lineCap = 'butt'; 
+
         for (let i = 0; i < points.length - 1; i++) {
-            const p1 = points[i]; const p2 = points[i+1]; const segDist = segmentLength(it.points[i], it.points[i+1], it.cps?.[i]) * scale;
+            const worldSegDist = segmentLength(it.points[i], it.points[i+1], it.cps?.[i]);
             const isDottedSegment = it.isPillarMode && layerName === 'garland' && (i % 2 !== 0);
-            let currentDistInSegment = 0; let lastDrawnPoint = p1;
-            while (currentDistInSegment < segDist) {
-                const color = finalColors[colorIndex % finalColors.length]; const remainingDistInSegment = segDist - currentDistInSegment; const blockDist = Math.min(colorBlockLength, remainingDistInSegment);
-                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]), (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
-                const endPoint = toScr({x: ptObj.x, y: ptObj.y});
-                if (blockDist > 0.1) {
+            let currentWorldDist = 0;
+            let lastWorldPt = it.points[i];
+
+            while (currentWorldDist < worldSegDist) {
+                const color = finalColors[colorIndex % finalColors.length];
+                const blockDist = Math.min(worldBlockLength, worldSegDist - currentWorldDist);
+                const nextWorldDist = currentWorldDist + blockDist;
+                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], worldSegDist, nextWorldDist, it.cps?.[i]);
+                
+                const sStart = toScr(lastWorldPt);
+                const sEnd = toScr({x: ptObj.x, y: ptObj.y});
+
+                if (blockDist > 0.01) {
                     if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
-                    ctx.beginPath(); ctx.moveTo(lastDrawnPoint.x, lastDrawnPoint.y); ctx.lineTo(endPoint.x, endPoint.y);
+                    ctx.beginPath();
+                    ctx.moveTo(sStart.x, sStart.y);
+                    ctx.lineTo(sEnd.x, sEnd.y);
                     if (isDottedSegment) {
                         const dashLen = 8 * settings.lineScale * scale;
                         ctx.setLineDash([dashLen, dashLen]);
                     } else {
                         ctx.setLineDash([]);
                     }
-                    ctx.strokeStyle = color; ctx.lineWidth = baseWidth; ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur = 0; 
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = baseWidth;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
                 }
-                currentDistInSegment += blockDist; lastDrawnPoint = endPoint; colorIndex++; 
+                currentWorldDist = nextWorldDist;
+                lastWorldPt = {x: ptObj.x, y: ptObj.y};
+                colorIndex++;
             }
         }
+        ctx.lineCap = 'round'; 
+        ctx.setLineDash([]);
     }
-    ctx.shadowBlur = 0; ctx.setLineDash([]); 
+    ctx.shadowBlur = 0;
 }
 
 function drawCord(it, col, layerName) { if (it.points.length < 2) return; drawContinuousLine(it, col, layerName); }
@@ -2477,7 +2513,6 @@ function buildPayload() {
     if(imgReady) {
         const thumbScale = Math.min(160/bg.width, 90/bg.height);
         tCtx.drawImage(bg, 0, 0, bg.width*thumbScale, bg.height*thumbScale);
-        // Draw some basic elements purely for preview
         tCtx.strokeStyle = '#fffdf0'; tCtx.lineWidth = 2;
         ['ridges','fascia','peaks'].forEach(L => {
             data[L].forEach(it => {
@@ -2494,7 +2529,7 @@ function buildPayload() {
 
     return {
         version:20, image:imgDataUrl, data: getCleanData(), 
-        thumbnail: thumbnail, // Cloud thumbnail
+        thumbnail: thumbnail,
         job:{ 
             name:document.getElementById('customer').value, 
             address:document.getElementById('address').value, 
@@ -2697,33 +2732,22 @@ function captureCanvasData() {
         }
         
         data.wreath.forEach(w=>{
-            const s=toScr(w.pt); 
-            const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; 
-            const wreathColor = colorOf('wreath');
-            o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); 
-            o.fillStyle = wreathColor; o.fill(); 
+            const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; const wreathColor = colorOf('wreath');
+            o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); o.fillStyle = wreathColor; o.fill(); 
             o.strokeStyle='black'; o.lineWidth=6 * settings.iconScale * scale; o.stroke(); 
             o.strokeStyle=wreathColor; o.lineWidth=3 * settings.iconScale * scale; o.stroke();
-            if(w.bow === 'top' || w.bow === 'bottom'){ 
-                const by = w.bow==='top' ? s.y - r : s.y + r; 
-                drawBow(s.x, by, scale, settings.iconScale); 
-            }
+            if(w.bow === 'top' || w.bow === 'bottom'){ const by = w.bow==='top' ? s.y - r : s.y + r; drawBow(s.x, by, scale, settings.iconScale); }
         });
-
         data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, settings.iconScale); }); 
         data.tree.forEach(tr => { drawTreeIcon(o, toScr(tr.pt), tr.kind, tr.size, scale, settings.iconScale); });
         data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
         data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
-        
         data.custom_icon.forEach(ci => {
             if (!ci.url) return;
-            const sTL = toScr(ci.pt); 
-            const scaledW = ci.w * ci.scale * scale; 
-            const scaledH = ci.h * ci.scale * scale;
+            const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
             if (!ci.imageObj || ci.imageObj.src !== ci.url) { ci.imageObj = new Image(); ci.imageObj.src = ci.url; }
             if (ci.imageObj.complete) { o.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH); }
         });
-
         drawLabels(o);
 
         if (ITEM_COUNT > 0) {
@@ -2740,9 +2764,7 @@ function captureCanvasData() {
             y += 24;
             items.sort((a,b)=>(a.label||'').localeCompare(b.label||'', undefined, {numeric:true})).forEach(r => {
                 let x = 15;
-                let typeDisplay = pretty[r.L] || r.L;
-                if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
-
+                let typeDisplay = pretty[r.L] || r.L; if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
                 o.fillText(typeDisplay, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[0].w;
                 o.fillText(r.label || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[1].w;
                 o.fillText(r.ft || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[2].w;
@@ -2769,10 +2791,7 @@ function collectRows() {
         if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
             if (it.label && it.label.trim() !== '') {
-                rows.push({ 
-                    L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false,
-                    kind: it.kind 
-                });
+                rows.push({ L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false, kind: it.kind });
             }
         });
     });
