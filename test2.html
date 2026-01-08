@@ -1524,14 +1524,21 @@ function placeItem(L, w, sx, sy){
 }
 
 function placeTree(L, w, sx, sy, label, index) {
-    if (currTreeKind === 'ToL') {
+    // Check for 'tree:ToL' which matches your tool definition
+    if (currTreeKind === 'tree:ToL' || currTreeKind === 'ToL') { 
         openPop(document.getElementById('tolPop'), sx, sy, (size) => {
-            const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size), ft: size};
-            data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
+            const item = {pt:w, label:label, index:index, kind: 'ToL', size: parseInt(size), ft: size};
+            data[L].push(item); 
+            markPowerDirty(); 
+            requestRender(); 
+            refreshTable();
         });
     } else {
         const item = {pt:w, label:label, index:index, kind: currTreeKind};
-        data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
+        data[L].push(item); 
+        markPowerDirty(); 
+        requestRender(); 
+        refreshTable();
     }
 }
 function placeWreath(L, w, sx, sy, label, index) {
