@@ -592,7 +592,6 @@ async function saveToGitHub(filename, content, isBase64 = false) {
     const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.path}${filename}`;
     
     try {
-        // 1. Get current file (if exists) to get the SHA
         let sha = null;
         const checkRes = await fetch(url, { headers: { "Authorization": `token ${githubConfig.token}` } });
         if (checkRes.ok) {
@@ -600,11 +599,10 @@ async function saveToGitHub(filename, content, isBase64 = false) {
             sha = data.sha;
         }
 
-        // 2. Prepare content
         const body = {
             message: `Save map: ${filename}`,
             content: isBase64 ? content : btoa(unescape(encodeURIComponent(content))),
-            sha: sha // Required to update existing file
+            sha: sha
         };
 
         const saveRes = await fetch(url, {
@@ -621,7 +619,7 @@ async function saveToGitHub(filename, content, isBase64 = false) {
 }
 
 async function openGallery() {
-    if (!githubConfig.token) { showAlert("GitHub token not configured. Please add your token in the code settings."); return; }
+    if (!githubConfig.token) { showAlert("GitHub token not configured."); return; }
     const modal = document.getElementById('modalGallery');
     const list = document.getElementById('galleryList');
     modal.style.display = 'flex';
@@ -630,9 +628,15 @@ async function openGallery() {
     try {
         const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.path}`;
         const res = await fetch(url, { headers: { "Authorization": `token ${githubConfig.token}` } });
+        
+        if (res.status === 404) {
+            list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted)">No maps found in cloud folder.</div>';
+            return;
+        }
+
         if (res.ok) {
             const files = await res.json();
-            const mapFiles = files.filter(f => f.name.endsWith('.skmap'));
+            const mapFiles = Array.isArray(files) ? files.filter(f => f.name.endsWith('.skmap')) : [];
             if (mapFiles.length === 0) {
                 list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted)">No maps found in cloud folder.</div>';
                 return;
@@ -646,7 +650,10 @@ async function openGallery() {
                 list.appendChild(item);
             });
             lucide.createIcons();
-        } else { list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--danger)">Error fetching repo. Verify owner/repo settings.</div>'; }
+        } else { 
+            const errText = await res.text();
+            list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--danger)">Error ${res.status}. Check token or repo settings.</div>`; 
+        }
     } catch (err) { list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--danger)">Connection failed.</div>'; }
 }
 
@@ -871,11 +878,21 @@ btnSnap.onclick = () => { chkSnap.checked = !chkSnap.checked; btnSnap.classList.
 
 const chkSwag = { checked: false };
 const btnSwag = document.getElementById('btnSwag');
-btnSwag.onclick = () => { chkSwag.checked = !chkSwag.checked; btnSwag.classList.toggle('toggled', chkSwag.checked); };
+btnSwag.onclick = () => { 
+    chkSwag.checked = !chkSwag.checked; 
+    btnSwag.classList.toggle('toggled', chkSwag.checked); 
+    if (sketch) sketch.isSwagMode = chkSwag.checked; // Sync with active sketch
+    requestRender();
+};
 
 const chkPillar = { checked: false };
 const btnPillar = document.getElementById('btnPillar');
-btnPillar.onclick = () => { chkPillar.checked = !chkPillar.checked; btnPillar.classList.remove('toggled'); };
+btnPillar.onclick = () => { 
+    chkPillar.checked = !chkPillar.checked; 
+    btnPillar.classList.toggle('toggled', chkPillar.checked); 
+    if (sketch) sketch.isPillarMode = chkPillar.checked; // Sync with active sketch
+    requestRender();
+};
 
 function isMinis(L, item) {
     if(L === 'tree') return item && item.kind !== 'C9 Tree'; 
@@ -939,7 +956,7 @@ function refreshTable(){
                 let opts = [];
                 if(r.L === 'ridges') opts = [{v:'ST', l:'Shingle'}]; 
                 else if (r.L === 'peaks') opts = [{v:'ST', l:'Shingle'}, {v:'Mag', l:'Mag'}];
-                else if (r.L === 'fascia') opts = [{v:'T', l:'Tuff'}, {v:'ST', l:'Shingle'}, {v:'Mag', l:'Mag'}];
+                else if (r.L === 'fascia') opts = [{v:'T', l:'Tuff'}, {v : 'ST', l : 'Shingle'}, {v : 'Mag', l : 'Mag'}];
                 
                 let optStr = opts.map(o => `<option value="${o.v}" ${r.item.clip===o.v?'selected':''}>${o.l}</option>`).join('');
                 clipHtml = `<select class="edit clip-select" style="width:auto; padding:4px;">${optStr}</select>`;
@@ -1661,7 +1678,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     const i = parseInt(idx);
                     const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
                 });
@@ -1801,7 +1818,7 @@ document.getElementById('btnRedo').onclick = () => {
 let sketch=null; 
 function startNewSketch(){
     const d = getNewItemData(currLayer);
-    sketch={points:[],cps:[],layer:currLayer,label:d.label, index: d.index, firstHost:null, isPillarMode: chkPillar.checked}; 
+    sketch={points:[],cps:[],layer:currLayer,label:d.label, index: d.index, firstHost:null, isPillarMode: chkPillar.checked, isSwagMode: chkSwag.checked}; 
     document.getElementById('btnComplete').disabled=true;
     document.getElementById('btnComplete').classList.remove('selectable');
 }
@@ -1831,7 +1848,7 @@ function handleTap(sx,sy){
             if(chkSwag.checked && currLayer === 'garland') {
                 const mx = (p1.x + p2.x) / 2; const my = (p1.y + p2.y) / 2; const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
                 sketch.cps.push({x: mx, y: my + (dist * 0.2)}); 
-            } else { if (!sketch.cps) sketch.cps = []; sketch.cps.push(null); }
+            } else { sketch.cps.push(null); }
         }
     }
 
@@ -2073,7 +2090,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
             let currentDistInSegment = 0; let lastDrawnPoint = p1;
             while (currentDistInSegment < segDist) {
                 const color = finalColors[colorIndex % finalColors.length]; const remainingDistInSegment = segDist - currentDistInSegment; const blockDist = Math.min(colorBlockLength, remainingDistInSegment);
-                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]) * scale, (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
+                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]), (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
                 const endPoint = toScr({x: ptObj.x, y: ptObj.y});
                 if (blockDist > 0.1) {
                     if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
@@ -2298,7 +2315,7 @@ function applyUIState(o) {
         nightModeToolButton.classList.toggle('night-glow', isNightMode);
     }
     chkSnap.checked = uiState.isSnapOn !== undefined ? uiState.isSnapOn : true; btnSnap.classList.toggle('toggled', chkSnap.checked);
-    chkSwag.checked = uiState.isSwagOn !== undefined ? uiState.isSnapOn : false; btnSwag.classList.toggle('toggled', chkSwag.checked);
+    chkSwag.checked = uiState.isSwagOn !== undefined ? uiState.isSwagOn : false; btnSwag.classList.toggle('toggled', chkSwag.checked);
     chkPillar.checked = uiState.isPillarOn !== undefined ? uiState.isPillarOn : false; btnPillar.classList.toggle('toggled', chkPillar.checked);
     const chkAuto = document.getElementById('chkAutoCalc'); chkAuto.checked = uiState.isAutoCalcOn !== undefined ? uiState.isAutoCalcOn : true;
     requestRender();
