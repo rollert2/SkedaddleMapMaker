@@ -796,9 +796,14 @@ function isC9(L) { const c = cats.find(x => x.key === 'c9'); return c && c.list.
 function relabelIds() {
     let itemsToRelabel = [];
     Object.keys(data).forEach(L => {
-        if (L === 'cords' || L === 'threeway' || L === 'powersource' || L === 'bow' || L === 'custom_icon') return; 
+        // Updated: Exclude label tool map notes and other categories
+        if (L === 'cords' || L === 'threeway' || L === 'powersource' || L === 'bow' || L === 'custom_icon' || L === 'label') return; 
         data[L].forEach(item => {
-            if (item.label || L === 'label') { 
+            const prefix = pfx[L] || 'L';
+            // Check if label is empty OR follows the standard prefix+number pattern
+            const isStandardLabel = !item.label || new RegExp('^' + prefix + '\\d+$', 'i').test(item.label);
+            
+            if (isStandardLabel) { 
                 let centerX = 0;
                 if (item.points && item.points.length > 0) {
                     item.points.forEach(p => centerX += p.x); centerX /= item.points.length;
@@ -814,7 +819,6 @@ function relabelIds() {
         if (!nextIndices[L]) nextIndices[L] = 1;
         const newIndex = nextIndices[L]++;
         record.item.label = prefix + newIndex;
-        if(L === 'label') record.item.text = prefix + newIndex; 
     });
     refreshTable(); markPowerDirty(); requestRender();
 }
@@ -878,11 +882,13 @@ function refreshTable(){
              colorInputHtml = `<input class="edit" placeholder="Col" value="${displayValue}">`;
         }
 
+        const bulbsVal = r.item.kind === 'ToL' ? '' : (r.item.bulbs || '');
+
         tr.innerHTML=`
             <td>${pretty[r.L]}</td>
             <td><input class="edit" style="width:50px" value="${r.item.label||''}"></td>
             <td><input class="edit" placeholder="ft" style="width:40px" value="${r.item.ft||''}"></td>
-            <td><input class="edit" placeholder="#" style="width:40px" value="${r.item.bulbs||''}"></td>
+            <td><input class="edit" placeholder="#" style="width:40px" value="${bulbsVal}" ${r.item.kind === 'ToL' ? 'disabled' : ''}></td>
             <td>${clipCellContent}</td>
             <td>${colorInputHtml}</td>
             <td><input class="edit" placeholder="Notes" style="min-width:80px" value="${r.item.notes||''}"></td>
@@ -915,7 +921,8 @@ function refreshTable(){
             inputFt.oninput=e=>{ r.item.ft = e.target.value; };
             inputFt.onchange=e=>{
                 if(chkAuto.checked && e.target.value) {
-                    if(r.L === 'garland' || r.L === 'wreath') return; 
+                    // Updated: Skip auto-calc for ToL kind
+                    if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
                         let b = Math.round(val / 0.8);
@@ -934,7 +941,8 @@ function refreshTable(){
             inputBulbs.oninput=e=>{ r.item.bulbs = e.target.value; };
             inputBulbs.onchange=e=>{
                 if(chkAuto.checked && e.target.value) {
-                    if(r.L === 'garland' || r.L === 'wreath') return; 
+                    // Updated: Skip auto-calc for ToL kind
+                    if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
                         let f = Math.round(val / 0.8); 
@@ -1161,7 +1169,6 @@ function analyzePower(){
     }
     return nodes.push({x:p.x, y:p.y, dist:Infinity, adj:[], type: null}) - 1;
   }
-  // Remove garland from singlePathLayers to allow frequency-based multiple arrows
   const singlePathLayers = ['groundstakes']; const singlePathEdges = new Map(); 
   const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
   const decorationLayers = ['powersource', 'threeway', 'wreath', 'tree', 'bow', 'custom_icon'];
@@ -1326,7 +1333,8 @@ function placeItem(L, w, sx, sy){
 function placeTree(L, w, sx, sy, label, index) {
     if (currTreeKind === 'ToL') {
         openPop(document.getElementById('tolPop'), sx, sy, (size) => {
-            const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size)};
+            // Updated: Default footage to selected size
+            const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size), ft: size};
             data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
         });
     } else {
@@ -1565,7 +1573,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     const i = parseInt(idx);
                     const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
                 });
