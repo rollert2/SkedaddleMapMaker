@@ -883,9 +883,12 @@ function refreshTable(){
         }
 
         const bulbsVal = r.item.kind === 'ToL' ? '' : (r.item.bulbs || '');
+        // Updated: Set typeDisplay to "Tree of Lights" if kind is ToL
+        let typeDisplay = pretty[r.L];
+        if (r.item.kind === 'ToL') typeDisplay = 'Tree of Lights';
 
         tr.innerHTML=`
-            <td>${pretty[r.L]}</td>
+            <td>${typeDisplay}</td>
             <td><input class="edit" style="width:50px" value="${r.item.label||''}"></td>
             <td><input class="edit" placeholder="ft" style="width:40px" value="${r.item.ft||''}"></td>
             <td><input class="edit" placeholder="#" style="width:40px" value="${bulbsVal}" ${r.item.kind === 'ToL' ? 'disabled' : ''}></td>
@@ -1985,7 +1988,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
             let currentDistInSegment = 0; let lastDrawnPoint = p1;
             while (currentDistInSegment < segDist) {
                 const color = finalColors[colorIndex % finalColors.length]; const remainingDistInSegment = segDist - currentDistInSegment; const blockDist = Math.min(colorBlockLength, remainingDistInSegment);
-                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]), (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
+                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]) * scale, (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
                 const endPoint = toScr({x: ptObj.x, y: ptObj.y});
                 if (blockDist > 0.1) {
                     if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
@@ -2442,7 +2445,9 @@ function captureCanvasData() {
                  const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
                  if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
-                     let isReversed = uNode.dist > vNode.dist;
+                     let from, to, isReversed; 
+                     if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
+                     const dx = to.x - from.x, dy = to.y - from.y; 
                      
                      const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
                      let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
@@ -2518,7 +2523,11 @@ function captureCanvasData() {
             y += 24;
             items.sort((a,b)=>(a.label||'').localeCompare(b.label||'', undefined, {numeric:true})).forEach(r => {
                 let x = 15;
-                o.fillText(pretty[r.L] || r.L, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[0].w;
+                // Updated: Logic for ToL display name in PDF
+                let typeDisplay = pretty[r.L] || r.L;
+                if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
+
+                o.fillText(typeDisplay, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[0].w;
                 o.fillText(r.label || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[1].w;
                 o.fillText(r.ft || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[2].w;
                 o.fillText(r.bulbs || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[3].w;
@@ -2545,7 +2554,8 @@ function collectRows() {
         data[L].forEach(it => {
             if (it.label && it.label.trim() !== '') {
                 rows.push({ 
-                    L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false 
+                    L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false,
+                    kind: it.kind // Ensure kind is carried over for PDF naming logic
                 });
             }
         });
