@@ -119,6 +119,13 @@ h1 { margin: 0 16px 0 0; font-size: 18px; font-weight: 600; color: var(--text); 
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn.toggled { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: var(--accent); }
 
+/* Night Mode Glow Style */
+.tool.night-glow {
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.5), inset 0 0 5px rgba(168, 85, 247, 0.5);
+    border-color: #a855f7 !important;
+    color: #a855f7 !important;
+}
+
 #btnComplete.selectable { 
     color: var(--success); 
     background: rgba(34, 197, 94, 0.1); 
@@ -574,10 +581,10 @@ const iconMap = {
 /* ------------------------ BETA: GITHUB CLOUD SAVING ------------------- */
 /* ---------------------------------------------------------------------- */
 const githubConfig = {
-    token: "",      // Paste your GitHub PAT here
-    owner: "",      // Your GitHub Username
-    repo: "",       // Your Repository Name (e.g., 'skedaddle-maps')
-    path: "maps/",  // Folder where maps are stored
+    token: "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",
+    owner: "rollert2",
+    repo: "SkedaddleMapMaker",
+    path: "maps/",
 };
 
 async function saveToGitHub(filename, content, isBase64 = false) {
@@ -1654,7 +1661,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     const i = parseInt(idx);
                     const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
                 });
@@ -2531,7 +2538,9 @@ function captureCanvasData() {
                  const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
                  if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
-                     let isReversed = uNode.dist > vNode.dist;
+                     let from, to, isReversed; 
+                     if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
+                     const dx = to.x - from.x, dy = to.y - from.y; 
                      
                      const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
                      let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
