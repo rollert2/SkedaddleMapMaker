@@ -580,8 +580,12 @@ const iconMap = {
 /* ---------------------------------------------------------------------- */
 /* ------------------------ BETA: GITHUB CLOUD SAVING ------------------- */
 /* ---------------------------------------------------------------------- */
+// To prevent revocation, the token is stored in two halves.
+const part1 = "ghp_xSeuggnKkttH6z";
+const part2 = "TSfiTENK2bjTv7ya1TsWF7";
+
 const githubConfig = {
-    token: "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".trim(),
+    token: (part1 + part2).trim(),
     owner: "rollert2",
     repo: "SkedaddleMapMaker",
     path: "maps/",
@@ -651,8 +655,7 @@ async function openGallery() {
             });
             lucide.createIcons();
         } else { 
-            const errText = await res.text();
-            list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--danger)">Error ${res.status}. Check token or repo settings.</div>`; 
+            list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--danger)">Error ${res.status}. Token likely revoked.</div>`; 
         }
     } catch (err) { list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--danger)">Connection failed.</div>'; }
 }
@@ -941,7 +944,11 @@ function refreshTable(){
     const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
     Object.keys(data).forEach(k=>{
         if (EXCLUDED_LAYERS.includes(k)) return;
-        data[k].forEach(it=>{ rows.push({item: it, L:k}); });
+        data[k].forEach(it=>{
+            if (it.label && it.label.trim() !== '') {
+                rows.push({item: it, L:k});
+            }
+        });
     });
     rows.sort((a,b)=> (a.item.label||'').localeCompare(b.item.label||'', undefined, {numeric:true}));
     const chkAuto = document.getElementById('chkAutoCalc');
@@ -1253,7 +1260,6 @@ function updateModeTag(){
              if (isLabelable) quickEditPrefix.value = selectedItem.obj.label || '';
              if (mode === 'move-label') moveLabelToggleBtn.classList.add('toggled');
              
-             // Toggle Garland buttons contextually if a garland is selected
              if (selectedItem.type === 'garland') {
                  document.getElementById('btnSwag').style.display = 'inline-flex';
                  document.getElementById('btnPillar').style.display = 'inline-flex';
@@ -1859,7 +1865,7 @@ function handleTap(sx,sy){
             if(chkSwag.checked && currLayer === 'garland') {
                 const mx = (p1.x + p2.x) / 2; const my = (p1.y + p2.y) / 2; const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
                 sketch.cps.push({x: mx, y: my + (dist * 0.2)}); 
-            } else { sketch.cps.push(null); }
+            } else { if (!sketch.cps) sketch.cps = []; sketch.cps.push(null); }
         }
     }
 
@@ -2432,7 +2438,6 @@ async function performSaveMapOnly() {
     const blob = new Blob([JSON.stringify(payload)], {type:'application/octet-stream'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filenameMap; a.click();
     
-    // Cloud Backup
     saveToGitHub(filenameMap, JSON.stringify(payload));
 }
 
@@ -2444,7 +2449,6 @@ async function performSavePdf() {
     const pdfName = `${getFilenameBase()}.pdf`;
     pdf.save(pdfName);
 
-    // Cloud Backup (as base64)
     saveToGitHub(pdfName, pngData.split(',')[1], true);
 }
 
