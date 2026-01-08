@@ -1161,7 +1161,8 @@ function analyzePower(){
     }
     return nodes.push({x:p.x, y:p.y, dist:Infinity, adj:[], type: null}) - 1;
   }
-  const singlePathLayers = ['groundstakes', 'garland']; const singlePathEdges = new Map(); 
+  // Remove garland from singlePathLayers to allow frequency-based multiple arrows
+  const singlePathLayers = ['groundstakes']; const singlePathEdges = new Map(); 
   const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
   const decorationLayers = ['powersource', 'threeway', 'wreath', 'tree', 'bow', 'custom_icon'];
 
@@ -2066,23 +2067,33 @@ function draw(){
             const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
             if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                 const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
-                let from, to, isReversed; 
-                if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } 
-                else if(vNode.dist < uNode.dist) { from = vPos; to = uPos; isReversed = true; } 
-                else return; 
+                let isReversed = uNode.dist > vNode.dist;
                 
-                const cp = e.cps ? toScr(e.cps) : null; 
                 const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
                 let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
                 
-                if(cp) {
-                    for(let k=1; k<=count; k++){
-                        let t = k / (count+1); const invT = 1 - t;
-                        const px = invT*invT*uPos.x + 2*invT*t*cp.x + t*t*vPos.x; const py = invT*invT*uPos.y + 2*invT*t*cp.y + t*t*vPos.y; const tx = 2*invT*(cp.x - uPos.x) + 2*t*(vPos.x - cp.x); const ty = 2*invT*(cp.y - uPos.y) + 2*t*(vPos.y - cp.y);
-                        let dir = {x: tx, y: ty}; if(isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
-                        drawArrow({x: px, y: py}, dir, '#ef4444');
+                if (e.cps) {
+                    const cp = toScr(e.cps);
+                    for (let k = 1; k <= count; k++) {
+                        let t = k / (count + 1);
+                        const invT = 1 - t;
+                        const px = invT * invT * uPos.x + 2 * invT * t * cp.x + t * t * vPos.x;
+                        const py = invT * invT * uPos.y + 2 * invT * t * cp.y + t * t * vPos.y;
+                        const tx = 2 * invT * (cp.x - uPos.x) + 2 * t * (vPos.x - cp.x);
+                        const ty = 2 * invT * (cp.y - uPos.y) + 2 * t * (vPos.y - cp.y);
+                        let dir = { x: tx, y: ty };
+                        if (isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
+                        drawArrow({ x: px, y: py }, dir, '#ef4444');
                     }
-                } else { const dx = to.x - from.x, dy = to.y - from.y; for(let k=1; k<=count; k++){ const t = k / (count+1); drawArrow({x:from.x + dx*t, y:from.y + dy*t}, {x:dx, y:dy}, '#ef4444'); } }
+                } else {
+                    const dx = vPos.x - uPos.x, dy = vPos.y - uPos.y;
+                    for(let k=1; k<=count; k++){
+                        const t = k / (count+1);
+                        let dir = {x: dx, y: dy};
+                        if(isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
+                        drawArrow({x: uPos.x + dx*t, y: uPos.y + dy*t}, dir, '#ef4444');
+                    }
+                }
             }
         });
         pg.singleArrowEdges.forEach(a => {
@@ -2423,14 +2434,33 @@ function captureCanvasData() {
                  const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
                  if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
-                     let from, to, isReversed; 
-                     if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
-                     const dx = to.x - from.x, dy = to.y - from.y; 
+                     let isReversed = uNode.dist > vNode.dist;
                      
                      const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
                      let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
                      
-                     for(let k=1; k<=count; k++){ const t = k / (count+1); drawArrow({x:from.x + dx*t, y:from.y + dy*t}, {x:dx, y:dy}, '#ef4444'); }
+                     if (e.cps) {
+                         const cp = toScr(e.cps);
+                         for (let k = 1; k <= count; k++) {
+                             let t = k / (count + 1);
+                             const invT = 1 - t;
+                             const px = invT * invT * uPos.x + 2 * invT * t * cp.x + t * t * vPos.x;
+                             const py = invT * invT * uPos.y + 2 * invT * t * cp.y + t * t * vPos.y;
+                             const tx = 2 * invT * (cp.x - uPos.x) + 2 * t * (vPos.x - cp.x);
+                             const ty = 2 * invT * (cp.y - uPos.y) + 2 * t * (vPos.y - cp.y);
+                             let dir = { x: tx, y: ty };
+                             if (isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
+                             drawArrow({ x: px, y: py }, dir, '#ef4444');
+                         }
+                     } else {
+                         const dx = vPos.x - uPos.x, dy = vPos.y - uPos.y;
+                         for(let k=1; k<=count; k++){
+                             const t = k / (count+1);
+                             let dir = {x: dx, y: dy};
+                             if(isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
+                             drawArrow({x: uPos.x + dx*t, y: uPos.y + dy*t}, dir, '#ef4444');
+                         }
+                     }
                  }
              });
              pg.deadTips.forEach(nodeIdx => { const n = pg.nodes[nodeIdx]; const neighbor = pg.nodes[n.adj[0]]; if(neighbor) drawDeadEnd(n, neighbor, '#fffdf0'); });
@@ -2455,7 +2485,6 @@ function captureCanvasData() {
         data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
         data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
         
-        // Fixed: Draw custom images in PDF export
         data.custom_icon.forEach(ci => {
             if (!ci.url) return;
             const sTL = toScr(ci.pt); 
