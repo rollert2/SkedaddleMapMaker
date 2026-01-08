@@ -480,7 +480,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 
       <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Label Size</div>
       <div class="slider-container" id="labelScaleContainer">
-          <input id="labelScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="3.0"/>
+          <input id="labelScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="3.0"/>
           <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
               <span>Small</span><span id="labelScaleValue" style="color:var(--text)">3.0x</span><span>Large</span>
           </div>
@@ -758,7 +758,7 @@ lineScaleInput.oninput = (e) => { settings.lineScale = parseFloat(e.target.value
 iconScaleInput.oninput = (e) => { settings.iconScale = parseFloat(e.target.value); updateIconScaleUI(); requestRender(); };
 bgBlurInput.oninput = (e) => { settings.bgBlur = parseInt(e.target.value); updateBgBlurUI(); requestRender(); };
 junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(junctionScaleInput.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
-labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(labelScaleInput.value); updateLabelScaleUI(); requestRender(); };
+labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(e.target.value); updateLabelScaleUI(); requestRender(); };
 arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
 arrowScaleInput.oninput = (e) => { settings.arrowScale = parseFloat(arrowScaleInput.value); updateArrowScaleUI(); requestRender(); };
 
@@ -783,7 +783,7 @@ btnSwag.onclick = () => { chkSwag.checked = !chkSwag.checked; btnSwag.classList.
 
 const chkPillar = { checked: false };
 const btnPillar = document.getElementById('btnPillar');
-btnPillar.onclick = () => { chkPillar.checked = !chkPillar.checked; btnPillar.classList.toggle('toggled', chkPillar.checked); };
+btnPillar.onclick = () => { chkPillar.checked = !chkPillar.checked; btnPillar.classList.remove('toggled'); };
 
 function isMinis(L, item) {
     if(L === 'tree') return item && item.kind !== 'C9 Tree'; 
@@ -828,9 +828,7 @@ function refreshTable(){
     const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
     Object.keys(data).forEach(k=>{
         if (EXCLUDED_LAYERS.includes(k)) return;
-        data[k].forEach(it=>{ 
-            rows.push({item: it, L:k}); 
-        });
+        data[k].forEach(it=>{ rows.push({item: it, L:k}); });
     });
     rows.sort((a,b)=> (a.item.label||'').localeCompare(b.item.label||'', undefined, {numeric:true}));
     const chkAuto = document.getElementById('chkAutoCalc');
@@ -1556,7 +1554,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     else labelPos = getPolylineMidpoint([item.points[i], item.points[i+1]]);
                     const sc = toScr(labelPos);
                     if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
-                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; // Note: Fixed type to point for consistent hit detection
+                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
                 });
@@ -1610,12 +1608,8 @@ document.getElementById('lblInput').onchange = (e) => {
     if(!activeLabelTarget) return; 
     const val = e.target.value; 
     const item = activeLabelTarget.item;
-    if(activeLabelTarget.type === 'point') { 
-        item.ptLabels[activeLabelTarget.index] = val; 
-    } 
-    else if (activeLabelTarget.type === 'seg') { 
-        item.segLabels[activeLabelTarget.index] = val; 
-    } 
+    if(activeLabelTarget.type === 'point') { item.ptLabels[activeLabelTarget.index] = val; } 
+    else if (activeLabelTarget.type === 'seg') { item.segLabels[activeLabelTarget.index] = val; } 
     else if (activeLabelTarget.type === 'simple') { 
         item.text = val; 
         if (val === '') { 
@@ -1633,7 +1627,6 @@ document.getElementById('lblInput').addEventListener('keydown', (e) => {
 });
 
 document.getElementById('lblInput').onblur = (e) => {
-    // If it's a simple label and empty, remove it on blur too to avoid ghost labels
     setTimeout(() => {
         if (activeLabelTarget && activeLabelTarget.type === 'simple' && (!activeLabelTarget.item.text || activeLabelTarget.item.text.trim() === '')) {
             const idx = data.label.indexOf(activeLabelTarget.item);
@@ -1652,7 +1645,6 @@ cv.addEventListener('wheel',e=>{
 let redoStack = [];
 function getNewItemData(L){
     actionCounter++; const p = pfx[L] || 'L'; let label = '';
-    // Share WR prefix for all wreaths
     if (L === 'wreath' || L === 'wreath32' || L === 'wreath42') { 
         const pWreath = 'WR'; const indexWreath = nextIndex(pWreath); label = pWreath + indexWreath; 
     } 
@@ -1978,8 +1970,12 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 function drawLabels(ctx, isExport=false) {
-    const nominalFontSize = 14; const fontScaleFactor = Math.min(1, scale * settings.labelScale); const currentFontSize = nominalFontSize * fontScaleFactor; 
-    if (currentFontSize > 5) { 
+    const nominalFontSize = 14; 
+    // Fixed: Removed Math.min clamp so labels can grow with slider
+    const fontScaleFactor = scale * settings.labelScale * 0.35; 
+    const currentFontSize = nominalFontSize * fontScaleFactor; 
+    // Fixed: Lowered vanishing threshold so labels stay visible longer
+    if (currentFontSize > 1) { 
         ctx.font=`bold ${currentFontSize}px "Inter", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
         Object.keys(data).forEach(k=>data[k].forEach(it=>{
             if(!it.label && k !== 'label') return; 
@@ -2034,9 +2030,9 @@ function draw(){
                 else return; 
                 
                 const cp = e.cps ? toScr(e.cps) : null; 
-                // Density formula updated to be less aggressive and consistent
                 const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
-                let count = Math.floor(worldDist / 100 * settings.arrowFreqFactor);
+                // Added epsilon to stabilize count across exports
+                let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
                 
                 if(cp) {
                     for(let k=1; k<=count; k++){
@@ -2247,7 +2243,6 @@ function getFilenameBase() { const year = new Date().getFullYear(); const nm = (
 
 async function performSaveMapOnly() {
     const filenameMap = `${getFilenameBase()}.skmap`; const payload = buildPayload(); 
-    // Fixed: Using application/octet-stream to prevent mobile browsers from appending .json
     const blob = new Blob([JSON.stringify(payload)], {type:'application/octet-stream'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filenameMap; a.click();
 }
@@ -2391,9 +2386,9 @@ function captureCanvasData() {
                      if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
                      const dx = to.x - from.x, dy = to.y - from.y; 
                      
-                     // Density fixed for export using 100 divisor
                      const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
-                     let count = Math.floor(worldDist / 100 * settings.arrowFreqFactor);
+                     // Added epsilon buffer for export stability
+                     let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
                      
                      for(let k=1; k<=count; k++){ const t = k / (count+1); drawArrow({x:from.x + dx*t, y:from.y + dy*t}, {x:dx, y:dy}, '#ef4444'); }
                  }
