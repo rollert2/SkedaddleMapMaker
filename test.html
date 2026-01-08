@@ -440,7 +440,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
       
       <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Flow Arrows Frequency</div>
       <div class="slider-container" id="arrowFreqContainer">
-          <input id="arrowFreqInput" type="range" class="input" min="0.5" max="2.0" step="0.1" value="1.0"/>
+          <input id="arrowFreqInput" type="range" class="input" min="0.2" max="1.5" step="0.1" value="1.0"/>
           <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
               <span>Few</span><span id="arrowFreqValue" style="color:var(--text)">1.0x</span><span>Many</span>
           </div>
@@ -1556,6 +1556,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     else labelPos = getPolylineMidpoint([item.points[i], item.points[i+1]]);
                     const sc = toScr(labelPos);
                     if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; // Note: Fixed type to point for consistent hit detection
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
                 });
@@ -2033,9 +2034,9 @@ function draw(){
                 else return; 
                 
                 const cp = e.cps ? toScr(e.cps) : null; 
-                // Fixed: Consistent arrow frequency using world space distance
+                // Density formula updated to be less aggressive and consistent
                 const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
-                let count = Math.floor(worldDist / 40 * settings.arrowFreqFactor);
+                let count = Math.floor(worldDist / 100 * settings.arrowFreqFactor);
                 
                 if(cp) {
                     for(let k=1; k<=count; k++){
@@ -2390,9 +2391,9 @@ function captureCanvasData() {
                      if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
                      const dx = to.x - from.x, dy = to.y - from.y; 
                      
-                     // Density fixed for export
+                     // Density fixed for export using 100 divisor
                      const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
-                     let count = Math.floor(worldDist / 40 * settings.arrowFreqFactor);
+                     let count = Math.floor(worldDist / 100 * settings.arrowFreqFactor);
                      
                      for(let k=1; k<=count; k++){ const t = k / (count+1); drawArrow({x:from.x + dx*t, y:from.y + dy*t}, {x:dx, y:dy}, '#ef4444'); }
                  }
