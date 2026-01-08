@@ -2000,14 +2000,10 @@ function drawLabels(ctx, isExport=false) {
     if (currentFontSize > 1) { 
         ctx.font=`bold ${currentFontSize}px "Inter", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
         Object.keys(data).forEach(k=>{
-            // Skip power supply labels on the canvas
             if (k === 'powersource') return;
-            
             data[k].forEach(it=>{
                 if(!it.label && k !== 'label') return; 
                 let p, offY;
-                
-                // Priority: Use manually moved label position if it exists
                 if (it.customLabelPos) {
                     p = it.customLabelPos; offY = 0;
                 } else if(it.points) { 
@@ -2480,9 +2476,12 @@ function collectRows() {
     Object.keys(data).forEach(L => {
         if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
-            rows.push({ 
-                L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false 
-            });
+            // Updated to exclude items without an ID (label) from the PDF
+            if (it.label && it.label.trim() !== '') {
+                rows.push({ 
+                    L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false 
+                });
+            }
         });
     });
     return rows;
