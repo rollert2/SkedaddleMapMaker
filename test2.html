@@ -325,7 +325,10 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     <h2>Christmas Map Maker</h2>
     <p>Design stunning holiday light displays.<br>Upload a photo or start from scratch.</p>
     <div class="grow">
-      <button id="gPickImg" class="gbtn"><i data-lucide="image-plus"></i> Upload Property Photo</button>
+      <div style="display:flex; gap:8px;">
+          <button id="gPickImg" class="gbtn" style="flex:1"><i data-lucide="image-plus"></i> Upload Property Photo</button>
+          <a href="https://earth.google.com/web/" target="_blank" class="gbtn" style="width:60px; padding:16px 0;" title="Google Earth"><i data-lucide="globe"></i></a>
+      </div>
       <button id="gPickBlank" class="gbtn"><i data-lucide="file-plus"></i> Start Blank Map</button>
       <button id="gPickMap" class="gbtn"><i data-lucide="folder-open"></i> Load Existing Map</button>
       <button id="gLoadDrive" class="gbtn" disabled><i data-lucide="cloud"></i> Load from Drive</button>
@@ -365,6 +368,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
   <div id="selectionQuickEdit">
       <span id="editLabelPrefix" style="font-size:12px; color:var(--text-muted); font-weight:600">ID:</span>
       <input id="quickEditPrefix" class="input" style="width:70px; height:32px; padding:4px 8px; font-size:13px" placeholder="F1"/>
+      <button id="moveLabelToggleBtn" class="btn" title="Move Label"><i data-lucide="move-diagonal"></i></button>
       <button id="quickDeleteBtn" class="btn" style="color:var(--danger); height:32px" title="Delete Selected"><i data-lucide="trash-2"></i></button>
   </div>
 
@@ -435,11 +439,19 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
           </div>
       </div>
       
-      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Flow Arrows</div>
+      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Flow Arrows Frequency</div>
       <div class="slider-container" id="arrowFreqContainer">
-          <input id="arrowFreqInput" type="range" class="input" min="0.5" max="2.0" step="0.1" value="1.0"/>
+          <input id="arrowFreqInput" type="range" class="input" min="0.2" max="1.5" step="0.1" value="1.0"/>
           <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
               <span>Few</span><span id="arrowFreqValue" style="color:var(--text)">1.0x</span><span>Many</span>
+          </div>
+      </div>
+
+      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Flow Arrow Size</div>
+      <div class="slider-container" id="arrowScaleContainer">
+          <input id="arrowScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="arrowScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
           </div>
       </div>
 
@@ -469,7 +481,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 
       <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Label Size</div>
       <div class="slider-container" id="labelScaleContainer">
-          <input id="labelScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="3.0"/>
+          <input id="labelScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="3.0"/>
           <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
               <span>Small</span><span id="labelScaleValue" style="color:var(--text)">3.0x</span><span>Large</span>
           </div>
@@ -678,7 +690,7 @@ function getColorCode(colorName) {
 }
 const colorOf=L=>({ridges:'#fffdf0',fascia:'#fffdf0',peaks:'#fffdf0',groundstakes:'#fffdf0',shrub:'#22c55e',windows:'#7dd3fc',garland:'#22c55e',wreath:'#22c55e',bow:'#ef4444',cords:'#000000',powersource:'#ef4444',threeway:'#eab308',tree:'#22c55e'}[L]||'#ddd');
 
-let settings = { iconScale: 1.5, junctionScale: 1.0, lineScale: 1.0, labelScale: 3.0, lineThickness: 3, arrowFreqFactor: 1.0, bgBlur: 0 };
+let settings = { iconScale: 1.5, junctionScale: 1.0, lineScale: 1.0, labelScale: 3.0, lineThickness: 3, arrowScale: 1.0, arrowFreqFactor: 1.0, bgBlur: 0 };
 let isNightMode = false;
 
 const aside=document.getElementById('side'), overlay=document.getElementById('overlay');
@@ -732,6 +744,8 @@ const labelScaleInput = document.getElementById('labelScaleInput');
 const labelScaleValue = document.getElementById('labelScaleValue');
 const arrowFreqInput = document.getElementById('arrowFreqInput'); 
 const arrowFreqValue = document.getElementById('arrowFreqValue'); 
+const arrowScaleInput = document.getElementById('arrowScaleInput'); 
+const arrowScaleValue = document.getElementById('arrowScaleValue'); 
 
 function updateLineScaleUI() { settings.lineScale = parseFloat(lineScaleInput.value); lineScaleValue.textContent = `${settings.lineScale.toFixed(1)}x`; }
 function updateIconScaleUI() { settings.iconScale = parseFloat(iconScaleInput.value); iconScaleValue.textContent = `${settings.iconScale.toFixed(1)}x`; }
@@ -739,13 +753,15 @@ function updateBgBlurUI() { settings.bgBlur = parseInt(bgBlurInput.value); bgBlu
 function updateJunctionScaleUI() { settings.junctionScale = parseFloat(junctionScaleInput.value); junctionScaleValue.textContent = `${settings.junctionScale.toFixed(1)}x`; }
 function updateLabelScaleUI() { settings.labelScale = parseFloat(labelScaleInput.value); labelScaleValue.textContent = `${settings.labelScale.toFixed(1)}x`; }
 function updateArrowFreqUI() { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); arrowFreqValue.textContent = `${settings.arrowFreqFactor.toFixed(1)}x`; }
+function updateArrowScaleUI() { settings.arrowScale = parseFloat(arrowScaleInput.value); arrowScaleValue.textContent = `${settings.arrowScale.toFixed(1)}x`; }
 
 lineScaleInput.oninput = (e) => { settings.lineScale = parseFloat(e.target.value); updateLineScaleUI(); markPowerDirty(); requestRender(); };
 iconScaleInput.oninput = (e) => { settings.iconScale = parseFloat(e.target.value); updateIconScaleUI(); requestRender(); };
 bgBlurInput.oninput = (e) => { settings.bgBlur = parseInt(e.target.value); updateBgBlurUI(); requestRender(); };
 junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(junctionScaleInput.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
-labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(e.target.value); updateLabelScaleUI(); requestRender(); };
+labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(labelScaleInput.value); updateLabelScaleUI(); requestRender(); };
 arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
+arrowScaleInput.oninput = (e) => { settings.arrowScale = parseFloat(arrowScaleInput.value); updateArrowScaleUI(); markPowerDirty(); requestRender(); };
 
 function toggleNightMode(isManualToggle=true) {
     isNightMode = !isNightMode;
@@ -768,7 +784,7 @@ btnSwag.onclick = () => { chkSwag.checked = !chkSwag.checked; btnSwag.classList.
 
 const chkPillar = { checked: false };
 const btnPillar = document.getElementById('btnPillar');
-btnPillar.onclick = () => { chkPillar.checked = !chkPillar.checked; btnPillar.classList.toggle('toggled', chkPillar.checked); };
+btnPillar.onclick = () => { chkPillar.checked = !chkPillar.checked; btnPillar.classList.remove('toggled'); };
 
 function isMinis(L, item) {
     if(L === 'tree') return item && item.kind !== 'C9 Tree'; 
@@ -810,10 +826,12 @@ function shouldShowGutterGuard(layer, clipType) {
 function refreshTable(){
     const tbody = document.getElementById('lenRows'); tbody.innerHTML='';
     let rows=[];
-    Object.keys(data).forEach(k=>data[k].forEach(it=>{ 
-        if(it.label && k !== 'label' && k !== 'custom_icon') rows.push({item: it, L:k}); 
-    }));
-    rows.sort((a,b)=>a.item.label.localeCompare(b.item.label, undefined, {numeric:true}));
+    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
+    Object.keys(data).forEach(k=>{
+        if (EXCLUDED_LAYERS.includes(k)) return;
+        data[k].forEach(it=>{ rows.push({item: it, L:k}); });
+    });
+    rows.sort((a,b)=> (a.item.label||'').localeCompare(b.item.label||'', undefined, {numeric:true}));
     const chkAuto = document.getElementById('chkAutoCalc');
 
     rows.forEach(r=>{
@@ -862,7 +880,7 @@ function refreshTable(){
 
         tr.innerHTML=`
             <td>${pretty[r.L]}</td>
-            <td><input class="edit" style="width:50px" value="${r.item.label}"></td>
+            <td><input class="edit" style="width:50px" value="${r.item.label||''}"></td>
             <td><input class="edit" placeholder="ft" style="width:40px" value="${r.item.ft||''}"></td>
             <td><input class="edit" placeholder="#" style="width:40px" value="${r.item.bulbs||''}"></td>
             <td>${clipCellContent}</td>
@@ -1073,6 +1091,16 @@ quickEditPrefix.onchange = () => {
     refreshTable();
 };
 
+const moveLabelToggleBtn = document.getElementById('moveLabelToggleBtn');
+moveLabelToggleBtn.onclick = () => {
+    if (mode === 'move-label') {
+        mode = 'select';
+    } else {
+        mode = 'move-label';
+    }
+    updateModeTag();
+};
+
 document.getElementById('quickDeleteBtn').onclick = () => {
     if (selectedItem) {
         deleteItem(selectedItem);
@@ -1088,12 +1116,15 @@ function updateModeTag(){
     document.getElementById('btnMoveCanvas').classList.remove('toggled'); 
     
     document.getElementById('selectionQuickEdit').style.display = 'none';
+    moveLabelToggleBtn.classList.remove('toggled');
 
     if (mode === 'draw') {
          t.textContent = pretty[currLayer] || 'Draw'; t.style.borderColor = '#64b5ff'; t.style.color = '#64b5ff';
          document.getElementById('btnDraw').classList.add('toggled');
-    } else if (mode === 'select') {
-         t.textContent = 'Select'; t.style.borderColor = '#fbbf24'; t.style.color = '#fbbf24';
+    } else if (mode === 'select' || mode === 'move-label') {
+         t.textContent = mode === 'select' ? 'Select' : 'Label Move'; 
+         t.style.borderColor = mode === 'select' ? '#fbbf24' : '#3b82f6'; 
+         t.style.color = mode === 'select' ? '#fbbf24' : '#3b82f6';
          document.getElementById('btnSelect').classList.add('toggled');
          if (selectedItem) {
              const sqe = document.getElementById('selectionQuickEdit');
@@ -1101,7 +1132,9 @@ function updateModeTag(){
              const isLabelable = !['powersource','threeway'].includes(selectedItem.type);
              document.getElementById('editLabelPrefix').style.display = isLabelable ? 'inline' : 'none';
              quickEditPrefix.style.display = isLabelable ? 'inline' : 'none';
+             moveLabelToggleBtn.style.display = isLabelable ? 'inline-flex' : 'none';
              if (isLabelable) quickEditPrefix.value = selectedItem.obj.label || '';
+             if (mode === 'move-label') moveLabelToggleBtn.classList.add('toggled');
          }
     } else if (mode === 'label') {
          t.textContent = 'Label'; t.style.borderColor = '#22c55e'; t.style.color = '#22c55e';
@@ -1110,12 +1143,10 @@ function updateModeTag(){
          document.getElementById('btnMoveCanvas').classList.add('toggled');
     } else if (mode === 'move') {
          t.textContent = 'Move'; t.style.borderColor = '#ff3b3b'; t.style.color = '#ff3b3b';
-    } else if (mode === 'move-label') { 
-         t.textContent = 'Label Move'; t.style.borderColor = '#3b82f6'; t.style.color = '#3b82f6';
     }
     
-    updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI();
-    isMovingLabel = false; requestRender();
+    updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowScaleUI();
+    requestRender();
 }
 
 let powerGraph = null, powerDirty = true;
@@ -1130,7 +1161,7 @@ function analyzePower(){
     }
     return nodes.push({x:p.x, y:p.y, dist:Infinity, adj:[], type: null}) - 1;
   }
-  const singlePathLayers = ['garland', 'groundstakes']; const singlePathEdges = new Map(); 
+  const singlePathLayers = ['groundstakes', 'garland']; const singlePathEdges = new Map(); 
   const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
   const decorationLayers = ['powersource', 'threeway', 'wreath', 'tree', 'bow', 'custom_icon'];
 
@@ -1304,7 +1335,7 @@ function placeTree(L, w, sx, sy, label, index) {
 }
 function placeWreath(L, w, sx, sy, label, index) {
     openPop(document.getElementById('wreathPop'), sx, sy, (bow) => {
-        const item = {pt:w, label:label + (currWreathSize === '42"' ? ' (42)' : ''), index:index, size: currWreathSize, bow: bow};
+        const item = {pt:w, label:label, index:index, size: currWreathSize, bow: bow};
         data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
     });
 }
@@ -1329,7 +1360,10 @@ let dragStartX=0, dragStartY=0, dragPanStartX=0, dragPanStartY=0;
 cv.addEventListener('pointerdown',e=>{
     cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
     pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
-    document.getElementById('lblEditor').style.display = 'none';
+    
+    if (!e.target.closest('#lblEditor')) {
+        document.getElementById('lblEditor').style.display = 'none';
+    }
     document.getElementById('imgUploadPop').style.display = 'none';
 
     if(pointers.size === 1) {
@@ -1348,35 +1382,15 @@ cv.addEventListener('pointerdown',e=>{
                              y: selectedItem.obj.pt ? selectedItem.obj.pt.y : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).y : 0) };
              return;
         } else if (mode === 'move-label' && selectedItem) { 
-             const target = checkLabelClick(ex, ey, selectedItem.obj, selectedItem.type);
-             if (target) { draggedLabelTarget = target; return; }
+             const w = toWorld(ex, ey);
+             draggedLabelTarget = { item: selectedItem.obj, type: 'primary' };
+             isTapCandidate = false;
+             return;
         }
     }
     if(pointers.size >= 2){
         isTapCandidate = false; gesture=true; const v=[...pointers.values()];
         gDist=ds(v[0],v[1]); gMid=mp(v[0],v[1]); gScale=scale; gPanX=panX; gPanY=panY; return;
-    }
-    if(mode === 'select' || mode === 'move') {
-        const w = toWorld(ex, ey); let clickedObj = null;
-        data.threeway.forEach(t => { if(Math.hypot(toScr(t.pt).x - ex, toScr(t.pt).y - ey) < 30) clickedObj = t; });
-        if(!clickedObj) data.powersource.forEach(t => { if(Math.hypot(toScr(t.pt).x - ex, toScr(t.pt).y - ey) < 30) clickedObj = t; });
-        if(clickedObj) attemptHeal(clickedObj.pt);
-        let hit = false;
-        const search = (list)=>{
-             list.forEach(obj=>{
-                 if(obj.points){
-                     for(let i=0; i<obj.points.length; i++) if(Math.hypot(ex-toScr(obj.points[i]).x, ey-toScr(obj.points[i]).y)<30) hit=true;
-                     if(!hit) {
-                         for(let i=0; i<obj.points.length-1; i++){
-                             const p=projOnSeg(w, obj.points[i], obj.points[i+1]);
-                             if(p.t>=0 && p.t<=1 && Math.hypot(ex-toScr(p.q).x, ey-toScr(p.q).y)<30) hit=true;
-                         }
-                     }
-                 } else if(obj.pt){ if(Math.hypot(ex-toScr(obj.pt).x, ey-toScr(obj.pt).y)<30) hit=true; }
-             });
-        };
-        Object.keys(data).forEach(k=>search(data[k]));
-        if(hit) handleSelectDown(ex, ey); 
     }
 });
 
@@ -1423,13 +1437,16 @@ cv.addEventListener('pointermove',e=>{
         return;
     }
     
-    // Vertex/Point Dragging Logic
     if(mode === 'select' && draggingPoint){
         const w = toWorld(x, y); currentSnapLine = null; 
-        if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree')) {
-             const snap = getSnapLineOnly(w.x, w.y, 25 / scale); 
-             if (snap) { draggingPoint.obj.pt = {x: snap.x, y: snap.y}; if(snap.type === 'mid') currentSnapLine = snap; } 
-             else { draggingPoint.obj.pt = w; }
+        if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree' || draggingPoint.type === 'label')) {
+             if (draggingPoint.type === 'label') {
+                 draggingPoint.obj.pt = w;
+             } else {
+                 const snap = getSnapLineOnly(w.x, w.y, 25 / scale); 
+                 if (snap) { draggingPoint.obj.pt = {x: snap.x, y: snap.y}; if(snap.type === 'mid') currentSnapLine = snap; } 
+                 else { draggingPoint.obj.pt = w; }
+             }
         } else if (draggingPoint.type === 'custom_icon') {
             const ci = draggingPoint.obj;
             if (draggingPoint.handle === 'move' || draggingPoint.index === -1) { ci.pt.x = w.x; ci.pt.y = w.y; } 
@@ -1455,10 +1472,17 @@ cv.addEventListener('pointermove',e=>{
         }
         markPowerDirty(); requestRender(); return;
     } else if (mode === 'move-label' && draggedLabelTarget) {
-        const w = toWorld(x, y); const obj = draggedLabelTarget.item; const index = draggedLabelTarget.index; const type = draggedLabelTarget.type;
-        if (type === 'point') { if(!obj.ptLabelPos) obj.ptLabelPos = {}; obj.ptLabelPos[index] = {x: w.x, y: w.y}; } 
-        else if (type === 'seg') { if(!obj.segLabelPos) obj.segLabelPos = {}; obj.segLabelPos[index] = {x: w.x, y: w.y}; } 
-        else if (type === 'simple') { obj.pt.x = w.x; obj.pt.y = w.y; }
+        const w = toWorld(x, y); 
+        const obj = draggedLabelTarget.item; 
+        if (draggedLabelTarget.type === 'primary') {
+            obj.customLabelPos = { x: w.x, y: w.y };
+        } else if (draggedLabelTarget.type === 'point') { 
+            if(!obj.ptLabelPos) obj.ptLabelPos = {}; obj.ptLabelPos[draggedLabelTarget.index] = {x: w.x, y: w.y}; 
+        } else if (draggedLabelTarget.type === 'seg') { 
+            if(!obj.segLabelPos) obj.segLabelPos = {}; obj.segLabelPos[draggedLabelTarget.index] = {x: w.x, y: w.y}; 
+        } else if (draggedLabelTarget.type === 'simple') { 
+            obj.pt.x = w.x; obj.pt.y = w.y; 
+        }
         requestRender(); return;
     }
 
@@ -1526,8 +1550,9 @@ function checkCordLabelClick(sx, sy) {
     let best = checkLabelClick(sx, sy); if (best) { showLabelEditor(best); return; }
     const {label, index} = getNewItemData('label');
     if (!data.label) data.label = []; 
-    data.label.push({pt: w, label: label, index: index, text: ''});
-    showLabelEditor({ item: data.label[data.label.length - 1], type: 'simple', index: -1, x: sx, y: sy });
+    const newItem = {pt: w, label: label, index: index, text: ''};
+    data.label.push(newItem);
+    showLabelEditor({ item: newItem, type: 'simple', index: -1, x: sx, y: sy });
 }
 
 function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
@@ -1552,6 +1577,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     else labelPos = getPolylineMidpoint([item.points[i], item.points[i+1]]);
                     const sc = toScr(labelPos);
                     if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
                 });
@@ -1564,30 +1590,73 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
 }
 
 function showLabelEditor(target) {
-    activeLabelTarget = target; const el = document.getElementById('lblEditor'); const inp = document.getElementById('lblInput'); let val = '';
+    activeLabelTarget = target; 
+    const el = document.getElementById('lblEditor'); 
+    const inp = document.getElementById('lblInput'); 
+    let val = '';
+    
     let worldPos;
     if (target.type === 'simple') worldPos = target.item.pt;
     else if (target.type === 'point') worldPos = target.item.ptLabelPos && target.item.ptLabelPos[target.index] ? target.item.ptLabelPos[target.index] : target.item.points[target.index];
     else if (target.type === 'seg') worldPos = target.item.segLabelPos && target.item.segLabelPos[target.index] ? target.item.segLabelPos[target.index] : getPolylineMidpoint([target.item.points[target.index], target.item.points[target.index+1]]);
+    
     const s = toScr(worldPos);
-    if (target.type === 'point') { if(!target.item.ptLabels) target.item.ptLabels = {}; val = target.item.ptLabels[activeLabelTarget.index] || ''; inp.placeholder = 'Point Note'; } 
-    else if (target.type === 'seg') { if(!target.item.segLabels) target.item.segLabels = {}; val = target.item.segLabels[activeLabelTarget.index] || ''; inp.placeholder = 'Line Note'; } 
-    else if (target.type === 'simple') { val = target.item.text || ''; inp.placeholder = 'Label Text'; }
-    inp.value = val; el.style.left = s.x + 'px'; el.style.top = s.y + 'px'; el.style.display = 'block'; inp.focus();
+    if (target.type === 'point') { 
+        if(!target.item.ptLabels) target.item.ptLabels = {}; 
+        val = target.item.ptLabels[target.index] || ''; 
+        inp.placeholder = 'Point Note'; 
+    } 
+    else if (target.type === 'seg') { 
+        if(!target.item.segLabels) target.item.segLabels = {}; 
+        val = target.item.segLabels[target.index] || ''; 
+        inp.placeholder = 'Line Note'; 
+    } 
+    else if (target.type === 'simple') { 
+        val = target.item.text || ''; 
+        inp.placeholder = 'Label Text'; 
+    }
+    
+    inp.value = val; 
+    el.style.left = s.x + 'px'; 
+    el.style.top = s.y + 'px'; 
+    el.style.display = 'block'; 
+    
+    setTimeout(() => {
+        inp.focus();
+        inp.select();
+    }, 50);
 }
 
 document.getElementById('lblInput').onchange = (e) => {
-    if(!activeLabelTarget) return; const val = e.target.value; const item = activeLabelTarget.item;
-    if(activeLabelTarget.type === 'point') { item.ptLabels[activeLabelTarget.index] = val; if(val) { if(!item.ptLabelPos) item.ptLabelPos = {}; item.ptLabelPos[activeLabelTarget.index] = null; } } 
-    else if (activeLabelTarget.type === 'seg') { item.segLabels[activeLabelTarget.index] = val; if(val) { if(!item.segLabelPos) item.segLabelPos = {}; item.segLabelPos[activeLabelTarget.index] = null; } } 
-    else if (activeLabelTarget.type === 'simple') { item.text = val; if (val === '') { const idx = data.label.indexOf(item); if(idx > -1) data.label.splice(idx, 1); } }
+    if(!activeLabelTarget) return; 
+    const val = e.target.value; 
+    const item = activeLabelTarget.item;
+    if(activeLabelTarget.type === 'point') { item.ptLabels[activeLabelTarget.index] = val; } 
+    else if (activeLabelTarget.type === 'seg') { item.segLabels[activeLabelTarget.index] = val; } 
+    else if (activeLabelTarget.type === 'simple') { 
+        item.text = val; 
+        if (val === '') { 
+            const idx = data.label.indexOf(item); 
+            if(idx > -1) data.label.splice(idx, 1); 
+        } 
+    }
     document.getElementById('lblEditor').style.display = 'none'; requestRender();
 };
-document.getElementById('lblInput').onblur = () => {
-    setTimeout(() => { 
-        if (activeLabelTarget && activeLabelTarget.type === 'simple' && activeLabelTarget.item.text === '') { const idx = data.label.indexOf(activeLabelTarget.item); if(idx > -1) data.label.splice(idx, 1); requestRender(); }
-        document.getElementById('lblEditor').style.display = 'none'; 
-    }, 200);
+
+document.getElementById('lblInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        document.getElementById('lblInput').onchange({target: e.target});
+    }
+});
+
+document.getElementById('lblInput').onblur = (e) => {
+    setTimeout(() => {
+        if (activeLabelTarget && activeLabelTarget.type === 'simple' && (!activeLabelTarget.item.text || activeLabelTarget.item.text.trim() === '')) {
+            const idx = data.label.indexOf(activeLabelTarget.item);
+            if (idx > -1) data.label.splice(idx, 1);
+            requestRender();
+        }
+    }, 150);
 };
 
 cv.addEventListener('wheel',e=>{
@@ -1599,7 +1668,9 @@ cv.addEventListener('wheel',e=>{
 let redoStack = [];
 function getNewItemData(L){
     actionCounter++; const p = pfx[L] || 'L'; let label = '';
-    if (L === 'wreath') { const pWreath = pfx.wreath || 'WR'; const indexWreath = nextIndex(pWreath); label = pWreath + indexWreath; } 
+    if (L === 'wreath' || L === 'wreath32' || L === 'wreath42') { 
+        const pWreath = 'WR'; const indexWreath = nextIndex(pWreath); label = pWreath + indexWreath; 
+    } 
     else if (L === 'label') { label = pfx.label + nextIndex(pfx.label); } 
     else { label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow' || L==='custom_icon') ? '' : p + nextIndex(p); }
     return {label, index: actionCounter};
@@ -1608,7 +1679,7 @@ function getNewItemData(L){
 document.getElementById('btnUndo').onclick=()=>{
     if (sketch && sketch.points.length > 0) {
         sketch.points.pop(); 
-        sketch.cps.pop(); 
+        if (sketch.cps) sketch.cps.pop(); 
         const canComplete = sketch.points.length >= 2;
         document.getElementById('btnComplete').disabled = !canComplete;
         if (canComplete) document.getElementById('btnComplete').classList.add('selectable');
@@ -1632,8 +1703,8 @@ document.getElementById('btnRedo').onclick = () => {
 
 let sketch=null; 
 function startNewSketch(){
-    const data = getNewItemData(currLayer);
-    sketch={points:[],cps:[],layer:currLayer,label:data.label, index: data.index, firstHost:null, isPillarMode: chkPillar.checked}; 
+    const d = getNewItemData(currLayer);
+    sketch={points:[],cps:[],layer:currLayer,label:d.label, index: d.index, firstHost:null, isPillarMode: chkPillar.checked}; 
     document.getElementById('btnComplete').disabled=true;
     document.getElementById('btnComplete').classList.remove('selectable');
 }
@@ -1663,7 +1734,7 @@ function handleTap(sx,sy){
             if(chkSwag.checked && currLayer === 'garland') {
                 const mx = (p1.x + p2.x) / 2; const my = (p1.y + p2.y) / 2; const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
                 sketch.cps.push({x: mx, y: my + (dist * 0.2)}); 
-            } else { sketch.cps.push(null); }
+            } else { if (!sketch.cps) sketch.cps = []; sketch.cps.push(null); }
         }
     }
 
@@ -1715,7 +1786,13 @@ function handleSelectDown(sx, sy){
     });
 
     if (isCustomIconHandleDrag) { selectedItem = { type: 'custom_icon', obj: draggingPoint.obj }; updateModeTag(); requestRender(); return; }
-    if (hitPoint && hitPoint.type !== 'label') { draggingPoint = hitPoint; selectedItem = { type: hitPoint.type, obj: hitPoint.obj }; updateModeTag(); requestRender(); return; }
+    if (hitPoint) { 
+        draggingPoint = hitPoint; 
+        selectedItem = { type: hitPoint.type, obj: hitPoint.obj }; 
+        updateModeTag(); 
+        requestRender(); 
+        return; 
+    }
 
     let bestObject = null; let bestObjectDist = 30; const w = toWorld(sx, sy);
     const searchObjects = (list, type) => {
@@ -1734,8 +1811,9 @@ function handleSelectDown(sx, sy){
     Object.keys(data).forEach(k => searchObjects(data[k], k));
     if (bestObject) {
         selectedItem = bestObject;
+        if (mode === 'move-label') mode = 'select'; // Switch back if we clicked a new object
         updateModeTag();
-    } else { selectedItem = null; updateModeTag(); }
+    } else { selectedItem = null; mode = 'select'; updateModeTag(); }
     requestRender();
 }
 
@@ -1790,7 +1868,9 @@ function drawTreeIcon(ctx, p, kind, size, scale, itemScale) {
 function requestRender(){ window.requestAnimationFrame(draw); }
 
 function drawArrow(p, dir, color){
-    const L = 10 * settings.lineScale * scale; const ang = Math.atan2(dir.y, dir.x); const baseWidth = 4 * settings.lineScale * scale; const colorWidth = 2 * settings.lineScale * scale;
+    const arrowS = settings.arrowScale || 1.0;
+    const L = 10 * arrowS * scale; const ang = Math.atan2(dir.y, dir.x); 
+    const baseWidth = 4 * arrowS * scale; const colorWidth = 2 * arrowS * scale;
     ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang-Math.PI/6), p.y - L*Math.sin(ang-Math.PI/6)); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang+Math.PI/6), p.y - L*Math.sin(ang+Math.PI/6)); ctx.strokeStyle = 'black'; ctx.lineWidth = baseWidth; ctx.stroke();
     ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang-Math.PI/6), p.y - L*Math.sin(ang-Math.PI/6)); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - L*Math.cos(ang+Math.PI/6), p.y - L*Math.sin(ang+Math.PI/6)); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = colorWidth; ctx.stroke();
 }
@@ -1819,7 +1899,14 @@ function drawBow(x, y, scale, itemScale){
 
 function segmentLength(p1, p2, cp = null) {
     if (!cp) return Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    const d1 = Math.hypot(cp.x - p1.x, cp.y - p1.y); const d2 = Math.hypot(p2.x - cp.x, p2.y - p1.y); return d1 + d2; 
+    const steps = 15; let len = 0; let last = p1;
+    for (let i = 1; i <= steps; i++) {
+        const t = i / steps; const mt = 1-t;
+        const qx = mt*mt*p1.x + 2*mt*t*cp.x + t*t*p2.x;
+        const qy = mt*mt*p1.y + 2*mt*t*cp.y + t*t*p2.y;
+        len += Math.hypot(qx-last.x, qy-last.y); last = {x:qx, y:qy};
+    }
+    return len;
 }
 function getPointOnSegmentAtDist(p1, p2, dist, targetDist, cp = null) {
     if (!cp) { const t = targetDist / dist; return { x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t, t: t, dx: (p2.x - p1.x) / dist, dy: (p2.y - p1.y) / dist }; }
@@ -1848,7 +1935,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
     
     const finalColors = colors.length > 0 ? colors : [(isC9(layerName) ? colorOf('ridges') : col)]; 
     let glowStrength = 0; let isLightElement = isC9(layerName) || ['windows', 'wreath', 'tree', 'bow', 'shrub'].includes(layerName);
-    const AMBIENT_MULTIPLIER = 15; const CORE_GLOW_BLUR = 2 * scale + (baseWidth * 1.5); 
+    const CORE_GLOW_BLUR = 2 * scale + (baseWidth * 1.5); 
 
     if (isNightMode && isLightElement) { glowStrength = CORE_GLOW_BLUR; ctx.shadowBlur = glowStrength; } else { ctx.shadowBlur = 0; }
     
@@ -1907,32 +1994,57 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 function drawLabels(ctx, isExport=false) {
-    const nominalFontSize = 14; const fontScaleFactor = Math.min(1, scale * settings.labelScale); const currentFontSize = nominalFontSize * fontScaleFactor; 
-    if (currentFontSize > 5) { 
+    const nominalFontSize = 14; 
+    const fontScaleFactor = scale * settings.labelScale * 0.35; 
+    const currentFontSize = nominalFontSize * fontScaleFactor; 
+    if (currentFontSize > 1) { 
         ctx.font=`bold ${currentFontSize}px "Inter", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        Object.keys(data).forEach(k=>data[k].forEach(it=>{
-            if(!it.label || k === 'label' || k === 'custom_icon') return;
-            let p, offY;
-            if(it.points) { p = getPolylineMidpoint(it.points); offY = -14 * fontScaleFactor; } 
-            else if (it.kind === 'ToL') { const treeScale = (k === 'tree') ? settings.iconScale : 1.0; const h = (it.size || 9) * 3 * scale * treeScale; p = {x: it.pt.x, y: it.pt.y - (h/2)/scale}; offY = 0; } 
-            else if (k === 'custom_icon') { const scaledW = it.w * it.scale; const scaledH = it.h * it.scale; p = { x: it.pt.x + scaledW / 2, y: it.pt.y + scaledH / 2 }; offY = 0; } 
-            else { p = it.pt; offY = 0; }
-            const s = toScr(p);
-            let suffix = ''; if(isC9(k) && it.clip) suffix = ` ${it.clip}`; if(k === 'wreath') suffix = ` ${it.size}`; if(it.fra) suffix += ' (FRA)'; if(it.gguard) suffix += ' (GG)';
-            const labelText = it.label + suffix; const metrics = ctx.measureText(labelText); const textWidth = metrics.width;
-            const padX = 6 * fontScaleFactor; const padY = 4 * fontScaleFactor; const boxWidth = textWidth + (2 * padX); const boxHeight = currentFontSize + (2 * padY); const radius = 6 * fontScaleFactor;
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; roundRect(ctx, s.x - boxWidth/2, s.y + offY - boxHeight/2, boxWidth, boxHeight, radius); ctx.fill();
-            ctx.fillStyle='white'; ctx.fillText(labelText, s.x, s.y + offY);
-        }));
+        Object.keys(data).forEach(k=>{
+            // Skip power supply labels on the canvas
+            if (k === 'powersource') return;
+            
+            data[k].forEach(it=>{
+                if(!it.label && k !== 'label') return; 
+                let p, offY;
+                
+                // Priority: Use manually moved label position if it exists
+                if (it.customLabelPos) {
+                    p = it.customLabelPos; offY = 0;
+                } else if(it.points) { 
+                    p = getPolylineMidpoint(it.points); offY = -14 * fontScaleFactor; 
+                } else if (it.kind === 'ToL') { 
+                    const treeScale = (k === 'tree') ? settings.iconScale : 1.0; 
+                    const h = (it.size || 9) * 3 * scale * treeScale; 
+                    p = {x: it.pt.x, y: it.pt.y - (h/2)/scale}; offY = 0; 
+                } else if (k === 'custom_icon') { 
+                    const scaledW = it.w * it.scale; const scaledH = it.h * it.scale; 
+                    p = { x: it.pt.x + scaledW / 2, y: it.pt.y + scaledH / 2 }; offY = 0; 
+                } else { 
+                    p = it.pt; offY = 0; 
+                }
+                const s = toScr(p);
+                
+                let labelText = (k === 'label') ? (it.text || it.label) : it.label;
+                if(isC9(k) && it.clip) labelText += ` ${it.clip}`; 
+                if(k === 'wreath') labelText += ` ${it.size}`; 
+                if(it.fra) labelText += ' (FRA)'; 
+                if(it.gguard) labelText += ' (GG)';
+                
+                const metrics = ctx.measureText(labelText); const textWidth = metrics.width;
+                const padX = 6 * fontScaleFactor; const padY = 4 * fontScaleFactor; 
+                const boxWidth = textWidth + (2 * padX); const boxHeight = currentFontSize + (2 * padY); 
+                const radius = 6 * fontScaleFactor;
+                
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; roundRect(ctx, s.x - boxWidth/2, s.y + offY - boxHeight/2, boxWidth, boxHeight, radius); ctx.fill();
+                ctx.fillStyle='white'; ctx.fillText(labelText, s.x, s.y + offY);
+            });
+        });
     }
 }
 
 function draw(){
     if (!ctx) return;
-    const r = canvasWrap.getBoundingClientRect(); const width = r.width; const height = r.height;
-    if (width !== lastWidth || height !== lastHeight) { initializeAndSizeContext(); return; }
     const cw = cv.width / DPR; const ch = cv.height / DPR;
-    ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,cw,ch);
     let isBlankMap = imgReady && !imgDataUrl;
     if(isBlankMap){ ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch); } else { ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,cw,ch); }
     
@@ -1946,15 +2058,22 @@ function draw(){
     ctx.shadowBlur = 0; const pg = analyzePower();
     data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); }); 
     ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
+    
     if(pg){
         pg.edges.forEach(e => {
-            if(['garland', 'groundstakes'].includes(e.type)) return;
+            if(['groundstakes'].includes(e.type)) return;
             const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
             if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                 const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
-                let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else if(vNode.dist < uNode.dist) { from = vPos; to = uPos; isReversed = true; } else return; 
-                const cp = e.cps ? toScr(e.cps) : null; const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y);
-                let count = Math.floor(dist/150 * settings.arrowFreqFactor); 
+                let from, to, isReversed; 
+                if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } 
+                else if(vNode.dist < uNode.dist) { from = vPos; to = uPos; isReversed = true; } 
+                else return; 
+                
+                const cp = e.cps ? toScr(e.cps) : null; 
+                const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
+                let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
+                
                 if(cp) {
                     for(let k=1; k<=count; k++){
                         let t = k / (count+1); const invT = 1 - t;
@@ -1993,9 +2112,9 @@ function draw(){
     });
     
     data.powersource.forEach(ps=>{
-        const s=toScr(ps.pt); const size = 8 * junctionScale * scale; const strokeWidth = 3 * junctionScale * scale; 
-        ctx.fillStyle='#ef4444'; ctx.fillRect(s.x-size/2, s.y-size/2, size, size);
-        ctx.strokeStyle='black'; ctx.lineWidth=strokeWidth; ctx.strokeRect(s.x-size/2, s.y-size/2, size, size); ctx.strokeStyle='white'; ctx.lineWidth=strokeWidth/2; ctx.strokeRect(s.x-size/2, s.y-size/2, size, size);
+        const s=toScr(ps.pt); const sz = 8 * junctionScale * scale; const strokeWidth = 3 * junctionScale * scale; 
+        ctx.fillStyle='#ef4444'; ctx.fillRect(s.x-sz/2, s.y-sz/2, sz, sz);
+        ctx.strokeStyle='black'; ctx.lineWidth=strokeWidth; ctx.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); ctx.strokeStyle='white'; ctx.lineWidth=strokeWidth/2; ctx.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz);
     });
 
     if(data.threeway){
@@ -2015,7 +2134,7 @@ function draw(){
 
     if(sketch && sketch.points.length>0){
         const cursor = cv._mx!=null ? toWorld(cv._mx, cv._my) : null; const pts = [...sketch.points]; if(cursor) pts.push(cursor);
-        const skObj = {points: pts, cps: sketch.cps || [], L: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode}; 
+        const skObj = {points: pts, cps: sketch.cps || [], layer: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode}; 
         const sketchColor = getColorCode(sketch.col) || colorOf(sketch.layer);
         drawContinuousLine(skObj, sketchColor, sketch.layer); 
     }
@@ -2061,8 +2180,8 @@ function startBlankMap() {
 function getCleanData() { const cleanData = JSON.parse(JSON.stringify(data)); if (cleanData.custom_icon) { cleanData.custom_icon.forEach(icon => { delete icon.imageObj; }); } return cleanData; }
 
 function applyUIState(o) {
-    lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor; bgBlurInput.value = settings.bgBlur;
-    updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI(); updateBgBlurUI();
+    lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor; bgBlurInput.value = settings.bgBlur; arrowScaleInput.value = settings.arrowScale;
+    updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI(); updateBgBlurUI(); updateArrowScaleUI();
     const uiState = o.uiState || {};
     isNightMode = uiState.isNightMode !== undefined ? uiState.isNightMode : false;
     const nightModeToolButton = toolBtn['night_mode'];
@@ -2143,7 +2262,7 @@ async function performDualSave() {
 function buildPayload() {
     const isCC = document.getElementById('btnCustomerControlled').classList.contains('toggled');
     return {
-        version:19, image:imgDataUrl, data: getCleanData(), 
+        version:20, image:imgDataUrl, data: getCleanData(), 
         job:{ 
             name:document.getElementById('customer').value, 
             address:document.getElementById('address').value, 
@@ -2163,7 +2282,8 @@ function buildPayload() {
 function getFilenameBase() { const year = new Date().getFullYear(); const nm = (document.getElementById('customer').value || 'Untitled').trim(); return `${nm} - ${year} Map`; }
 
 async function performSaveMapOnly() {
-    const filenameMap = `${getFilenameBase()}.skmap`; const payload = buildPayload(); const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+    const filenameMap = `${getFilenameBase()}.skmap`; const payload = buildPayload(); 
+    const blob = new Blob([JSON.stringify(payload)], {type:'application/octet-stream'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filenameMap; a.click();
 }
 
@@ -2211,7 +2331,6 @@ function captureCanvasData() {
     
     const cropW = maxX - minX; const cropH = maxY - minY; const DPI = 2; const MAP_WIDTH_PX = 1000; const MAP_H_PX = Math.round((MAP_WIDTH_PX / cropW) * cropH);
     
-    // Virtual testing for word wrap height
     const testCanvas = document.createElement('canvas');
     const tCtx = testCanvas.getContext('2d');
     tCtx.font = 'italic 11px "Inter", system-ui';
@@ -2245,7 +2364,6 @@ function captureCanvasData() {
 
         o.fillStyle = '#0f172a'; o.fillRect(0, 0, OUT_W, OUT_H);
 
-        // Header Section
         o.fillStyle = 'white'; o.font = 'bold 18px "Inter", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
         o.fillText(document.getElementById('customer').value || 'UNTITLED PROJECT', 12, 20);
         
@@ -2255,7 +2373,6 @@ function captureCanvasData() {
         o.fillStyle = '#3b82f6'; o.font = 'bold 12px "Inter", system-ui';
         o.fillText(`DATE: ${new Date().toLocaleDateString()}`, 12, 65);
 
-        // Timer Info Box
         const timerOn1 = document.getElementById('on1').value;
         const timerOff1 = document.getElementById('off1').value;
         const timerOn2 = document.getElementById('on2').value;
@@ -2273,15 +2390,10 @@ function captureCanvasData() {
         
         o.fillStyle = '#f1f5f9'; o.font = 'bold 13px "Inter", system-ui';
         o.textBaseline = 'middle';
-        if (isCC) {
-            o.fillText('CUSTOMER CONTROLLED', OUT_W - (timerBoxW/2) - 12, 52);
-        } else {
-            o.fillText(`T1: ${timerOn1 || '--'} to ${timerOff1 || '--'}`, OUT_W - (timerBoxW/2) - 12, 45);
-            o.fillText(`T2: ${timerOn2 || '--'} to ${timerOff2 || '--'}`, OUT_W - (timerBoxW/2) - 12, 62);
-        }
+        if (isCC) { o.fillText('CUSTOMER CONTROLLED', OUT_W - (timerBoxW/2) - 12, 52); } 
+        else { o.fillText(`T1: ${timerOn1 || '--'} to ${timerOff1 || '--'}`, OUT_W - (timerBoxW/2) - 12, 45); o.fillText(`T2: ${timerOn2 || '--'} to ${timerOff2 || '--'}`, OUT_W - (timerBoxW/2) - 12, 62); }
         o.textBaseline = 'top';
 
-        // Notes Area
         if(jNotes) {
             o.textAlign = 'left';
             o.fillStyle = '#fbbf24'; o.font = 'bold 11px "Inter", system-ui';
@@ -2290,10 +2402,8 @@ function captureCanvasData() {
             wrapText(o, jNotes, 12, 100, notesWidth, 15);
         }
         
-        // Large Logo fills header space
         const logoSize = 90; o.drawImage(logo, (OUT_W / 2) - (logoSize / 2), 10, logoSize, logoSize);
 
-        // Map rendering area (respecting current filters)
         let imageFilter = 'none'; 
         if(isNightMode) imageFilter = 'brightness(0.25) grayscale(0.2)';
         if(settings.bgBlur > 0) imageFilter = (imageFilter==='none'?'':imageFilter+' ') + `blur(${settings.bgBlur/5}px)`;
@@ -2302,100 +2412,75 @@ function captureCanvasData() {
         else { o.drawImage(bg, minX, minY, cropW, cropH, 0, HEADER_H, OUT_W, MAP_H_PX); }
         o.filter = 'none';
 
-        // Redraw Map Items
         data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
         ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
         
         const pg = analyzePower();
         if(pg){
              pg.edges.forEach(e => {
-                 if(['garland', 'groundstakes'].includes(e.type)) return;
+                 if(['groundstakes'].includes(e.type)) return;
                  const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
                  if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
-                     let from, to, isReversed; if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
-                     const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y); 
-                     
-                     // Density Match Logic: zoom-dependent density
-                     const workspaceDist = dist * (oldScale / scale);
-                     let count = Math.floor(workspaceDist/150 * settings.arrowFreqFactor);
-                     
+                     let from, to, isReversed; 
+                     if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
                      const dx = to.x - from.x, dy = to.y - from.y; 
+                     
+                     const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
+                     let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
+                     
                      for(let k=1; k<=count; k++){ const t = k / (count+1); drawArrow({x:from.x + dx*t, y:from.y + dy*t}, {x:dx, y:dy}, '#ef4444'); }
                  }
              });
-             pg.deadTips.forEach(nodeIdx => { 
-                const n = pg.nodes[nodeIdx];
-                const neighbor = pg.nodes[n.adj[0]];
-                if(neighbor) drawDeadEnd(n, neighbor, '#fffdf0'); 
-             });
+             pg.deadTips.forEach(nodeIdx => { const n = pg.nodes[nodeIdx]; const neighbor = pg.nodes[n.adj[0]]; if(neighbor) drawDeadEnd(n, neighbor, '#fffdf0'); });
         }
         data.wreath.forEach(w=>{ const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); o.fillStyle = colorOf('wreath'); o.fill(); o.stroke(); });
         data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, settings.iconScale); }); 
         data.tree.forEach(tr => { drawTreeIcon(o, toScr(tr.pt), tr.kind, tr.size, scale, settings.iconScale); });
         data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
         data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.stroke(); });
-
         drawLabels(o);
 
-        // Summary Table Section
         if (ITEM_COUNT > 0) {
             const footY = HEADER_H + MAP_H_PX;
             o.fillStyle = '#1e293b'; o.fillRect(0, footY, OUT_W, FOOTER_H);
-            
-            o.fillStyle = '#3b82f6'; o.font = 'bold 15px "Inter", system-ui'; o.textAlign = 'left'; 
-            o.textBaseline = 'top';
+            o.fillStyle = '#3b82f6'; o.font = 'bold 15px "Inter", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
             o.fillText('LINE INFORMATION SUMMARY', 12, footY + 12);
-            
             let y = footY + FOOTER_TITLE_H;
             const cols = [ { label: 'TYPE', w: 0.15 }, { label: 'ID', w: 0.08 }, { label: 'FT', w: 0.08 }, { label: 'BULBS', w: 0.08 }, { label: 'CLIP', w: 0.12 }, { label: 'COLOUR', w: 0.15 }, { label: 'NOTES', w: 0.3 } ];
-            
-            o.fillStyle = '#0f172a';
-            roundRect(o, 8, y-2, OUT_W-16, 22, 6); o.fill();
-
-            o.fillStyle = '#3b82f6'; o.font = 'bold 10px "Inter", system-ui';
-            o.textBaseline = 'middle';
+            o.fillStyle = '#0f172a'; roundRect(o, 8, y-2, OUT_W-16, 22, 6); o.fill();
+            o.fillStyle = '#3b82f6'; o.font = 'bold 10px "Inter", system-ui'; o.textBaseline = 'middle';
             let headerX = 15; cols.forEach(c => { o.fillText(c.label, headerX, y + 9); headerX += OUT_W * c.w; });
-            
             o.fillStyle = '#f1f5f9'; o.font = '11px "Inter", system-ui';
             y += 24;
-            items.sort((a,b)=>a.label.localeCompare(b.label, undefined, {numeric:true})).forEach(r => {
+            items.sort((a,b)=>(a.label||'').localeCompare(b.label||'', undefined, {numeric:true})).forEach(r => {
                 let x = 15;
                 o.fillText(pretty[r.L] || r.L, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[0].w;
-                o.fillText(r.label, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[1].w;
+                o.fillText(r.label || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[1].w;
                 o.fillText(r.ft || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[2].w;
                 o.fillText(r.bulbs || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[3].w;
                 o.fillText(r.clip || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[4].w;
-                
                 let displayCol = r.col || '-';
-                const normalizedRCol = r.col ? r.col.toLowerCase().replace(/\s/g, '/').replace(/,/g, '/').replace(/ /g, '') : '';
+                const nrCol = r.col ? r.col.toLowerCase().replace(/\s/g, '/').replace(/,/g, '/').replace(/ /g, '') : '';
                 if (r.L === 'garland' || r.L === 'wreath' || (r.L === 'shrub' && !r.col)) { displayCol = 'Green'; } 
                 else if (r.L === 'cords') { displayCol = 'Black'; } 
-                else { 
-                    if (normalizedRCol.includes('multi') || normalizedRCol.includes('red/blue') || normalizedRCol === 'm') { displayCol = 'Multi'; } 
-                    else if (r.col === '') { displayCol = 'Warm White'; } 
-                    else { displayCol = r.col; } 
-                }
+                else { if (nrCol.includes('multi') || nrCol.includes('red/blue') || nrCol === 'm') { displayCol = 'Multi'; } else if (r.col === '') { displayCol = 'Warm White'; } else { displayCol = r.col; } }
                 o.fillText(displayCol, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[5].w;
-                
-                o.fillText(r.notes || '-', x, y + FOOTER_ROW_H/2);
-                y += FOOTER_ROW_H;
-                
-                o.strokeStyle = '#334155'; o.lineWidth = 0.5;
-                o.beginPath(); o.moveTo(12, y); o.lineTo(OUT_W - 12, y); o.stroke();
+                o.fillText(r.notes || '-', x, y + FOOTER_ROW_H/2); y += FOOTER_ROW_H;
+                o.strokeStyle = '#334155'; o.lineWidth = 0.5; o.beginPath(); o.moveTo(12, y); o.lineTo(OUT_W - 12, y); o.stroke();
             });
         }
-    } finally {
-        scale = oldScale; panX = oldPanX; panY = oldPanY; ctx = originalCtx;
-    }
+    } finally { scale = oldScale; panX = oldPanX; panY = oldPanY; ctx = originalCtx; }
     return { url: out.toDataURL('image/png'), width: OUT_W * DPI, height: OUT_H * DPI };
 }
 
 function collectRows() {
     const rows = [];
+    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
     Object.keys(data).forEach(L => {
+        if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
-            if (it.label && L !== 'label' && L !== 'custom_icon') rows.push({ 
+            rows.push({ 
                 L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false 
             });
         });
@@ -2415,7 +2500,6 @@ function initializeUI() {
 document.addEventListener('DOMContentLoaded', () => {
     initializeUI(); initializeAndSizeContext();
     document.getElementById('btnRelabelIDs').onclick = relabelIds;
-    
     document.getElementById('gPickImg').onclick = () => document.getElementById('gImg').click();
     document.getElementById('gPickBlank').onclick = startBlankMap;
     document.getElementById('gPickMap').onclick = () => document.getElementById('gMap').click();
