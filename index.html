@@ -301,6 +301,19 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
+/* Restored Popup Styles */
+.pop {
+    position: fixed; background: var(--panel); border: 1px solid var(--accent);
+    padding: 8px; border-radius: 12px; display: none; gap: 4px; z-index: 9999;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+.pop button {
+    background: var(--bg); border: 1px solid var(--border); color: white;
+    padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
+    transition: all 0.2s; min-width: 50px;
+}
+.pop button:hover { background: var(--accent); border-color: white; }
+
 @media (max-width: 900px) {
     aside { position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(-105%); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
     aside.open { transform: translateX(0); }
@@ -328,7 +341,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     <div class="grow">
       <div style="display:flex; gap:8px;">
           <button id="gPickImg" class="gbtn" style="flex:1"><i data-lucide="image-plus"></i> Upload Property Photo</button>
-          <a href="https://earth.google.com/web/" target="_blank" class="gbtn" style="width:60px; padding:16px 0;" title="Google Earth"><i data-lucide="globe"></i></a>
+          <a href="https://earth.google.com/web/" target=\"_blank\" class="gbtn" style="width:60px; padding:16px 0;" title="Google Earth"><i data-lucide="globe"></i></a>
       </div>
       <button id="gPickBlank" class="gbtn"><i data-lucide="file-plus"></i> Start Blank Map</button>
       <button id="gPickMap" class="gbtn"><i data-lucide="folder-open"></i> Load Existing Map</button>
@@ -1080,11 +1093,11 @@ function refreshTable(){
         const select = tr.querySelector('.clip-select');
         const fraCheck = tr.querySelector('.fra-checkbox');
         const gguardCheck = tr.querySelector('.gg-checkbox'); 
-        const inputId = tr.querySelector('input[style*="width:50px"]');
-        const inputCol = tr.querySelector('input[placeholder="Col"]');
-        const inputFt = tr.querySelector('input[placeholder="ft"]');
-        const inputBulbs = tr.querySelector('input[placeholder="#"]');
-        const inputNotes = tr.querySelector('input[placeholder="Notes"]');
+        const inputId = tr.querySelector('input[style*=\"width:50px\"]');
+        const inputCol = tr.querySelector('input[placeholder=\"Col\"]');
+        const inputFt = tr.querySelector('input[placeholder=\"ft\"]');
+        const inputBulbs = tr.querySelector('input[placeholder=\"#\"]');
+        const inputNotes = tr.querySelector('input[placeholder=\"Notes\"]');
         
         if (inputId) inputId.onchange = e => { r.item.label = e.target.value; markPowerDirty(); requestRender(); refreshTable(); };
         if (inputCol) {
@@ -1198,7 +1211,7 @@ function buildTools(){
   cats.forEach(cat=>{
     const acc=document.createElement('div');acc.className='acc';
     const head=document.createElement('div');head.className='accHead';
-    head.innerHTML=`<b>${cat.name}</b><i data-lucide="chevron-right"></i>`;
+    head.innerHTML=`<b>${cat.name}</b><i data-lucide=\"chevron-right\"></i>`;
     head.onclick=()=>{
         document.querySelectorAll('.acc.open').forEach(el=>{if(el!==acc)el.classList.remove('open')});
         acc.classList.toggle('open');
@@ -1519,6 +1532,11 @@ function placeItem(L, w, sx, sy){
     data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
 }
 
+/**
+ * NOTE: ToL (Tree of Lights) Placement Logic
+ * Fixed Issue: Restored the .pop CSS class which was missing, causing popups to be invisible.
+ * Ensured exact string comparison for 'ToL' variant to trigger the size selection popup.
+ */
 function placeTree(L, w, sx, sy, label, index) {
     if (currTreeKind === 'ToL') {
         openPop(document.getElementById('tolPop'), sx, sy, (size) => {
@@ -1761,7 +1779,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     const i = parseInt(idx);
                     const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
+                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
                 });
@@ -2230,7 +2248,7 @@ function drawLabels(ctx, isExport=false) {
     const fontScaleFactor = scale * settings.labelScale * 0.35; 
     const currentFontSize = nominalFontSize * fontScaleFactor; 
     if (currentFontSize > 0.1) { 
-        ctx.font=`bold ${currentFontSize}px "Inter", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.font=`bold ${currentFontSize}px \"Inter\", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
         Object.keys(data).forEach(k=>{
             if (k === 'powersource') return;
             data[k].forEach(it=>{
@@ -2604,7 +2622,7 @@ function captureCanvasData() {
     
     const testCanvas = document.createElement('canvas');
     const tCtx = testCanvas.getContext('2d');
-    tCtx.font = 'italic 11px "Inter", system-ui';
+    tCtx.font = 'italic 11px \"Inter\", system-ui';
     const notesWidth = 970;
     const jNotes = document.getElementById('jobNotes').value;
     let estimatedNotesHeight = 0;
@@ -2635,13 +2653,13 @@ function captureCanvasData() {
 
         o.fillStyle = '#0f172a'; o.fillRect(0, 0, OUT_W, OUT_H);
 
-        o.fillStyle = 'white'; o.font = 'bold 18px "Inter", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
+        o.fillStyle = 'white'; o.font = 'bold 18px \"Inter\", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
         o.fillText(document.getElementById('customer').value || 'UNTITLED PROJECT', 12, 20);
         
-        o.fillStyle = '#94a3b8'; o.font = '500 13px "Inter", system-ui';
+        o.fillStyle = '#94a3b8'; o.font = '500 13px \"Inter\", system-ui';
         o.fillText(document.getElementById('address').value || 'No address provided', 12, 45);
         
-        o.fillStyle = '#3b82f6'; o.font = 'bold 12px "Inter", system-ui';
+        o.fillStyle = '#3b82f6'; o.font = 'bold 12px \"Inter\", system-ui';
         o.fillText(`DATE: ${new Date().toLocaleDateString()}`, 12, 65);
 
         const timerOn1 = document.getElementById('on1').value;
@@ -2656,10 +2674,10 @@ function captureCanvasData() {
         roundRect(o, OUT_W - timerBoxW - 12, 15, timerBoxW, 65, 8); o.fill(); 
         o.strokeStyle = '#334155'; o.stroke();
         
-        o.fillStyle = '#fbbf24'; o.font = 'bold 12px "Inter", system-ui'; o.textAlign = 'center';
+        o.fillStyle = '#fbbf24'; o.font = 'bold 12px \"Inter\", system-ui'; o.textAlign = 'center';
         o.fillText('TIMER SETTINGS', OUT_W - (timerBoxW/2) - 12, 25);
         
-        o.fillStyle = '#f1f5f9'; o.font = 'bold 13px "Inter", system-ui';
+        o.fillStyle = '#f1f5f9'; o.font = 'bold 13px \"Inter\", system-ui';
         o.textBaseline = 'middle';
         if (isCC) { o.fillText('CUSTOMER CONTROLLED', OUT_W - (timerBoxW/2) - 12, 52); } 
         else { o.fillText(`T1: ${timerOn1 || '--'} to ${timerOff1 || '--'}`, OUT_W - (timerBoxW/2) - 12, 45); o.fillText(`T2: ${timerOn2 || '--'} to ${timerOff2 || '--'}`, OUT_W - (timerBoxW/2) - 12, 62); }
@@ -2667,9 +2685,9 @@ function captureCanvasData() {
 
         if(jNotes) {
             o.textAlign = 'left';
-            o.fillStyle = '#fbbf24'; o.font = 'bold 11px "Inter", system-ui';
+            o.fillStyle = '#fbbf24'; o.font = 'bold 11px \"Inter\", system-ui';
             o.fillText('INSTALLATION NOTES:', 12, 85);
-            o.fillStyle = '#cbd5e1'; o.font = 'italic 11px "Inter", system-ui';
+            o.fillStyle = '#cbd5e1'; o.font = 'italic 11px \"Inter\", system-ui';
             wrapText(o, jNotes, 12, 100, notesWidth, 15);
         }
         
@@ -2728,7 +2746,7 @@ function captureCanvasData() {
         }
         
         data.wreath.forEach(w=>{
-            const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; const wreathColor = colorOf('wreath');
+            const s=toScr(w.pt); const r=(w.size==='42\"'?12.5:8.75)*scale*settings.iconScale; const wreathColor = colorOf('wreath');
             o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); o.fillStyle = wreathColor; o.fill(); 
             o.strokeStyle='black'; o.lineWidth=6 * settings.iconScale * scale; o.stroke(); 
             o.strokeStyle=wreathColor; o.lineWidth=3 * settings.iconScale * scale; o.stroke();
@@ -2749,14 +2767,14 @@ function captureCanvasData() {
         if (ITEM_COUNT > 0) {
             const footY = HEADER_H + MAP_H_PX;
             o.fillStyle = '#1e293b'; o.fillRect(0, footY, OUT_W, FOOTER_H);
-            o.fillStyle = '#3b82f6'; o.font = 'bold 15px "Inter", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
+            o.fillStyle = '#3b82f6'; o.font = 'bold 15px \"Inter\", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
             o.fillText('LINE INFORMATION SUMMARY', 12, footY + 12);
             let y = footY + FOOTER_TITLE_H;
             const cols = [ { label: 'TYPE', w: 0.15 }, { label: 'ID', w: 0.08 }, { label: 'FT', w: 0.08 }, { label: 'BULBS', w: 0.08 }, { label: 'CLIP', w: 0.12 }, { label: 'COLOUR', w: 0.15 }, { label: 'NOTES', w: 0.3 } ];
             o.fillStyle = '#0f172a'; roundRect(o, 8, y-2, OUT_W-16, 22, 6); o.fill();
-            o.fillStyle = '#3b82f6'; o.font = 'bold 10px "Inter", system-ui'; o.textBaseline = 'middle';
+            o.fillStyle = '#3b82f6'; o.font = 'bold 10px \"Inter\", system-ui'; o.textBaseline = 'middle';
             let headerX = 15; cols.forEach(c => { o.fillText(c.label, headerX, y + 9); headerX += OUT_W * c.w; });
-            o.fillStyle = '#f1f5f9'; o.font = '11px "Inter", system-ui';
+            o.fillStyle = '#f1f5f9'; o.font = '11px \"Inter\", system-ui';
             y += 24;
             items.sort((a,b)=>(a.label||'').localeCompare(b.label||'', undefined, {numeric:true})).forEach(r => {
                 let x = 15;
