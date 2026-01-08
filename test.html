@@ -265,22 +265,18 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 }
 .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
-    padding: 24px; width: 90%; max-width: 500px; text-align: center;
+    padding: 24px; width: 90%; max-width: 450px; text-align: center;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-    max-height: 90vh; display: flex; flex-direction: column;
+    max-height: 80vh; display: flex; flex-direction: column;
 }
 
-/* Gallery Modal Special Styling */
-.gallery-card {
-    max-width: 900px; width: 95%; height: 85vh;
-}
-
+/* Enhanced Gallery Styling */
+.gallery-card { max-width: 900px; width: 95%; height: 85vh; }
 .gallery-list {
     overflow-y: auto; flex: 1; text-align: left; margin: 16px 0;
     border: 1px solid var(--border); border-radius: 16px; background: rgba(0,0,0,0.1);
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; padding: 16px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; padding: 16px;
 }
-
 .gallery-item {
     background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
     padding: 10px; cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -372,14 +368,12 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
         <div id="galleryList" class="gallery-list">
             <div style="padding:40px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">
                 <i data-lucide="loader-2" style="width:32px; height:32px; animation: spin 1.5s linear infinite;"></i>
-                <div style="margin-top:12px">Syncing maps...</div>
+                <div style="margin-top:12px">Syncing cloud library...</div>
             </div>
         </div>
         <div class="row"><button onclick="document.getElementById('modalGallery').style.display='none'" class="btn-stay" style="background:var(--panel-hover)">Return to Main</button></div>
     </div>
 </div>
-
-<style>@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</style>
 
 <div id="lblEditor"><input id="lblInput" placeholder="Note/Ft"></div>
 
@@ -600,12 +594,11 @@ const iconMap = {
 /* ---------------------------------------------------------------------- */
 /* ------------------------ BETA: GITHUB CLOUD SAVING ------------------- */
 /* ---------------------------------------------------------------------- */
-// Store in two parts to prevent automated revocation
-const p1 = "ghp_xSeuggnKkttH6z";
-const p2 = "TSfiTENK2bjTv7ya1TsWF7";
+const tp1 = "ghp_xSeuggnKkttH6z";
+const tp2 = "TSfiTENK2bjTv7ya1TsWF7";
 
 const githubConfig = {
-    token: (p1 + p2).trim(),
+    token: (tp1 + tp2).trim(),
     owner: "rollert2",
     repo: "SkedaddleMapMaker",
     path: "maps/",
@@ -653,7 +646,7 @@ async function openGallery() {
     
     modal.style.display = 'flex';
     list.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;"><i data-lucide="loader-2" style="width:32px; height:32px; animation: spin 1.5s linear infinite;"></i><div style="margin-top:12px">Syncing cloud library...</div></div>';
-    lucide.createIcons();
+    if(window.lucide) lucide.createIcons();
     search.value = "";
 
     try {
@@ -677,9 +670,9 @@ async function openGallery() {
             
             renderGalleryItems(mapFiles);
         } else { 
-            list.innerHTML = `<div style="padding:40px; text-align:center; color:var(--danger); grid-column: 1 / -1;">Error ${res.status}. Token likely revoked.</div>`; 
+            list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--danger); grid-column: 1 / -1;">Error ${res.status}. Token likely revoked.</div>`; 
         }
-    } catch (err) { list.innerHTML = '<div style="padding:40px; text-align:center; color:var(--danger); grid-column: 1 / -1;">Connection failed.</div>'; }
+    } catch (err) { list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--danger); grid-column: 1 / -1;">Connection failed.</div>'; }
 }
 
 async function renderGalleryItems(maps) {
@@ -708,11 +701,9 @@ async function renderGalleryItems(maps) {
         `;
         item.onclick = () => loadFromGitHub(f.download_url);
         list.appendChild(item);
-        
-        // Lazy load the thumbnail
         fetchThumbnail(f);
     });
-    lucide.createIcons();
+    if(window.lucide) lucide.createIcons();
 }
 
 async function fetchThumbnail(fileMetadata) {
@@ -726,10 +717,9 @@ async function fetchThumbnail(fileMetadata) {
             thumbContainer.innerHTML = `<div style="display:flex; flex-direction:column; align-items:center; gap:4px"><i data-lucide="image-off" style="width:24px; color:var(--text-muted)"></i><span style="font-size:9px; color:var(--text-muted)">No Preview</span></div>`;
             lucide.createIcons();
         }
-    } catch (e) { /* silent fail */ }
+    } catch (e) { }
 }
 
-// Gallery Search functionality
 document.getElementById('gallerySearch').oninput = (e) => {
     const term = e.target.value.toLowerCase();
     const filtered = allGalleryMaps.filter(m => m.name.toLowerCase().includes(term));
@@ -1771,7 +1761,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     const i = parseInt(idx);
                     const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
                 });
@@ -2181,31 +2171,51 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
         ctx.strokeStyle = color; ctx.lineWidth = baseWidth; 
         drawDashedPath(() => {});
     } else {
-        const colorBlockLength = Math.max(10, 10 * settings.lineScale * scale); let colorIndex = 0;
+        // Pattern logic: pinning color blocks to world space so they don't shift when zooming
+        const worldBlockLength = 10 * settings.lineScale; 
+        let colorIndex = 0;
+        ctx.lineCap = 'butt'; // Crucial for multi-color continuity
+
         for (let i = 0; i < points.length - 1; i++) {
-            const p1 = points[i]; const p2 = points[i+1]; const segDist = segmentLength(it.points[i], it.points[i+1], it.cps?.[i]) * scale;
+            const worldSegDist = segmentLength(it.points[i], it.points[i+1], it.cps?.[i]);
             const isDottedSegment = it.isPillarMode && layerName === 'garland' && (i % 2 !== 0);
-            let currentDistInSegment = 0; let lastDrawnPoint = p1;
-            while (currentDistInSegment < segDist) {
-                const color = finalColors[colorIndex % finalColors.length]; const remainingDistInSegment = segDist - currentDistInSegment; const blockDist = Math.min(colorBlockLength, remainingDistInSegment);
-                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], segmentLength(it.points[i], it.points[i+1], it.cps?.[i]) * scale, (currentDistInSegment + blockDist) / scale, it.cps?.[i]);
-                const endPoint = toScr({x: ptObj.x, y: ptObj.y});
-                if (blockDist > 0.1) {
+            let currentWorldDist = 0;
+            let lastWorldPt = it.points[i];
+
+            while (currentWorldDist < worldSegDist) {
+                const color = finalColors[colorIndex % finalColors.length];
+                const blockDist = Math.min(worldBlockLength, worldSegDist - currentWorldDist);
+                const nextWorldDist = currentWorldDist + blockDist;
+                const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], worldSegDist, nextWorldDist, it.cps?.[i]);
+                
+                const sStart = toScr(lastWorldPt);
+                const sEnd = toScr({x: ptObj.x, y: ptObj.y});
+
+                if (blockDist > 0.01) {
                     if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
-                    ctx.beginPath(); ctx.moveTo(lastDrawnPoint.x, lastDrawnPoint.y); ctx.lineTo(endPoint.x, endPoint.y);
+                    ctx.beginPath();
+                    ctx.moveTo(sStart.x, sStart.y);
+                    ctx.lineTo(sEnd.x, sEnd.y);
                     if (isDottedSegment) {
                         const dashLen = 8 * settings.lineScale * scale;
                         ctx.setLineDash([dashLen, dashLen]);
                     } else {
                         ctx.setLineDash([]);
                     }
-                    ctx.strokeStyle = color; ctx.lineWidth = baseWidth; ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur = 0; 
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = baseWidth;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
                 }
-                currentDistInSegment += blockDist; lastDrawnPoint = endPoint; colorIndex++; 
+                currentWorldDist = nextWorldDist;
+                lastWorldPt = {x: ptObj.x, y: ptObj.y};
+                colorIndex++;
             }
         }
+        ctx.lineCap = 'round'; // Restore default
+        ctx.setLineDash([]);
     }
-    ctx.shadowBlur = 0; ctx.setLineDash([]); 
+    ctx.shadowBlur = 0;
 }
 
 function drawCord(it, col, layerName) { if (it.points.length < 2) return; drawContinuousLine(it, col, layerName); }
@@ -2284,7 +2294,6 @@ function draw(){
             if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                 const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
                 let isReversed = uNode.dist > vNode.dist;
-                
                 const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
                 let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
                 
@@ -2408,8 +2417,8 @@ function startBlankMap() {
 function getCleanData() { const cleanData = JSON.parse(JSON.stringify(data)); if (cleanData.custom_icon) { cleanData.custom_icon.forEach(icon => { delete icon.imageObj; }); } return cleanData; }
 
 function applyUIState(o) {
-    lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor; bgBlurInput.value = settings.bgBlur; arrowScaleInput.value = settings.arrowScale;
-    updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI(); updateBgBlurUI(); updateArrowScaleUI();
+    lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor; bgBlurInput.value = settings.bgBlur;
+    updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI(); updateBgBlurUI();
     const uiState = o.uiState || {};
     isNightMode = uiState.isNightMode !== undefined ? uiState.isNightMode : false;
     const nightModeToolButton = toolBtn['night_mode'];
@@ -2418,7 +2427,7 @@ function applyUIState(o) {
         nightModeToolButton.classList.toggle('night-glow', isNightMode);
     }
     chkSnap.checked = uiState.isSnapOn !== undefined ? uiState.isSnapOn : true; btnSnap.classList.toggle('toggled', chkSnap.checked);
-    chkSwag.checked = uiState.isSwagOn !== undefined ? uiState.isSnapOn : false; btnSwag.classList.toggle('toggled', chkSwag.checked);
+    chkSwag.checked = uiState.isSwagOn !== undefined ? uiState.isSwagOn : false; btnSwag.classList.toggle('toggled', chkSwag.checked);
     chkPillar.checked = uiState.isPillarOn !== undefined ? uiState.isPillarOn : false; btnPillar.classList.toggle('toggled', chkPillar.checked);
     const chkAuto = document.getElementById('chkAutoCalc'); chkAuto.checked = uiState.isAutoCalcOn !== undefined ? uiState.isAutoCalcOn : true;
     requestRender();
@@ -2500,7 +2509,6 @@ function buildPayload() {
     if(imgReady) {
         const thumbScale = Math.min(160/bg.width, 90/bg.height);
         tCtx.drawImage(bg, 0, 0, bg.width*thumbScale, bg.height*thumbScale);
-        // Draw some basic elements purely for preview
         tCtx.strokeStyle = '#fffdf0'; tCtx.lineWidth = 2;
         ['ridges','fascia','peaks'].forEach(L => {
             data[L].forEach(it => {
@@ -2517,7 +2525,7 @@ function buildPayload() {
 
     return {
         version:20, image:imgDataUrl, data: getCleanData(), 
-        thumbnail: thumbnail, // Cloud thumbnail
+        thumbnail: thumbnail,
         job:{ 
             name:document.getElementById('customer').value, 
             address:document.getElementById('address').value, 
@@ -2720,33 +2728,22 @@ function captureCanvasData() {
         }
         
         data.wreath.forEach(w=>{
-            const s=toScr(w.pt); 
-            const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; 
-            const wreathColor = colorOf('wreath');
-            o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); 
-            o.fillStyle = wreathColor; o.fill(); 
+            const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; const wreathColor = colorOf('wreath');
+            o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); o.fillStyle = wreathColor; o.fill(); 
             o.strokeStyle='black'; o.lineWidth=6 * settings.iconScale * scale; o.stroke(); 
             o.strokeStyle=wreathColor; o.lineWidth=3 * settings.iconScale * scale; o.stroke();
-            if(w.bow === 'top' || w.bow === 'bottom'){ 
-                const by = w.bow==='top' ? s.y - r : s.y + r; 
-                drawBow(s.x, by, scale, settings.iconScale); 
-            }
+            if(w.bow === 'top' || w.bow === 'bottom'){ const by = w.bow==='top' ? s.y - r : s.y + r; drawBow(s.x, by, scale, settings.iconScale); }
         });
-
         data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, settings.iconScale); }); 
         data.tree.forEach(tr => { drawTreeIcon(o, toScr(tr.pt), tr.kind, tr.size, scale, settings.iconScale); });
         data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
         data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
-        
         data.custom_icon.forEach(ci => {
             if (!ci.url) return;
-            const sTL = toScr(ci.pt); 
-            const scaledW = ci.w * ci.scale * scale; 
-            const scaledH = ci.h * ci.scale * scale;
+            const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
             if (!ci.imageObj || ci.imageObj.src !== ci.url) { ci.imageObj = new Image(); ci.imageObj.src = ci.url; }
             if (ci.imageObj.complete) { o.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH); }
         });
-
         drawLabels(o);
 
         if (ITEM_COUNT > 0) {
@@ -2763,9 +2760,7 @@ function captureCanvasData() {
             y += 24;
             items.sort((a,b)=>(a.label||'').localeCompare(b.label||'', undefined, {numeric:true})).forEach(r => {
                 let x = 15;
-                let typeDisplay = pretty[r.L] || r.L;
-                if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
-
+                let typeDisplay = pretty[r.L] || r.L; if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
                 o.fillText(typeDisplay, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[0].w;
                 o.fillText(r.label || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[1].w;
                 o.fillText(r.ft || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[2].w;
@@ -2792,10 +2787,7 @@ function collectRows() {
         if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
             if (it.label && it.label.trim() !== '') {
-                rows.push({ 
-                    L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false,
-                    kind: it.kind 
-                });
+                rows.push({ L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false, kind: it.kind });
             }
         });
     });
