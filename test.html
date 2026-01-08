@@ -325,7 +325,10 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     <h2>Christmas Map Maker</h2>
     <p>Design stunning holiday light displays.<br>Upload a photo or start from scratch.</p>
     <div class="grow">
-      <button id="gPickImg" class="gbtn"><i data-lucide="image-plus"></i> Upload Property Photo</button>
+      <div style="display:flex; gap:8px;">
+          <button id="gPickImg" class="gbtn" style="flex:1"><i data-lucide="image-plus"></i> Upload Property Photo</button>
+          <a href="https://earth.google.com/web/" target="_blank" class="gbtn" style="width:60px; padding:16px 0;" title="Google Earth"><i data-lucide="globe"></i></a>
+      </div>
       <button id="gPickBlank" class="gbtn"><i data-lucide="file-plus"></i> Start Blank Map</button>
       <button id="gPickMap" class="gbtn"><i data-lucide="folder-open"></i> Load Existing Map</button>
       <button id="gLoadDrive" class="gbtn" disabled><i data-lucide="cloud"></i> Load from Drive</button>
@@ -755,7 +758,7 @@ lineScaleInput.oninput = (e) => { settings.lineScale = parseFloat(e.target.value
 iconScaleInput.oninput = (e) => { settings.iconScale = parseFloat(e.target.value); updateIconScaleUI(); requestRender(); };
 bgBlurInput.oninput = (e) => { settings.bgBlur = parseInt(e.target.value); updateBgBlurUI(); requestRender(); };
 junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(junctionScaleInput.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
-labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(e.target.value); updateLabelScaleUI(); requestRender(); };
+labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(labelScaleInput.value); updateLabelScaleUI(); requestRender(); };
 arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
 arrowScaleInput.oninput = (e) => { settings.arrowScale = parseFloat(arrowScaleInput.value); updateArrowScaleUI(); requestRender(); };
 
@@ -822,11 +825,13 @@ function shouldShowGutterGuard(layer, clipType) {
 function refreshTable(){
     const tbody = document.getElementById('lenRows'); tbody.innerHTML='';
     let rows=[];
-    Object.keys(data).forEach(k=>data[k].forEach(it=>{ 
-        // Changed: We now include rows in the table even if the label is blank, 
-        // as long as they aren't explicit 'label' or 'custom_icon' special tools.
-        if(k !== 'label' && k !== 'custom_icon') rows.push({item: it, L:k}); 
-    }));
+    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
+    Object.keys(data).forEach(k=>{
+        if (EXCLUDED_LAYERS.includes(k)) return;
+        data[k].forEach(it=>{ 
+            rows.push({item: it, L:k}); 
+        });
+    });
     rows.sort((a,b)=> (a.item.label||'').localeCompare(b.item.label||'', undefined, {numeric:true}));
     const chkAuto = document.getElementById('chkAutoCalc');
 
@@ -1144,8 +1149,7 @@ function analyzePower(){
     }
     return nodes.push({x:p.x, y:p.y, dist:Infinity, adj:[], type: null}) - 1;
   }
-  // Garland now allowed to have flow arrows
-  const singlePathLayers = ['groundstakes']; const singlePathEdges = new Map(); 
+  const singlePathLayers = ['groundstakes', 'garland']; const singlePathEdges = new Map(); 
   const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
   const decorationLayers = ['powersource', 'threeway', 'wreath', 'tree', 'bow', 'custom_icon'];
 
@@ -1319,7 +1323,7 @@ function placeTree(L, w, sx, sy, label, index) {
 }
 function placeWreath(L, w, sx, sy, label, index) {
     openPop(document.getElementById('wreathPop'), sx, sy, (bow) => {
-        const item = {pt:w, label:label + (currWreathSize === '42"' ? ' (42)' : ''), index:index, size: currWreathSize, bow: bow};
+        const item = {pt:w, label:label, index:index, size: currWreathSize, bow: bow};
         data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
     });
 }
@@ -1345,8 +1349,6 @@ cv.addEventListener('pointerdown',e=>{
     cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
     pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
     
-    // Fixed: Don't hide the editor if the user is interacting with it.
-    // However, if they tap outside it on the canvas, it should close.
     if (!e.target.closest('#lblEditor')) {
         document.getElementById('lblEditor').style.display = 'none';
     }
@@ -1423,10 +1425,14 @@ cv.addEventListener('pointermove',e=>{
     
     if(mode === 'select' && draggingPoint){
         const w = toWorld(x, y); currentSnapLine = null; 
-        if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree')) {
-             const snap = getSnapLineOnly(w.x, w.y, 25 / scale); 
-             if (snap) { draggingPoint.obj.pt = {x: snap.x, y: snap.y}; if(snap.type === 'mid') currentSnapLine = snap; } 
-             else { draggingPoint.obj.pt = w; }
+        if (draggingPoint.index === -1 && (draggingPoint.type === 'powersource' || draggingPoint.type === 'threeway' || draggingPoint.type === 'wreath' || draggingPoint.type === 'bow' || draggingPoint.type === 'tree' || draggingPoint.type === 'label')) {
+             if (draggingPoint.type === 'label') {
+                 draggingPoint.obj.pt = w;
+             } else {
+                 const snap = getSnapLineOnly(w.x, w.y, 25 / scale); 
+                 if (snap) { draggingPoint.obj.pt = {x: snap.x, y: snap.y}; if(snap.type === 'mid') currentSnapLine = snap; } 
+                 else { draggingPoint.obj.pt = w; }
+             }
         } else if (draggingPoint.type === 'custom_icon') {
             const ci = draggingPoint.obj;
             if (draggingPoint.handle === 'move' || draggingPoint.index === -1) { ci.pt.x = w.x; ci.pt.y = w.y; } 
@@ -1523,8 +1529,9 @@ function checkCordLabelClick(sx, sy) {
     let best = checkLabelClick(sx, sy); if (best) { showLabelEditor(best); return; }
     const {label, index} = getNewItemData('label');
     if (!data.label) data.label = []; 
-    data.label.push({pt: w, label: label, index: index, text: ''});
-    showLabelEditor({ item: data.label[data.label.length - 1], type: 'simple', index: -1, x: sx, y: sy });
+    const newItem = {pt: w, label: label, index: index, text: ''};
+    data.label.push(newItem);
+    showLabelEditor({ item: newItem, type: 'simple', index: -1, x: sx, y: sy });
 }
 
 function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
@@ -1592,7 +1599,6 @@ function showLabelEditor(target) {
     el.style.top = s.y + 'px'; 
     el.style.display = 'block'; 
     
-    // Fixed: Focus the input with a slight timeout to ensure mobile keyboard triggers correctly
     setTimeout(() => {
         inp.focus();
         inp.select();
@@ -1600,20 +1606,41 @@ function showLabelEditor(target) {
 }
 
 document.getElementById('lblInput').onchange = (e) => {
-    if(!activeLabelTarget) return; const val = e.target.value; const item = activeLabelTarget.item;
-    if(activeLabelTarget.type === 'point') { item.ptLabels[activeLabelTarget.index] = val; if(val) { if(!item.ptLabelPos) item.ptLabelPos = {}; item.ptLabelPos[activeLabelTarget.index] = null; } } 
-    else if (activeLabelTarget.type === 'seg') { item.segLabels[activeLabelTarget.index] = val; if(val) { if(!item.segLabelPos) item.segLabelPos = {}; item.segLabelPos[activeLabelTarget.index] = null; } } 
-    else if (activeLabelTarget.type === 'simple') { item.text = val; if (val === '') { const idx = data.label.indexOf(item); if(idx > -1) data.label.splice(idx, 1); } }
+    if(!activeLabelTarget) return; 
+    const val = e.target.value; 
+    const item = activeLabelTarget.item;
+    if(activeLabelTarget.type === 'point') { 
+        item.ptLabels[activeLabelTarget.index] = val; 
+    } 
+    else if (activeLabelTarget.type === 'seg') { 
+        item.segLabels[activeLabelTarget.index] = val; 
+    } 
+    else if (activeLabelTarget.type === 'simple') { 
+        item.text = val; 
+        if (val === '') { 
+            const idx = data.label.indexOf(item); 
+            if(idx > -1) data.label.splice(idx, 1); 
+        } 
+    }
     document.getElementById('lblEditor').style.display = 'none'; requestRender();
 };
 
-// Fixed: lblInput onblur should not immediately hide the editor if the keyboard is just resizing.
-// Only close if we are truly moving away or done.
 document.getElementById('lblInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         document.getElementById('lblInput').onchange({target: e.target});
     }
 });
+
+document.getElementById('lblInput').onblur = (e) => {
+    // If it's a simple label and empty, remove it on blur too to avoid ghost labels
+    setTimeout(() => {
+        if (activeLabelTarget && activeLabelTarget.type === 'simple' && (!activeLabelTarget.item.text || activeLabelTarget.item.text.trim() === '')) {
+            const idx = data.label.indexOf(activeLabelTarget.item);
+            if (idx > -1) data.label.splice(idx, 1);
+            requestRender();
+        }
+    }, 150);
+};
 
 cv.addEventListener('wheel',e=>{
     e.preventDefault(); const r=canvasWrap.getBoundingClientRect(); const mx=e.clientX-r.left, my=e.clientY-r.top;
@@ -1624,7 +1651,10 @@ cv.addEventListener('wheel',e=>{
 let redoStack = [];
 function getNewItemData(L){
     actionCounter++; const p = pfx[L] || 'L'; let label = '';
-    if (L === 'wreath') { const pWreath = pfx.wreath || 'WR'; const indexWreath = nextIndex(pWreath); label = pWreath + indexWreath; } 
+    // Share WR prefix for all wreaths
+    if (L === 'wreath' || L === 'wreath32' || L === 'wreath42') { 
+        const pWreath = 'WR'; const indexWreath = nextIndex(pWreath); label = pWreath + indexWreath; 
+    } 
     else if (L === 'label') { label = pfx.label + nextIndex(pfx.label); } 
     else { label = (L==='cords'||L==='threeway'||L==='powersource'||L==='bow' || L==='custom_icon') ? '' : p + nextIndex(p); }
     return {label, index: actionCounter};
@@ -1740,7 +1770,13 @@ function handleSelectDown(sx, sy){
     });
 
     if (isCustomIconHandleDrag) { selectedItem = { type: 'custom_icon', obj: draggingPoint.obj }; updateModeTag(); requestRender(); return; }
-    if (hitPoint && hitPoint.type !== 'label') { draggingPoint = hitPoint; selectedItem = { type: hitPoint.type, obj: hitPoint.obj }; updateModeTag(); requestRender(); return; }
+    if (hitPoint) { 
+        draggingPoint = hitPoint; 
+        selectedItem = { type: hitPoint.type, obj: hitPoint.obj }; 
+        updateModeTag(); 
+        requestRender(); 
+        return; 
+    }
 
     let bestObject = null; let bestObjectDist = 30; const w = toWorld(sx, sy);
     const searchObjects = (list, type) => {
@@ -1945,7 +1981,7 @@ function drawLabels(ctx, isExport=false) {
     if (currentFontSize > 5) { 
         ctx.font=`bold ${currentFontSize}px "Inter", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
         Object.keys(data).forEach(k=>data[k].forEach(it=>{
-            if(!it.label && k !== 'label') return; // Fixed: Show explicit 'label' tools always
+            if(!it.label && k !== 'label') return; 
             let p, offY;
             if(it.points) { p = getPolylineMidpoint(it.points); offY = -14 * fontScaleFactor; } 
             else if (it.kind === 'ToL') { const treeScale = (k === 'tree') ? settings.iconScale : 1.0; const h = (it.size || 9) * 3 * scale * treeScale; p = {x: it.pt.x, y: it.pt.y - (h/2)/scale}; offY = 0; } 
@@ -1970,10 +2006,7 @@ function drawLabels(ctx, isExport=false) {
 
 function draw(){
     if (!ctx) return;
-    const r = canvasWrap.getBoundingClientRect(); const width = r.width; const height = r.height;
-    if (width !== lastWidth || height !== lastHeight) { initializeAndSizeContext(); return; }
     const cw = cv.width / DPR; const ch = cv.height / DPR;
-    ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,cw,ch);
     let isBlankMap = imgReady && !imgDataUrl;
     if(isBlankMap){ ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch); } else { ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,cw,ch); }
     
@@ -1990,7 +2023,6 @@ function draw(){
     
     if(pg){
         pg.edges.forEach(e => {
-            // Garland now has arrows
             if(['groundstakes'].includes(e.type)) return;
             const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
             if(uNode.dist !== Infinity && vNode.dist !== Infinity){
@@ -2001,8 +2033,9 @@ function draw(){
                 else return; 
                 
                 const cp = e.cps ? toScr(e.cps) : null; 
-                const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y);
-                let count = Math.floor(dist/150 * settings.arrowFreqFactor); 
+                // Fixed: Consistent arrow frequency using world space distance
+                const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
+                let count = Math.floor(worldDist / 40 * settings.arrowFreqFactor);
                 
                 if(cp) {
                     for(let k=1; k<=count; k++){
@@ -2212,7 +2245,9 @@ function buildPayload() {
 function getFilenameBase() { const year = new Date().getFullYear(); const nm = (document.getElementById('customer').value || 'Untitled').trim(); return `${nm} - ${year} Map`; }
 
 async function performSaveMapOnly() {
-    const filenameMap = `${getFilenameBase()}.skmap`; const payload = buildPayload(); const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+    const filenameMap = `${getFilenameBase()}.skmap`; const payload = buildPayload(); 
+    // Fixed: Using application/octet-stream to prevent mobile browsers from appending .json
+    const blob = new Blob([JSON.stringify(payload)], {type:'application/octet-stream'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filenameMap; a.click();
 }
 
@@ -2353,10 +2388,12 @@ function captureCanvasData() {
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
                      let from, to, isReversed; 
                      if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
-                     const dist = Math.hypot(vPos.x - uPos.x, vPos.y - uPos.y); 
-                     const workspaceDist = dist * (oldScale / scale);
-                     let count = Math.floor(workspaceDist/150 * settings.arrowFreqFactor);
                      const dx = to.x - from.x, dy = to.y - from.y; 
+                     
+                     // Density fixed for export
+                     const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
+                     let count = Math.floor(worldDist / 40 * settings.arrowFreqFactor);
+                     
                      for(let k=1; k<=count; k++){ const t = k / (count+1); drawArrow({x:from.x + dx*t, y:from.y + dy*t}, {x:dx, y:dy}, '#ef4444'); }
                  }
              });
@@ -2404,9 +2441,11 @@ function captureCanvasData() {
 
 function collectRows() {
     const rows = [];
+    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
     Object.keys(data).forEach(L => {
+        if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
-            if (L !== 'label' && L !== 'custom_icon') rows.push({ 
+            rows.push({ 
                 L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false 
             });
         });
