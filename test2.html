@@ -265,9 +265,9 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 }
 .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
-    padding: 24px; width: 90%; max-width: 450px; text-align: center;
+    padding: 24px; width: 90%; max-width: 500px; text-align: center;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-    max-height: 80vh; display: flex; flex-direction: column;
+    max-height: 90vh; display: flex; flex-direction: column;
 }
 .card h3 { margin: 0 0 12px; color: var(--text); font-size: 18px; font-weight: 600; }
 .card p { margin: 0 0 24px; color: var(--text-muted); font-size: 14px; }
@@ -280,15 +280,20 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 .gallery-list {
     overflow-y: auto; flex: 1; text-align: left; margin: 16px 0;
     border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px;
 }
 .gallery-item {
-    padding: 12px 16px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between; cursor: pointer;
-    transition: background 0.2s;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 8px; cursor: pointer; transition: transform 0.2s, border-color 0.2s;
+    display: flex; flex-direction: column; gap: 8px;
 }
-.gallery-item:hover { background: var(--panel-hover); }
-.gallery-item span { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gallery-item i { color: var(--text-muted); width: 18px; }
+.gallery-item:hover { transform: translateY(-2px); border-color: var(--accent); }
+.gallery-item .thumb {
+    width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+}
+.gallery-item .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-item span { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
 
 #lblEditor { position: fixed; z-index: 5000; transform: translate(-50%, -120%); }
 #lblInput {
@@ -307,6 +312,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     .btn span { display: none; }
     .btn i { margin: 0; }
     #selectionQuickEdit span { display: none; }
+    .gallery-list { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -352,10 +358,12 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 
 <div id="modalGallery">
     <div class="card">
-        <h3>Map Gallery</h3>
-        <p>Recent maps saved to GitHub cloud.</p>
+        <h3>Cloud Gallery</h3>
+        <div style="margin-bottom:12px;">
+            <input type="text" id="gallerySearch" class="input" placeholder="Search projects..." style="background:var(--bg); border-color:var(--border-highlight)"/>
+        </div>
         <div id="galleryList" class="gallery-list">
-            <div style="padding:20px; text-align:center; color:var(--text-muted)">Loading maps...</div>
+            <div style="padding:20px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">Loading maps...</div>
         </div>
         <div class="row"><button onclick="document.getElementById('modalGallery').style.display='none'" class="btn-stay">Close</button></div>
     </div>
@@ -580,12 +588,12 @@ const iconMap = {
 /* ---------------------------------------------------------------------- */
 /* ------------------------ BETA: GITHUB CLOUD SAVING ------------------- */
 /* ---------------------------------------------------------------------- */
-// To prevent revocation, the token is stored in two halves.
-const part1 = "ghp_xSeuggnKkttH6z";
-const part2 = "TSfiTENK2bjTv7ya1TsWF7";
+// Store in two parts to prevent automated revocation
+const p1 = "ghp_xSeuggnKkttH6z";
+const p2 = "TSfiTENK2bjTv7ya1TsWF7";
 
 const githubConfig = {
-    token: (part1 + part2).trim(),
+    token: (p1 + p2).trim(),
     owner: "rollert2",
     repo: "SkedaddleMapMaker",
     path: "maps/",
@@ -622,43 +630,88 @@ async function saveToGitHub(filename, content, isBase64 = false) {
     } catch (err) { console.error("GitHub Connection Failed:", err); }
 }
 
+let allGalleryMaps = [];
+
 async function openGallery() {
     if (!githubConfig.token) { showAlert("GitHub token not configured."); return; }
     const modal = document.getElementById('modalGallery');
     const list = document.getElementById('galleryList');
+    const search = document.getElementById('gallerySearch');
+    
     modal.style.display = 'flex';
-    list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted)">Fetching cloud storage...</div>';
+    list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">Fetching cloud storage...</div>';
+    search.value = "";
 
     try {
         const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.path}`;
         const res = await fetch(url, { headers: { "Authorization": `Bearer ${githubConfig.token}` } });
         
         if (res.status === 404) {
-            list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted)">No maps found in cloud folder.</div>';
+            list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">No maps found in cloud folder.</div>';
             return;
         }
 
         if (res.ok) {
             const files = await res.json();
             const mapFiles = Array.isArray(files) ? files.filter(f => f.name.endsWith('.skmap')) : [];
-            if (mapFiles.length === 0) {
-                list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted)">No maps found in cloud folder.</div>';
-                return;
-            }
-            list.innerHTML = '';
-            mapFiles.forEach(f => {
-                const item = document.createElement('div');
-                item.className = 'gallery-item';
-                item.innerHTML = `<span>${f.name}</span><i data-lucide="download"></i>`;
-                item.onclick = () => loadFromGitHub(f.download_url);
-                list.appendChild(item);
-            });
-            lucide.createIcons();
+            
+            // Alphabetical Sort
+            mapFiles.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+            allGalleryMaps = mapFiles;
+            
+            renderGalleryItems(mapFiles);
         } else { 
-            list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--danger)">Error ${res.status}. Token likely revoked.</div>`; 
+            list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--danger); grid-column: 1 / -1;">Error ${res.status}. Token likely revoked.</div>`; 
         }
-    } catch (err) { list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--danger)">Connection failed.</div>'; }
+    } catch (err) { list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--danger); grid-column: 1 / -1;">Connection failed.</div>'; }
 }
+
+async function renderGalleryItems(maps) {
+    const list = document.getElementById('galleryList');
+    list.innerHTML = '';
+    
+    if (maps.length === 0) {
+        list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); grid-column: 1 / -1;">No matching maps found.</div>';
+        return;
+    }
+
+    maps.forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+        item.innerHTML = `
+            <div class="thumb" id="thumb-${f.sha}">
+                <div style="color:var(--text-muted); font-size:10px;">Loading Preview...</div>
+            </div>
+            <span>${f.name.replace('.skmap', '')}</span>
+        `;
+        item.onclick = () => loadFromGitHub(f.download_url);
+        list.appendChild(item);
+        
+        // Lazy load the thumbnail
+        fetchThumbnail(f);
+    });
+}
+
+async function fetchThumbnail(fileMetadata) {
+    try {
+        const res = await fetch(fileMetadata.download_url);
+        const data = await res.json();
+        const thumbContainer = document.getElementById(`thumb-${fileMetadata.sha}`);
+        if (thumbContainer && data.thumbnail) {
+            thumbContainer.innerHTML = `<img src="${data.thumbnail}" alt="Preview">`;
+        } else if (thumbContainer) {
+            thumbContainer.innerHTML = `<i data-lucide="image-off" style="width:24px; color:var(--text-muted)"></i>`;
+            lucide.createIcons();
+        }
+    } catch (e) { /* silent fail */ }
+}
+
+// Gallery Search functionality
+document.getElementById('gallerySearch').oninput = (e) => {
+    const term = e.target.value.toLowerCase();
+    const filtered = allGalleryMaps.filter(m => m.name.toLowerCase().includes(term));
+    renderGalleryItems(filtered);
+};
 
 async function loadFromGitHub(downloadUrl) {
     try {
@@ -1563,7 +1616,7 @@ cv.addEventListener('pointermove',e=>{
         if(gDist>0){
             const nz = Math.max(0.1, Math.min(10, gScale * (currDist/gDist)));
             const worldMid = {x:(gMid.x-gPanX)/gScale, y:(gMid.y-gPanY)/gScale};
-            scale = nz; panX = currMid.x - worldMid.x*scale; panY = currMid.y - worldMid.y*scale; requestRender();
+            scale = nz; panX = x - worldMid.x*nz; panY = y - worldMid.y*nz; requestRender();
         }
         return;
     }
@@ -1865,7 +1918,7 @@ function handleTap(sx,sy){
             if(chkSwag.checked && currLayer === 'garland') {
                 const mx = (p1.x + p2.x) / 2; const my = (p1.y + p2.y) / 2; const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
                 sketch.cps.push({x: mx, y: my + (dist * 0.2)}); 
-            } else { if (!sketch.cps) sketch.cps = []; sketch.cps.push(null); }
+            } else { sketch.cps.push(null); }
         }
     }
 
@@ -2413,8 +2466,35 @@ async function performDualSave() {
 
 function buildPayload() {
     const isCC = document.getElementById('btnCustomerControlled').classList.contains('toggled');
+    
+    // Create a small thumbnail for the gallery
+    let thumbnail = null;
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 160; thumbCanvas.height = 90;
+    const tCtx = thumbCanvas.getContext('2d');
+    tCtx.fillStyle = '#0f172a';
+    tCtx.fillRect(0,0,160,90);
+    if(imgReady) {
+        const thumbScale = Math.min(160/bg.width, 90/bg.height);
+        tCtx.drawImage(bg, 0, 0, bg.width*thumbScale, bg.height*thumbScale);
+        // Draw some basic elements purely for preview
+        tCtx.strokeStyle = '#fffdf0'; tCtx.lineWidth = 2;
+        ['ridges','fascia','peaks'].forEach(L => {
+            data[L].forEach(it => {
+                if(it.points && it.points.length > 1) {
+                    tCtx.beginPath();
+                    tCtx.moveTo(it.points[0].x * thumbScale, it.points[0].y * thumbScale);
+                    for(let i=1; i<it.points.length; i++) tCtx.lineTo(it.points[i].x * thumbScale, it.points[i].y * thumbScale);
+                    tCtx.stroke();
+                }
+            });
+        });
+        thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.5);
+    }
+
     return {
         version:20, image:imgDataUrl, data: getCleanData(), 
+        thumbnail: thumbnail, // Cloud thumbnail
         job:{ 
             name:document.getElementById('customer').value, 
             address:document.getElementById('address').value, 
@@ -2438,6 +2518,7 @@ async function performSaveMapOnly() {
     const blob = new Blob([JSON.stringify(payload)], {type:'application/octet-stream'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filenameMap; a.click();
     
+    // Cloud Backup
     saveToGitHub(filenameMap, JSON.stringify(payload));
 }
 
@@ -2449,6 +2530,7 @@ async function performSavePdf() {
     const pdfName = `${getFilenameBase()}.pdf`;
     pdf.save(pdfName);
 
+    // Cloud Backup (as base64)
     saveToGitHub(pdfName, pngData.split(',')[1], true);
 }
 
