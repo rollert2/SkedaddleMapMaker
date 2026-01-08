@@ -1861,7 +1861,12 @@ function drawTreeIcon(ctx, p, kind, size, scale, itemScale) {
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 3 * scale; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - 8*scale); ctx.stroke();
         ctx.strokeStyle = '#22c55e'; for(let i=0; i<3; i++){ const yBase = startY - (i * triH * 0.6); ctx.beginPath(); ctx.moveTo(p.x - triW * (1 - i*0.1), yBase); ctx.lineTo(p.x + triW * (1 - i*0.1), yBase); ctx.lineTo(p.x, yBase - triH); ctx.closePath(); ctx.stroke(); }
     } else if (kind === 'ToL') {
-        const h = (size || 9) * 3 * scale; const w = 8 * scale; ctx.beginPath(); ctx.moveTo(p.x, p.y - h); ctx.lineTo(p.x - w, p.y); ctx.lineTo(p.x + w, p.y); ctx.closePath(); ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.stroke(); ctx.fillStyle = '#22c55e'; ctx.fill(); ctx.lineWidth = 2; ctx.stroke();
+        const h = (size || 9) * 3 * scale; 
+        const w = 8 * scale; 
+        ctx.beginPath(); ctx.moveTo(p.x, p.y - h); ctx.lineTo(p.x - w, p.y); ctx.lineTo(p.x + w, p.y); ctx.closePath(); 
+        ctx.strokeStyle = 'black'; ctx.lineWidth = 2 * scale; ctx.stroke(); 
+        ctx.fillStyle = '#22c55e'; ctx.fill(); 
+        ctx.lineWidth = 0.6 * scale; ctx.stroke();
     } else { ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(p.x, p.y, 10*scale, 0, Math.PI*2); ctx.fill(); ctx.stroke(); }
 }
 
@@ -1997,7 +2002,7 @@ function drawLabels(ctx, isExport=false) {
     const nominalFontSize = 14; 
     const fontScaleFactor = scale * settings.labelScale * 0.35; 
     const currentFontSize = nominalFontSize * fontScaleFactor; 
-    if (currentFontSize > 1) { 
+    if (currentFontSize > 0.1) { 
         ctx.font=`bold ${currentFontSize}px "Inter", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
         Object.keys(data).forEach(k=>{
             if (k === 'powersource') return;
@@ -2430,11 +2435,25 @@ function captureCanvasData() {
              });
              pg.deadTips.forEach(nodeIdx => { const n = pg.nodes[nodeIdx]; const neighbor = pg.nodes[n.adj[0]]; if(neighbor) drawDeadEnd(n, neighbor, '#fffdf0'); });
         }
-        data.wreath.forEach(w=>{ const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); o.fillStyle = colorOf('wreath'); o.fill(); o.stroke(); });
+        
+        data.wreath.forEach(w=>{
+            const s=toScr(w.pt); 
+            const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; 
+            const wreathColor = colorOf('wreath');
+            o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); 
+            o.fillStyle = wreathColor; o.fill(); 
+            o.strokeStyle='black'; o.lineWidth=6 * settings.iconScale * scale; o.stroke(); 
+            o.strokeStyle=wreathColor; o.lineWidth=3 * settings.iconScale * scale; o.stroke();
+            if(w.bow === 'top' || w.bow === 'bottom'){ 
+                const by = w.bow==='top' ? s.y - r : s.y + r; 
+                drawBow(s.x, by, scale, settings.iconScale); 
+            }
+        });
+
         data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, settings.iconScale); }); 
         data.tree.forEach(tr => { drawTreeIcon(o, toScr(tr.pt), tr.kind, tr.size, scale, settings.iconScale); });
-        data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
-        data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.stroke(); });
+        data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
+        data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
         drawLabels(o);
 
         if (ITEM_COUNT > 0) {
@@ -2476,7 +2495,6 @@ function collectRows() {
     Object.keys(data).forEach(L => {
         if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
-            // Updated to exclude items without an ID (label) from the PDF
             if (it.label && it.label.trim() !== '') {
                 rows.push({ 
                     L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false 
