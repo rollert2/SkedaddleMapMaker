@@ -119,13 +119,6 @@ h1 { margin: 0 16px 0 0; font-size: 18px; font-weight: 600; color: var(--text); 
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn.toggled { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: var(--accent); }
 
-/* Night Mode Glow Style */
-.tool.night-glow {
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.5), inset 0 0 5px rgba(168, 85, 247, 0.5);
-    border-color: #a855f7 !important;
-    color: #a855f7 !important;
-}
-
 #btnComplete.selectable { 
     color: var(--success); 
     background: rgba(34, 197, 94, 0.1); 
@@ -222,14 +215,6 @@ textarea.input { resize: vertical; min-height: 80px; }
     box-shadow: 0 0 0 1px var(--accent);
 }
 
-.clip-legend { padding: 8px 0; font-size: 12px; color: var(--text-muted); display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
-.clip-legend dt { font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: 8px; }
-.clip-legend dd { margin: 0; color: var(--text); }
-
-/* Legend Icons */
-.leg-sq { width: 10px; height: 10px; background: var(--danger); display: inline-block; }
-.leg-tri { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 10px solid var(--warning); display: inline-block; }
-
 .slider-container { padding: 8px 0 16px; position: relative; }
 input[type=range].input {
     -webkit-appearance: none; appearance: none; height: 6px; background: var(--border);
@@ -267,25 +252,15 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 }
 .xbtn:hover { background: var(--danger); color: white; }
 
-.pop {
-    position: fixed; z-index: 9999; background: var(--panel); border: 1px solid var(--border-highlight);
-    border-radius: 12px; display: none; padding: 8px; gap: 8px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-}
-.pop button {
-    background: var(--bg); border: 1px solid var(--border); color: var(--text);
-    border-radius: 8px; padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 500;
-}
-.pop button:hover { background: var(--panel-hover); }
-
-#modalBack, #modalAlert {
+#modalBack, #modalAlert, #modalGallery {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000;
     display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);
 }
 .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
-    padding: 24px; width: 90%; max-width: 400px; text-align: center;
+    padding: 24px; width: 90%; max-width: 450px; text-align: center;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    max-height: 80vh; display: flex; flex-direction: column;
 }
 .card h3 { margin: 0 0 12px; color: var(--text); font-size: 18px; font-weight: 600; }
 .card p { margin: 0 0 24px; color: var(--text-muted); font-size: 14px; }
@@ -294,6 +269,19 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 .btn-stay { background: var(--border); color: var(--text); }
 .btn-leave { background: var(--danger); color: white; }
 .btn-ok { background: var(--accent); color: white; width: 100%; }
+
+.gallery-list {
+    overflow-y: auto; flex: 1; text-align: left; margin: 16px 0;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+}
+.gallery-item {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; cursor: pointer;
+    transition: background 0.2s;
+}
+.gallery-item:hover { background: var(--panel-hover); }
+.gallery-item span { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gallery-item i { color: var(--text-muted); width: 18px; }
 
 #lblEditor { position: fixed; z-index: 5000; transform: translate(-50%, -120%); }
 #lblInput {
@@ -331,6 +319,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
       </div>
       <button id="gPickBlank" class="gbtn"><i data-lucide="file-plus"></i> Start Blank Map</button>
       <button id="gPickMap" class="gbtn"><i data-lucide="folder-open"></i> Load Existing Map</button>
+      <button id="gOpenGallery" class="gbtn"><i data-lucide="layout-grid"></i> Map Gallery (Cloud)</button>
       <button id="gLoadDrive" class="gbtn" disabled><i data-lucide="cloud"></i> Load from Drive</button>
       
       <input id="gImg" type="file" accept="image/*"/>
@@ -351,6 +340,17 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
         <h3>Notice</h3>
         <p id="alertMsg">Message</p>
         <div class="row"><button onclick="document.getElementById('modalAlert').style.display='none'" class="btn-ok">OK</button></div>
+    </div>
+</div>
+
+<div id="modalGallery">
+    <div class="card">
+        <h3>Map Gallery</h3>
+        <p>Recent maps saved to GitHub cloud.</p>
+        <div id="galleryList" class="gallery-list">
+            <div style="padding:20px; text-align:center; color:var(--text-muted)">Loading maps...</div>
+        </div>
+        <div class="row"><button onclick="document.getElementById('modalGallery').style.display='none'" class="btn-stay">Close</button></div>
     </div>
 </div>
 
@@ -569,6 +569,90 @@ const iconMap = {
     'custom_icon': 'image',
     'night_mode': 'moon'
 };
+
+/* ---------------------------------------------------------------------- */
+/* ------------------------ BETA: GITHUB CLOUD SAVING ------------------- */
+/* ---------------------------------------------------------------------- */
+const githubConfig = {
+    token: "",      // Paste your GitHub PAT here
+    owner: "",      // Your GitHub Username
+    repo: "",       // Your Repository Name (e.g., 'skedaddle-maps')
+    path: "maps/",  // Folder where maps are stored
+};
+
+async function saveToGitHub(filename, content, isBase64 = false) {
+    if (!githubConfig.token || !githubConfig.owner || !githubConfig.repo) return;
+    const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.path}${filename}`;
+    
+    try {
+        // 1. Get current file (if exists) to get the SHA
+        let sha = null;
+        const checkRes = await fetch(url, { headers: { "Authorization": `token ${githubConfig.token}` } });
+        if (checkRes.ok) {
+            const data = await checkRes.json();
+            sha = data.sha;
+        }
+
+        // 2. Prepare content
+        const body = {
+            message: `Save map: ${filename}`,
+            content: isBase64 ? content : btoa(unescape(encodeURIComponent(content))),
+            sha: sha // Required to update existing file
+        };
+
+        const saveRes = await fetch(url, {
+            method: "PUT",
+            headers: {
+                "Authorization": `token ${githubConfig.token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!saveRes.ok) console.error("GitHub Save Error:", await saveRes.text());
+    } catch (err) { console.error("GitHub Connection Failed:", err); }
+}
+
+async function openGallery() {
+    if (!githubConfig.token) { showAlert("GitHub token not configured. Please add your token in the code settings."); return; }
+    const modal = document.getElementById('modalGallery');
+    const list = document.getElementById('galleryList');
+    modal.style.display = 'flex';
+    list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted)">Fetching cloud storage...</div>';
+
+    try {
+        const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.path}`;
+        const res = await fetch(url, { headers: { "Authorization": `token ${githubConfig.token}` } });
+        if (res.ok) {
+            const files = await res.json();
+            const mapFiles = files.filter(f => f.name.endsWith('.skmap'));
+            if (mapFiles.length === 0) {
+                list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted)">No maps found in cloud folder.</div>';
+                return;
+            }
+            list.innerHTML = '';
+            mapFiles.forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                item.innerHTML = `<span>${f.name}</span><i data-lucide="download"></i>`;
+                item.onclick = () => loadFromGitHub(f.download_url);
+                list.appendChild(item);
+            });
+            lucide.createIcons();
+        } else { list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--danger)">Error fetching repo. Verify owner/repo settings.</div>'; }
+    } catch (err) { list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--danger)">Connection failed.</div>'; }
+}
+
+async function loadFromGitHub(downloadUrl) {
+    try {
+        const res = await fetch(downloadUrl);
+        const json = await res.json();
+        const blob = new Blob([JSON.stringify(json)], { type: "application/json" });
+        const file = new File([blob], "cloud_map.skmap");
+        handleMap(file);
+        document.getElementById('modalGallery').style.display = 'none';
+    } catch (err) { showAlert("Error loading map content."); }
+}
 
 /* ---------------------------------------------------------------------- */
 /* --------------------- GOOGLE DRIVE API INTEGRATION ------------------- */
@@ -796,11 +880,9 @@ function isC9(L) { const c = cats.find(x => x.key === 'c9'); return c && c.list.
 function relabelIds() {
     let itemsToRelabel = [];
     Object.keys(data).forEach(L => {
-        // Updated: Exclude label tool map notes and other categories
         if (L === 'cords' || L === 'threeway' || L === 'powersource' || L === 'bow' || L === 'custom_icon' || L === 'label') return; 
         data[L].forEach(item => {
             const prefix = pfx[L] || 'L';
-            // Check if label is empty OR follows the standard prefix+number pattern
             const isStandardLabel = !item.label || new RegExp('^' + prefix + '\\d+$', 'i').test(item.label);
             
             if (isStandardLabel) { 
@@ -883,7 +965,6 @@ function refreshTable(){
         }
 
         const bulbsVal = r.item.kind === 'ToL' ? '' : (r.item.bulbs || '');
-        // Updated: Set typeDisplay to "Tree of Lights" if kind is ToL
         let typeDisplay = pretty[r.L];
         if (r.item.kind === 'ToL') typeDisplay = 'Tree of Lights';
 
@@ -924,7 +1005,6 @@ function refreshTable(){
             inputFt.oninput=e=>{ r.item.ft = e.target.value; };
             inputFt.onchange=e=>{
                 if(chkAuto.checked && e.target.value) {
-                    // Updated: Skip auto-calc for ToL kind
                     if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
@@ -944,7 +1024,6 @@ function refreshTable(){
             inputBulbs.oninput=e=>{ r.item.bulbs = e.target.value; };
             inputBulbs.onchange=e=>{
                 if(chkAuto.checked && e.target.value) {
-                    // Updated: Skip auto-calc for ToL kind
                     if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
@@ -1336,7 +1415,6 @@ function placeItem(L, w, sx, sy){
 function placeTree(L, w, sx, sy, label, index) {
     if (currTreeKind === 'ToL') {
         openPop(document.getElementById('tolPop'), sx, sy, (size) => {
-            // Updated: Default footage to selected size
             const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size), ft: size};
             data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
         });
@@ -1576,7 +1654,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     const i = parseInt(idx);
                     const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
                 });
@@ -2213,7 +2291,7 @@ function applyUIState(o) {
         nightModeToolButton.classList.toggle('night-glow', isNightMode);
     }
     chkSnap.checked = uiState.isSnapOn !== undefined ? uiState.isSnapOn : true; btnSnap.classList.toggle('toggled', chkSnap.checked);
-    chkSwag.checked = uiState.isSwagOn !== undefined ? uiState.isSwagOn : false; btnSwag.classList.toggle('toggled', chkSwag.checked);
+    chkSwag.checked = uiState.isSwagOn !== undefined ? uiState.isSnapOn : false; btnSwag.classList.toggle('toggled', chkSwag.checked);
     chkPillar.checked = uiState.isPillarOn !== undefined ? uiState.isPillarOn : false; btnPillar.classList.toggle('toggled', chkPillar.checked);
     const chkAuto = document.getElementById('chkAutoCalc'); chkAuto.checked = uiState.isAutoCalcOn !== undefined ? uiState.isAutoCalcOn : true;
     requestRender();
@@ -2308,13 +2386,21 @@ async function performSaveMapOnly() {
     const filenameMap = `${getFilenameBase()}.skmap`; const payload = buildPayload(); 
     const blob = new Blob([JSON.stringify(payload)], {type:'application/octet-stream'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filenameMap; a.click();
+    
+    // Cloud Backup
+    saveToGitHub(filenameMap, JSON.stringify(payload));
 }
 
 async function performSavePdf() {
     const capture = captureCanvasData(); if(!capture) { showAlert("Error generating image data."); return false; }
     const { url: pngData, width, height } = capture; const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: width > height ? 'l' : 'p', unit: 'px', format: [width, height] });
-    pdf.addImage(pngData, 'PNG', 0, 0, width, height); pdf.save(`${getFilenameBase()}.pdf`);
+    pdf.addImage(pngData, 'PNG', 0, 0, width, height); 
+    const pdfName = `${getFilenameBase()}.pdf`;
+    pdf.save(pdfName);
+
+    // Cloud Backup (as base64)
+    saveToGitHub(pdfName, pngData.split(',')[1], true);
 }
 
 function wrapText(context, text, x, y, maxWidth, lineHeight) {
@@ -2445,9 +2531,7 @@ function captureCanvasData() {
                  const uNode = pg.nodes[e.u]; const vNode = pg.nodes[e.v];
                  if(uNode.dist !== Infinity && vNode.dist !== Infinity){
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
-                     let from, to, isReversed; 
-                     if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
-                     const dx = to.x - from.x, dy = to.y - from.y; 
+                     let isReversed = uNode.dist > vNode.dist;
                      
                      const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
                      let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
@@ -2523,7 +2607,6 @@ function captureCanvasData() {
             y += 24;
             items.sort((a,b)=>(a.label||'').localeCompare(b.label||'', undefined, {numeric:true})).forEach(r => {
                 let x = 15;
-                // Updated: Logic for ToL display name in PDF
                 let typeDisplay = pretty[r.L] || r.L;
                 if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
 
@@ -2555,7 +2638,7 @@ function collectRows() {
             if (it.label && it.label.trim() !== '') {
                 rows.push({ 
                     L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false,
-                    kind: it.kind // Ensure kind is carried over for PDF naming logic
+                    kind: it.kind 
                 });
             }
         });
@@ -2578,6 +2661,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gPickImg').onclick = () => document.getElementById('gImg').click();
     document.getElementById('gPickBlank').onclick = startBlankMap;
     document.getElementById('gPickMap').onclick = () => document.getElementById('gMap').click();
+    document.getElementById('gOpenGallery').onclick = openGallery;
     document.getElementById('closeGateBtn').onclick = unlock;
 });
 })();
