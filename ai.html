@@ -363,25 +363,34 @@ th { color: var(--text-muted); font-weight: 600; background: var(--panel); posit
 td .edit { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 8px; width: 100%; }
 
 /* AI Specific Styles */
-#aiMenu { flex-direction: column; min-width: 240px; padding: 12px; gap: 8px; border: 1px solid var(--accent); }
+#aiMenu { 
+    flex-direction: column; min-width: 240px; padding: 12px; gap: 8px; 
+    border: 1px solid var(--accent); background: var(--panel); 
+}
 #aiMenu h4 { margin: 0 0 8px; font-size: 14px; color: var(--text); text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
 .ai-btn {
     width: 100%; justify-content: flex-start !important; padding: 12px 16px !important;
-    background: var(--panel) !important; border: 1px solid var(--border) !important;
+    background: var(--bg) !important; border: 1px solid var(--border) !important;
+    color: var(--text) !important;
 }
-.ai-btn:hover { border-color: var(--accent) !important; }
+.ai-btn:hover { border-color: var(--accent) !important; background: var(--panel-hover) !important; }
 
 #aiOverlay {
-    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px);
     z-index: 10001; display: none; flex-direction: column; align-items: center; justify-content: center;
     color: white; pointer-events: auto;
 }
 .ai-scanner {
-    width: 300px; height: 2px; background: var(--accent);
-    box-shadow: 0 0 15px var(--accent), 0 0 30px var(--accent);
+    width: 300px; height: 4px; background: var(--accent);
+    box-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent);
     position: relative; animation: scan-anim 2s infinite ease-in-out;
+    border-radius: 2px;
 }
-@keyframes scan-anim { 0% { transform: translateY(-100px); } 50% { transform: translateY(100px); } 100% { transform: translateY(-100px); } }
+@keyframes scan-anim { 
+    0% { transform: translateY(-120px); opacity: 0.2; } 
+    50% { transform: translateY(120px); opacity: 1; } 
+    100% { transform: translateY(-120px); opacity: 0.2; } 
+}
 </style>
 </head>
 <body class="blurred">
@@ -447,8 +456,9 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 
 <div id="aiOverlay">
     <div class="ai-scanner"></div>
-    <h3 style="margin-top:20px; font-weight:700">Gemini AI Analysis</h3>
-    <p id="aiOverlayMsg" style="color:var(--text-muted)">Scanning architectural features...</p>
+    <h3 style="margin-top:20px; font-weight:700">AI Structural Analysis</h3>
+    <p id="aiOverlayMsg" style="color:var(--text-muted)">Architectural scanner active...</p>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:10px;">Finding Peaks, Gutters, and Windows</p>
 </div>
 
 <div id="app">
@@ -660,6 +670,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
   <button id="cancelIconUpload" class="btn" style="justify-content:center">Cancel</button>
 </div>
 
+<!-- AI MENU POPUP - Redesigned Positioning -->
 <div id="aiMenu" class="pop">
     <h4>AI Image Analysis</h4>
     <button class="btn ai-btn" data-ai-task="peaks"><i data-lucide="triangle"></i> Detect Peaks</button>
@@ -842,19 +853,21 @@ let gisReady = false;
 
 const gLoadDriveBtn = document.getElementById('gLoadDrive');
 
-gapi.load('client:picker', async () => {
-    try {
-        await gapi.client.setApiKey(API_KEY);
-        await gapi.client.load('drive', 'v3'); 
-        gapiReady = true;
-        const checkGis = setInterval(() => {
-            if (window.google && window.google.accounts) {
-                clearInterval(checkGis);
-                initGis();
-            }
-        }, 100);
-    } catch (err) { console.error("Error loading GAPI:", err); }
-});
+if (window.gapi) {
+    gapi.load('client:picker', async () => {
+        try {
+            await gapi.client.setApiKey(API_KEY);
+            await gapi.client.load('drive', 'v3'); 
+            gapiReady = true;
+            const checkGis = setInterval(() => {
+                if (window.google && window.google.accounts) {
+                    clearInterval(checkGis);
+                    initGis();
+                }
+            }, 100);
+        } catch (err) { console.error("Error loading GAPI:", err); }
+    });
+}
 
 function initGis() {
     try {
@@ -1496,7 +1509,7 @@ function buildTools(){
           btn.onclick=()=>toggleNightMode(); toolBtn[k]=btn;
           btn.classList.toggle('toggled', isNightMode); btn.classList.toggle('night-glow', isNightMode);
       } else if (k === 'ai_detect') {
-          btn.onclick=()=>toggleAiMenu(btn); toolBtn[k]=btn;
+          btn.onclick=(e)=>toggleAiMenu(btn); toolBtn[k]=btn;
       } else {
           btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
       }
@@ -1510,24 +1523,29 @@ function buildTools(){
 function toggleAiMenu(anchor) {
     const menu = document.getElementById('aiMenu');
     if (menu.style.display === 'flex') { menu.style.display = 'none'; return; }
+    
+    // Constraint check for standard sidebar button
     const r = anchor.getBoundingClientRect();
     menu.style.display = 'flex';
     
-    // Position intelligently relative to the sidebar button
+    // Responsive positioning: try right of button first, then center
     let left = r.right + 12;
     let top = r.top;
     
-    // Check viewport bounds
+    // Check if right side overflows screen
     if (left + 240 > window.innerWidth) {
+        // Position on left instead
         left = Math.max(10, r.left - 250);
     }
-    if (top + 300 > window.innerHeight) {
-        top = Math.max(10, window.innerHeight - 310);
+    
+    // Check if bottom overflows screen
+    if (top + 280 > window.innerHeight) {
+        top = Math.max(10, window.innerHeight - 290);
     }
 
     menu.style.left = left + 'px';
     menu.style.top = top + 'px';
-    menu.style.transform = 'none'; // Clear translate so absolute pixel values work
+    menu.style.transform = 'none'; // Ensure manual positioning works
 }
 
 let mode='draw',currLayer='ridges',currTreeKind='Trunk + Branch (Minis)',currWreathSize='32"', currLabelTarget='point'; 
@@ -1541,7 +1559,7 @@ function selectTool(L, variant=null){
     else toolBtn[L]?.classList.add('active');
     if(matchMedia('(max-width:900px)').matches) toggleMenu();
     document.getElementById('imgUploadPop').style.display = 'none';
-    document.getElementById('aiMenu').style.display = 'none'; // Close AI menu on tool swap
+    document.getElementById('aiMenu').style.display = 'none';
     mode='draw'; if (L === 'label') mode = 'label'; 
     updateModeTag(); startNewSketch();
     if(currLayer === 'garland') {
@@ -1839,6 +1857,8 @@ cv.addEventListener('pointerdown',e=>{
     cv._mx = ex; cv._my = ey;
     if (!e.target.closest('#lblEditor')) { document.getElementById('lblEditor').style.display = 'none'; }
     document.getElementById('imgUploadPop').style.display = 'none';
+    if (!e.target.closest('#aiMenu')) document.getElementById('aiMenu').style.display = 'none';
+
     if(pointers.size === 1) {
         isTapCandidate = true; tapDownX = ex; tapDownY = ey; dragStartX = ex; dragStartY = ey; dragPanStartX = panX; dragPanStartY = panY;
         if (mode === 'select' && selectedItem) { handleSelectDown(ex, ey); if (draggingPoint) { isTapCandidate = false; return; } }
@@ -2008,7 +2028,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                 Object.keys(item.ptLabels).forEach(idx => {
                     const i = parseInt(idx); const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
+                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
                 });
             }
             if(item.segLabels) {
@@ -2796,34 +2816,37 @@ function collectRows(isForExport = false) {
 
 // ================= AI DETECTION LOGIC =================
 
-const apiKey = ""; // Runtime-provided
+const apiKey = ""; // Canvas-provided key
 const AI_MODEL = "gemini-2.5-flash-preview-09-2025";
 
 async function runAiDetection(task) {
     if (!imgDataUrl) { showAlert("Please upload an image first."); return; }
     
     const overlay = document.getElementById('aiOverlay');
-    const overlayMsg = document.getElementById('aiOverlayMsg');
     overlay.style.display = 'flex';
     document.getElementById('aiMenu').style.display = 'none';
 
-    let prompt = `Analyze this house image for holiday light installation.
-    Find and trace the architectural features.
+    // Refined prompt for holiday light installation tracing
+    let prompt = `Analyze this property image for Christmas light installation. 
+    Find and return normalized coordinates (0-1000 scale, Top-Left is 0,0).
     
-    Return EXACT JSON:
+    1. "peaks": Return individual points for every roof peak/ridge apex.
+    2. "fascia": Return polyline paths tracing the main gutter lines (fascia boards).
+    3. "windows": Return polyline paths tracing the outer frame of every major window.
+    
+    Task context: ${task === 'all' ? 'Trace all peaks, fascia lines, and windows.' : 'Detect ' + task}.
+    
+    Return EXACT JSON format only:
     {
        "peaks": [ {"x": number, "y": number}, ... ],
        "fascia": [ [{"x": number, "y": number}, ...], ... ],
        "windows": [ [{"x": number, "y": number}, ...], ... ]
-    }
-    
-    Requested features: ${task === 'all' ? 'All available' : task}.
-    Normalized coordinates 0-1000 (Top-Left: 0,0). Windows should be closed loops if possible.`;
+    }`;
 
     const base64Data = imgDataUrl.split(',')[1];
     
     try {
-        const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${AI_MODEL}:generateContent?key=${apiKey}`, {
+        const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${AI_MODEL}:generateContent?key=${apiKey}`, {
             method: 'POST',
             body: JSON.stringify({
                 contents: [{
@@ -2836,64 +2859,59 @@ async function runAiDetection(task) {
             })
         });
 
-        const json = await result.json();
-        const textResponse = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!textResponse) throw new Error("Empty AI Response");
+        const result = await response.json();
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("No AI results returned");
         
-        const detectedData = JSON.parse(textResponse);
+        const detectedData = JSON.parse(text);
         processAiResults(detectedData, task);
         overlay.style.display = 'none';
     } catch (err) {
-        console.error(err);
+        console.error("AI Detect Error:", err);
         overlay.style.display = 'none';
-        showAlert("AI analysis failed. Please check connection and try again.");
+        showAlert("Architectural scan failed. Please ensure you are connected and try again.");
     }
 }
 
-async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
+async function fetchWithRetry(url, options, retries = 5) {
     for (let i = 0; i < retries; i++) {
         try {
             const res = await fetch(url, options);
             if (res.ok) return res;
-            if (res.status === 429) { /* Rate limited */ }
         } catch (e) {}
-        await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
     }
-    throw new Error("Max retries reached");
+    throw new Error("Connection timed out after retries.");
 }
 
 function processAiResults(results, task) {
     const imgW = bg.width;
     const imgH = bg.height;
-
     const normToWorld = (p) => ({ x: (p.x / 1000) * imgW, y: (p.y / 1000) * imgH });
 
-    // Process Peaks (Point Items)
+    // 1. Process Peaks (Single Points)
     if (results.peaks && (task === 'all' || task === 'peaks')) {
         results.peaks.forEach(p => {
-            const worldPt = normToWorld(p);
             const { label, index } = getNewItemData('peaks');
-            data.peaks.push({ pt: worldPt, label, index, kind: 'peaks', isVisible: true });
+            data.peaks.push({ pt: normToWorld(p), label, index, kind: 'peaks', isVisible: true });
         });
     }
 
-    // Process Fascia (Line Items)
+    // 2. Process Fascia (Paths)
     if (results.fascia && (task === 'all' || task === 'fascia')) {
         results.fascia.forEach(path => {
             if (path.length < 2) return;
-            const worldPoints = path.map(normToWorld);
             const { label, index } = getNewItemData('fascia');
-            data.fascia.push({ points: worldPoints, label, index, clip: 'T', isVisible: true });
+            data.fascia.push({ points: path.map(normToWorld), label, index, clip: 'T', isVisible: true });
         });
     }
 
-    // Process Windows (Line Items)
+    // 3. Process Windows (Paths)
     if (results.windows && (task === 'all' || task === 'windows')) {
         results.windows.forEach(path => {
             if (path.length < 2) return;
-            const worldPoints = path.map(normToWorld);
             const { label, index } = getNewItemData('windows');
-            data.windows.push({ points: worldPoints, label, index, isVisible: true });
+            data.windows.push({ points: path.map(normToWorld), label, index, isVisible: true });
         });
     }
 
@@ -2909,8 +2927,8 @@ function initializeUI() {
         Object.keys(data).forEach(k => { data[k].forEach(it => { if(it.label) it.col = v; }); });
         requestRender(); 
     };
-
-    // Initialize AI Detect Buttons
+    
+    // Bind AI Buttons
     document.querySelectorAll('.ai-btn').forEach(btn => {
         btn.onclick = () => runAiDetection(btn.dataset.aiTask);
     });
