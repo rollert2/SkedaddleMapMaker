@@ -238,31 +238,6 @@ input[type=range].input::-webkit-slider-thumb {
 }
 input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
-#lenWrap {
-    background: var(--panel); border-top: 1px solid var(--border);
-    position: absolute; bottom: 0; left: 0; right: 0; max-height: 60%;
-    display: flex; flex-direction: column; z-index: 25;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(calc(100% - 48px));
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
-}
-#lenWrap.open { transform: translateY(0); }
-#lenHead {
-    display: flex; justify-content: space-between; align-items: center; padding: 0 16px;
-    background: var(--panel); cursor: pointer; height: 48px; flex: 0 0 48px;
-    border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;
-}
-#lenBody { overflow-y: auto; flex: 1; background: var(--bg); padding-bottom: 30px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { border-bottom: 1px solid var(--border); padding: 12px 8px; font-size: 13px; text-align: left; vertical-align: middle; }
-th { color: var(--text-muted); font-weight: 600; background: var(--panel); position: sticky; top: 0; z-index: 2; font-size: 12px; text-transform: uppercase; }
-td .edit { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 8px; width: 100%; }
-.xbtn {
-    background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);
-    color: var(--danger); border-radius: 6px; width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 16px; line-height: 1;
-}
-.xbtn:hover { background: var(--danger); color: white; }
-
 /* Restored Popup Styles */
 .pop {
     position: fixed; background: var(--panel); border: 1px solid var(--accent);
@@ -321,12 +296,11 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 @media (max-width: 900px) {
     aside {
         position: absolute; top: 0; bottom: 0; left: 0; 
-        margin-left: 0 !important; /* Force reset for mobile mode */
+        margin-left: 0 !important; 
         transform: translateX(-105%); 
         box-shadow: 10px 0 30px rgba(0,0,0,0.5);
     }
     aside.open { transform: translateX(0); }
-    #lenWrap { width: 100%; }
     h1 { display: none; }
     header { justify-content: space-between; }
     header .btn { padding: 0 8px; }
@@ -336,6 +310,25 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     .gallery-list { grid-template-columns: 1fr; }
     .gallery-card { height: 95vh; }
 }
+
+#lenWrap {
+    background: var(--panel); border-top: 1px solid var(--border);
+    position: absolute; bottom: 0; left: 0; right: 0; max-height: 60%;
+    display: flex; flex-direction: column; z-index: 25;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(calc(100% - 48px));
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+}
+#lenWrap.open { transform: translateY(0); }
+#lenHead {
+    display: flex; justify-content: space-between; align-items: center; padding: 0 16px;
+    background: var(--panel); cursor: pointer; height: 48px; flex: 0 0 48px;
+    border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;
+}
+#lenBody { overflow-y: auto; flex: 1; background: var(--bg); padding-bottom: 30px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid var(--border); padding: 12px 8px; font-size: 13px; text-align: left; vertical-align: middle; }
+th { color: var(--text-muted); font-weight: 600; background: var(--panel); position: sticky; top: 0; z-index: 2; font-size: 12px; text-transform: uppercase; }
+td .edit { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 8px; width: 100%; }
 </style>
 </head>
 <body class="blurred">
@@ -454,99 +447,88 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
       <div id="accWrap"></div>
     </div>
     
-    <!-- Collapsible Display Settings -->
-    <div class="acc" id="displaySettingsAcc">
-        <div class="accHead"><b>Display Settings</b><i data-lucide="chevron-right"></i></div>
-        <div class="accBody">
-            <div style="font-size:11px; margin-bottom:10px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">General Style</div>
-            
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Line Thickness</div>
-            <div class="slider-container">
-                <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-                <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-                    <span>Thin</span><span id="lineScaleValue">1.0x</span><span>Thick</span>
-                </div>
-            </div>
+    <!-- RESTORED DISPLAY SETTINGS GROUP -->
+    <div class="group">
+      <h3>Display Settings</h3>
+      
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">General Style</div>
+      
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Line Thickness</div>
+      <div class="slider-container">
+          <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Thin</span><span id="lineScaleValue" style="color:var(--text)">1.0x</span><span>Thick</span>
+          </div>
+      </div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Label Size</div>
-            <div class="slider-container">
-                <input id="labelScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="3.0"/>
-                <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-                    <span>Small</span><span id="labelScaleValue">3.0x</span><span>Large</span>
-                </div>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Label Size</div>
+      <div class="slider-container">
+          <input id="labelScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="3.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="labelScaleValue" style="color:var(--text)">3.0x</span><span>Large</span>
+          </div>
+      </div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Background Blur</div>
-            <div class="slider-container">
-                <input id="bgBlurInput" type="range" class="input" min="0" max="100" step="1" value="0"/>
-                <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-                    <span>Clear</span><span id="bgBlurValue">0%</span><span>Blurry</span>
-                </div>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Background Blur</div>
+      <div class="slider-container">
+          <input id="bgBlurInput" type="range" class="input" min="0" max="100" step="1" value="0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Clear</span><span id="bgBlurValue" style="color:var(--text)">0%</span><span>Blurry</span>
+          </div>
+      </div>
 
-            <div style="height:1px; background:var(--border); margin:12px 0;"></div>
-            <div style="font-size:11px; margin-bottom:10px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Flow Arrows</div>
+      <div style="height:1px; background:var(--border); margin:12px 0;"></div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Flow Arrows</div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Frequency</div>
-            <div class="slider-container">
-                <input id="arrowFreqInput" type="range" class="input" min="0.2" max="1.5" step="0.1" value="1.0"/>
-                <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-                    <span>Few</span><span id="arrowFreqValue">1.0x</span><span>Many</span>
-                </div>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Frequency</div>
+      <div class="slider-container">
+          <input id="arrowFreqInput" type="range" class="input" min="0.2" max="1.5" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Few</span><span id="arrowFreqValue" style="color:var(--text)">1.0x</span><span>Many</span>
+          </div>
+      </div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Arrow Size</div>
-            <div class="slider-container">
-                <input id="arrowScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-                <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-                    <span>Small</span><span id="arrowScaleValue">1.0x</span><span>Large</span>
-                </div>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Arrow Size</div>
+      <div class="slider-container">
+          <input id="arrowScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="arrowScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
+          </div>
+      </div>
 
-            <div style="height:1px; background:var(--border); margin:12px 0;"></div>
-            <div style="font-size:11px; margin-bottom:10px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Advanced Scaling</div>
+      <div style="height:1px; background:var(--border); margin:12px 0;"></div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Advanced Scaling</div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Global Decor Scale</div>
-            <div class="slider-container">
-                <input id="iconScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.5"/>
-                <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-                    <span>Tiny</span><span id="iconScaleValue">1.5x</span><span>Huge</span>
-                </div>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Global Decor Scale</div>
+      <div class="slider-container">
+          <input id="iconScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.5"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="iconScaleValue" style="color:var(--text)">1.5x</span><span>Huge</span>
+          </div>
+      </div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">C9 Tree Scale</div>
-            <div class="slider-container">
-                <input id="c9TreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">C9 Tree Scale</div>
+      <div class="slider-container"><input id="c9TreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Mini Tree Scale</div>
-            <div class="slider-container">
-                <input id="miniTreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Mini Tree Scale</div>
+      <div class="slider-container"><input id="miniTreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">ToL Scale</div>
-            <div class="slider-container">
-                <input id="tolScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">ToL Scale</div>
+      <div class="slider-container"><input id="tolScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Wreath Scale</div>
-            <div class="slider-container">
-                <input id="wreathScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Wreath Scale</div>
+      <div class="slider-container"><input id="wreathScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Bow Scale</div>
-            <div class="slider-container">
-                <input id="bowScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/>
-            </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Bow Scale</div>
+      <div class="slider-container"><input id="bowScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
 
-            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Power/Junction Scale</div>
-            <div class="slider-container">
-                <input id="junctionScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-                <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-                    <span>Small</span><span id="junctionScaleValue">1.0x</span><span>Large</span>
-                </div>
-            </div>
-        </div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Power/Junction Scale</div>
+      <div class="slider-container">
+          <input id="junctionScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="junctionScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
+          </div>
+      </div>
     </div>
     
     <div class="group">
@@ -1296,7 +1278,7 @@ function buildTools(){
     const head=document.createElement('div');head.className='accHead';
     head.innerHTML=`<b>${cat.name}</b><i data-lucide=\"chevron-right\"></i>`;
     head.onclick=()=>{
-        document.querySelectorAll('.acc.open').forEach(el=>{if(el!==acc && el.id !== 'displaySettingsAcc')el.classList.remove('open')});
+        document.querySelectorAll('.acc.open').forEach(el=>{if(el!==acc)el.classList.remove('open')});
         acc.classList.toggle('open');
     };
     const body=document.createElement('div');body.className='accBody';
@@ -1935,7 +1917,7 @@ document.getElementById('lblInput').onchange = (e) => {
     if(!activeLabelTarget) return; 
     const val = e.target.value; 
     const item = activeLabelTarget.item;
-    if(target.type === 'point') { item.ptLabels[activeLabelTarget.index] = val; } 
+    if(activeLabelTarget.type === 'point') { item.ptLabels[activeLabelTarget.index] = val; } 
     else if (activeLabelTarget.type === 'seg') { item.segLabels[activeLabelTarget.index] = val; } 
     else if (activeLabelTarget.type === 'simple') { 
         item.text = val; 
@@ -2282,6 +2264,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
     if (finalColors.length <= 1) {
         const color = finalColors[0];
         if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
+        ctx.shadowBlur = 0;
         ctx.strokeStyle = color; ctx.lineWidth = baseWidth; 
         drawDashedPath(() => {});
     } else {
@@ -2306,6 +2289,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
 
                 if (blockDist > 0.01) {
                     if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
+                    ctx.shadowBlur = 0;
                     ctx.beginPath();
                     ctx.moveTo(sStart.x, sStart.y);
                     ctx.lineTo(sEnd.x, sEnd.y);
@@ -2318,7 +2302,6 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
                     ctx.strokeStyle = color;
                     ctx.lineWidth = baseWidth;
                     ctx.stroke();
-                    ctx.shadowBlur = 0;
                 }
                 currentWorldDist = nextWorldDist;
                 lastWorldPt = {x: ptObj.x, y: ptObj.y};
@@ -2551,6 +2534,13 @@ function getCleanData() { const cleanData = JSON.parse(JSON.stringify(data)); if
 
 function applyUIState(o) {
     lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor; bgBlurInput.value = settings.bgBlur;
+    
+    c9TreeScaleInput.value = settings.c9TreeScale || 1.0;
+    miniTreeScaleInput.value = settings.miniTreeScale || 1.0;
+    tolScaleInput.value = settings.tolScale || 1.0;
+    wreathScaleInput.value = settings.wreathScale || 1.0;
+    bowScaleInput.value = settings.bowScale || 1.0;
+
     updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI(); updateBgBlurUI();
     const uiState = o.uiState || {};
     isNightMode = uiState.isNightMode !== undefined ? uiState.isNightMode : false;
@@ -2961,15 +2951,6 @@ function initializeUI() {
         Object.keys(data).forEach(k => { data[k].forEach(it => { if(it.label) it.col = v; }); });
         requestRender(); 
     };
-
-    // Initialize Display Settings Accordion
-    const dsAcc = document.getElementById('displaySettingsAcc');
-    const dsHead = dsAcc.querySelector('.accHead');
-    dsHead.onclick = () => {
-        document.querySelectorAll('.acc.open').forEach(el => { if(el !== dsAcc && !el.closest('#accWrap')) el.classList.remove('open') });
-        dsAcc.classList.toggle('open');
-    };
-
     buildTools(); 
 }
 
