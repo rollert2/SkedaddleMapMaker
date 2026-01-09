@@ -534,6 +534,11 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
                 <input id="wreathScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/>
             </div>
 
+            <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Bow Scale</div>
+            <div class="slider-container">
+                <input id="bowScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/>
+            </div>
+
             <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Power/Junction Scale</div>
             <div class="slider-container">
                 <input id="junctionScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
@@ -918,24 +923,20 @@ const colorOf=L=>({ridges:'#fffdf0',fascia:'#fffdf0',peaks:'#fffdf0',groundstake
 
 let settings = { 
     iconScale: 1.5, junctionScale: 1.0, lineScale: 1.0, labelScale: 3.0, lineThickness: 3, arrowScale: 1.0, arrowFreqFactor: 1.0, bgBlur: 0,
-    c9TreeScale: 1.0, miniTreeScale: 1.0, tolScale: 1.0, wreathScale: 1.0
+    c9TreeScale: 1.0, miniTreeScale: 1.0, tolScale: 1.0, wreathScale: 1.0, bowScale: 1.0
 };
 let isNightMode = false;
 
 const aside=document.getElementById('side'), overlay=document.getElementById('overlay');
 
-// UPDATED: Consistency fix while keeping stationary PC behavior
 function toggleMenu(){
     const isMobile = matchMedia('(max-width:900px)').matches;
     if (isMobile) {
-        // Overlay Drawer logic for mobile
         const isOpen = aside.classList.toggle('open');
         overlay.classList.toggle('show', isOpen);
     } else {
-        // Stationary Slide logic for Desktop/PC
         aside.classList.toggle('closed');
         overlay.classList.remove('show');
-        // Give time for CSS transition then fix canvas sizing
         setTimeout(initializeAndSizeContext, 350);
     }
 }
@@ -991,6 +992,7 @@ const c9TreeScaleInput = document.getElementById('c9TreeScaleInput');
 const miniTreeScaleInput = document.getElementById('miniTreeScaleInput');
 const tolScaleInput = document.getElementById('tolScaleInput');
 const wreathScaleInput = document.getElementById('wreathScaleInput');
+const bowScaleInput = document.getElementById('bowScaleInput');
 
 const itemScaleSlider = document.getElementById('itemScaleSlider');
 const itemScaleWrap = document.getElementById('itemScaleWrap');
@@ -1015,9 +1017,10 @@ c9TreeScaleInput.oninput = (e) => { settings.c9TreeScale = parseFloat(e.target.v
 miniTreeScaleInput.oninput = (e) => { settings.miniTreeScale = parseFloat(e.target.value); requestRender(); };
 tolScaleInput.oninput = (e) => { settings.tolScale = parseFloat(e.target.value); requestRender(); };
 wreathScaleInput.oninput = (e) => { settings.wreathScale = parseFloat(e.target.value); requestRender(); };
+bowScaleInput.oninput = (e) => { settings.bowScale = parseFloat(e.target.value); requestRender(); };
 
 itemScaleSlider.oninput = (e) => {
-    if (selectedItem && (selectedItem.type === 'tree' || selectedItem.type === 'wreath')) {
+    if (selectedItem && (selectedItem.type === 'tree' || selectedItem.type === 'wreath' || selectedItem.type === 'bow')) {
         selectedItem.obj.itemScale = parseFloat(e.target.value);
         requestRender();
     }
@@ -1421,7 +1424,7 @@ function updateModeTag(){
              if (mode === 'move-label') moveLabelToggleBtn.classList.add('toggled');
              
              // Individual Scale Slider visibility
-             if (selectedItem.type === 'tree' || selectedItem.type === 'wreath') {
+             if (['tree', 'wreath', 'bow'].includes(selectedItem.type)) {
                  itemScaleWrap.style.display = 'flex';
                  itemScaleSlider.value = selectedItem.obj.itemScale || 1.0;
              }
@@ -1615,7 +1618,7 @@ function placeItem(L, w, sx, sy){
     if(L==='tree') { placeTree(L, w, sx, sy, label, index); return; } 
     else if(L==='wreath') { placeWreath(L, w, sx, sy, label, index); return; } 
     else if(L==='custom_icon') { placeCustomIcon(w, sx, sy, label, index); return; }
-    item = {pt:w, label:label, index:index, kind: L};
+    item = {pt:w, label:label, index:index, kind: L, itemScale: 1.0};
     data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
 }
 
@@ -1658,7 +1661,6 @@ cv.addEventListener('pointerdown',e=>{
     cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
     pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
     
-    // FIX 2: COORDINATE SYNC ON TOUCH START
     cv._mx = ex; cv._my = ey;
 
     if (!e.target.closest('#lblEditor')) {
@@ -1727,7 +1729,6 @@ cv.addEventListener('pointermove',e=>{
     if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x,y,id:e.pointerId});
     cv._mx=x; cv._my=y;
     
-    // FIX 2: PINCH ZOOM COORDINATE SYNC
     if(gesture && pointers.size>=2){
         const v=[...pointers.values()];
         const currDist=ds(v[0],v[1]); const currMid=mp(v[0],v[1]);
@@ -1934,7 +1935,7 @@ document.getElementById('lblInput').onchange = (e) => {
     if(!activeLabelTarget) return; 
     const val = e.target.value; 
     const item = activeLabelTarget.item;
-    if(activeLabelTarget.type === 'point') { item.ptLabels[activeLabelTarget.index] = val; } 
+    if(target.type === 'point') { item.ptLabels[activeLabelTarget.index] = val; } 
     else if (activeLabelTarget.type === 'seg') { item.segLabels[activeLabelTarget.index] = val; } 
     else if (activeLabelTarget.type === 'simple') { 
         item.text = val; 
@@ -2007,7 +2008,7 @@ document.getElementById('btnRedo').onclick = () => {
 let sketch=null; 
 function startNewSketch(){
     const d = getNewItemData(currLayer);
-    sketch={points:[],cps:[],layer:currLayer,label:d.label, index: d.index, firstHost:null, isPillarMode: chkPillar.checked, isSwagMode: chkSwag.checked}; 
+    sketch={points:[],cps:[],layer:currLayer,label:d.label, index: d.index, firstHost:null, isPillarMode: chkPillar.checked}; 
     document.getElementById('btnComplete').disabled=true;
     document.getElementById('btnComplete').classList.remove('selectable');
 }
@@ -2284,10 +2285,9 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
         ctx.strokeStyle = color; ctx.lineWidth = baseWidth; 
         drawDashedPath(() => {});
     } else {
-        // Pattern logic: pinning color blocks to world space so they don't shift when zooming
         const worldBlockLength = 10 * settings.lineScale; 
         let colorIndex = 0;
-        ctx.lineCap = 'butt'; // Crucial for multi-color continuity
+        ctx.lineCap = 'butt'; 
 
         for (let i = 0; i < points.length - 1; i++) {
             const worldSegDist = segmentLength(it.points[i], it.points[i+1], it.cps?.[i]);
@@ -2325,7 +2325,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
                 colorIndex++;
             }
         }
-        ctx.lineCap = 'round'; // Restore default
+        ctx.lineCap = 'round'; 
         ctx.setLineDash([]);
     }
     ctx.shadowBlur = 0;
@@ -2447,18 +2447,38 @@ function draw(){
     const itemScale = settings.iconScale; const junctionScale = settings.junctionScale; 
 
     data.wreath.forEach(w=>{
-        const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75) * scale * itemScale * (settings.wreathScale || 1.0) * (w.itemScale || 1.0); const wreathColor = colorOf('wreath'); 
+        const s=toScr(w.pt);
+        const wreathCategoryScale = settings.wreathScale || 1.0;
+        const individualScale = w.itemScale || 1.0;
+        const totalWreathScale = itemScale * wreathCategoryScale * individualScale;
+
+        const r=(w.size==='42"'?12.5:8.75) * scale * totalWreathScale; 
+        const wreathColor = colorOf('wreath'); 
         if (isNightMode) { ctx.shadowBlur = 15 * scale; ctx.shadowColor = wreathColor; }
         ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2); ctx.fillStyle = colorOf('wreath'); ctx.fill();
-        ctx.shadowBlur = 0; ctx.strokeStyle='black'; ctx.lineWidth=6 * itemScale * scale; ctx.stroke(); ctx.strokeStyle=colorOf('wreath'); ctx.lineWidth=3 * itemScale * scale; ctx.stroke(); 
-        if(w.bow === 'top' || w.bow === 'bottom'){ const by = w.bow==='top' ? s.y - r : s.y + r; drawBow(s.x, by, scale, itemScale); }
+        ctx.shadowBlur = 0; ctx.strokeStyle='black'; ctx.lineWidth=6 * totalWreathScale * scale; ctx.stroke(); ctx.strokeStyle=colorOf('wreath'); ctx.lineWidth=3 * totalWreathScale * scale; ctx.stroke(); 
+        if(w.bow === 'top' || w.bow === 'bottom'){ 
+            const by = w.bow==='top' ? s.y - r : s.y + r; 
+            drawBow(s.x, by, scale, totalWreathScale); 
+        }
     });
 
-    data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, itemScale); }); 
+    data.bow.forEach(b=>{
+        const s=toScr(b.pt); 
+        const bowCategoryScale = settings.bowScale || 1.0;
+        const individualScale = b.itemScale || 1.0;
+        drawBow(s.x, s.y, scale, itemScale * bowCategoryScale * individualScale); 
+    }); 
 
     data.tree.forEach(tr => {
         const p = toScr(tr.pt);
-        drawTreeIcon(ctx, p, tr.kind, tr.size, scale, itemScale, tr.itemScale);
+        const kind = tr.kind;
+        let catScale = 1.0;
+        if(kind === 'C9 Tree') catScale = settings.c9TreeScale || 1.0;
+        else if(kind === 'ToL') catScale = settings.tolScale || 1.0;
+        else catScale = settings.miniTreeScale || 1.0;
+
+        drawTreeIcon(ctx, p, tr.kind, tr.size, scale, itemScale * catScale * (tr.itemScale || 1.0));
     });
     
     data.powersource.forEach(ps=>{
@@ -2484,12 +2504,11 @@ function draw(){
 
     if(sketch && sketch.points.length>0){
         const cursor = cv._mx!=null ? toWorld(cv._mx, cv._my) : null; const pts = [...sketch.points]; if(cursor) pts.push(cursor);
-        const skObj = {points: pts, cps: sketch.cps || [], layer: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode, isSwagMode: sketch.isSwagMode}; 
+        const skObj = {points: pts, cps: sketch.cps || [], layer: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode}; 
         const sketchColor = getColorCode(sketch.col) || colorOf(sketch.layer);
         drawContinuousLine(skObj, sketchColor, sketch.layer); 
     }
     
-    // SNAP PREVIEW: Removed on mobile (width < 900)
     if(chkSnap.checked && cv._mx!=null && !matchMedia('(max-width:900px)').matches){
          const sn = getSnap(cv._mx, cv._my, 25, (draggingPoint ? draggingPoint.obj : null));
          if(sn){ 
@@ -2532,12 +2551,6 @@ function getCleanData() { const cleanData = JSON.parse(JSON.stringify(data)); if
 
 function applyUIState(o) {
     lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor; bgBlurInput.value = settings.bgBlur;
-    
-    c9TreeScaleInput.value = settings.c9TreeScale || 1.0;
-    miniTreeScaleInput.value = settings.miniTreeScale || 1.0;
-    tolScaleInput.value = settings.tolScale || 1.0;
-    wreathScaleInput.value = settings.wreathScale || 1.0;
-
     updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI(); updateBgBlurUI();
     const uiState = o.uiState || {};
     isNightMode = uiState.isNightMode !== undefined ? uiState.isNightMode : false;
@@ -2848,22 +2861,49 @@ function captureCanvasData() {
         }
         
         data.wreath.forEach(w=>{
-            const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale*settings.wreathScale*(w.itemScale || 1.0); const wreathColor = colorOf('wreath');
+            const s=toScr(w.pt);
+            const wreathCategoryScale = settings.wreathScale || 1.0;
+            const individualScale = w.itemScale || 1.0;
+            const totalWreathScale = settings.iconScale * wreathCategoryScale * individualScale;
+
+            const r=(w.size==='42"'?12.5:8.75)*scale*totalWreathScale; 
+            const wreathColor = colorOf('wreath');
             o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); o.fillStyle = wreathColor; o.fill(); 
-            o.strokeStyle='black'; o.lineWidth=6 * settings.iconScale * scale; o.stroke(); 
-            o.strokeStyle=wreathColor; o.lineWidth=3 * settings.iconScale * scale; o.stroke();
-            if(w.bow === 'top' || w.bow === 'bottom'){ const by = w.bow==='top' ? s.y - r : s.y + r; drawBow(s.x, by, scale, settings.iconScale); }
+            o.strokeStyle='black'; o.lineWidth=6 * totalWreathScale * scale; o.stroke(); 
+            o.strokeStyle=wreathColor; o.lineWidth=3 * totalWreathScale * scale; o.stroke();
+            if(w.bow === 'top' || w.bow === 'bottom'){ 
+                const by = w.bow==='top' ? s.y - r : s.y + r; 
+                drawBow(s.x, by, scale, totalWreathScale); 
+            }
         });
-        data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, settings.iconScale); }); 
-        data.tree.forEach(tr => { drawTreeIcon(o, toScr(tr.pt), tr.kind, tr.size, scale, settings.iconScale, tr.itemScale); });
+
+        data.bow.forEach(b=>{
+            const s=toScr(b.pt); 
+            const bowCategoryScale = settings.bowScale || 1.0;
+            const individualScale = b.itemScale || 1.0;
+            drawBow(s.x, s.y, scale, settings.iconScale * bowCategoryScale * individualScale); 
+        }); 
+
+        data.tree.forEach(tr => {
+            const p = toScr(tr.pt);
+            const kind = tr.kind;
+            let catScale = 1.0;
+            if(kind === 'C9 Tree') catScale = settings.c9TreeScale || 1.0;
+            else if(kind === 'ToL') catScale = settings.tolScale || 1.0;
+            else catScale = settings.miniTreeScale || 1.0;
+            drawTreeIcon(o, p, tr.kind, tr.size, scale, settings.iconScale * catScale * (tr.itemScale || 1.0)); 
+        });
+
         data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
         data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
+        
         data.custom_icon.forEach(ci => {
             if (!ci.url) return;
             const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
             if (!ci.imageObj || ci.imageObj.src !== ci.url) { ci.imageObj = new Image(); ci.imageObj.src = ci.url; }
             if (ci.imageObj.complete) { o.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH); }
         });
+
         drawLabels(o);
 
         if (ITEM_COUNT > 0) {
@@ -2880,7 +2920,8 @@ function captureCanvasData() {
             y += 24;
             items.sort((a,b)=>(a.label||'').localeCompare(b.label||'', undefined, {numeric:true})).forEach(r => {
                 let x = 15;
-                let typeDisplay = pretty[r.L] || r.L; if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
+                let typeDisplay = pretty[r.L] || r.L;
+                if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
                 o.fillText(typeDisplay, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[0].w;
                 o.fillText(r.label || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[1].w;
                 o.fillText(r.ft || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[2].w;
