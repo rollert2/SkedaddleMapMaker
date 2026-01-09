@@ -225,17 +225,27 @@ textarea.input { resize: vertical; min-height: 80px; }
     box-shadow: 0 0 0 1px var(--accent);
 }
 
-/* Visibility UI Styles */
-.vis-group { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); margin-bottom: 6px; }
-.vis-head { display: flex; align-items: center; padding: 10px 12px; gap: 10px; cursor: pointer; }
-.vis-head:hover { background: var(--panel-hover); }
-.vis-head input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
-.vis-head span { font-size: 13px; font-weight: 600; flex: 1; }
-.vis-head i { color: var(--text-muted); transition: transform 0.2s; }
-.vis-group.open .vis-head i { transform: rotate(90deg); color: var(--accent); }
-.vis-body { display: none; border-top: 1px solid var(--border); background: var(--bg); padding: 4px 0; }
-.vis-group.open .vis-body { display: block; }
-.vis-row { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 36px; font-size: 12px; }
+/* Visibility UI Styles - Matched to Toolbox Accordion */
+.vis-acc { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); margin-bottom: 8px; overflow: hidden; }
+.vis-accHead {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    padding: 12px 14px; font-size: 13px; font-weight: 600; color: var(--text);
+    transition: background 0.2s;
+}
+.vis-accHead:hover { background: var(--panel-hover); }
+.vis-accHead input[type="checkbox"] { 
+    width: 16px; height: 16px; accent-color: var(--accent); 
+    cursor: pointer; position: relative; z-index: 5;
+}
+.vis-accHead span { flex: 1; }
+.vis-accHead i { transition: transform 0.2s; width: 14px; height: 14px; color: var(--text-muted); }
+.vis-acc.open .vis-accHead i { transform: rotate(90deg); color: var(--accent); }
+.vis-accBody { display: none; padding: 4px 0; border-top: 1px solid var(--border); background: var(--bg); }
+.vis-acc.open .vis-accBody { display: block; }
+.vis-row { 
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 40px; 
+    font-size: 12px; transition: background 0.1s;
+}
 .vis-row:hover { background: var(--panel-hover); }
 .vis-row input { accent-color: var(--accent); cursor: pointer; }
 
@@ -252,8 +262,9 @@ input[type=range].input::-webkit-slider-thumb {
 input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
 /* Eye icon in table */
-.vis-toggle { cursor: pointer; color: var(--accent); transition: opacity 0.2s; width: 18px; }
-.vis-toggle.faded { color: var(--text-muted); opacity: 0.5; }
+.vis-toggle { cursor: pointer; color: var(--accent); transition: all 0.2s; padding: 4px; border-radius: 4px; }
+.vis-toggle:hover { background: var(--panel-hover); }
+.vis-toggle.faded { color: var(--text-muted); opacity: 0.4; }
 
 .pop {
     position: fixed; background: var(--panel); border: 1px solid var(--accent);
@@ -881,6 +892,9 @@ const visibilityGroups = [
     { label: 'Ground Stakes', sub: ['groundstakes'] }
 ];
 
+// State to keep track of which visibility categories are expanded
+const openVisGroups = new Set();
+
 function getColorCode(colorName) {
     if (!colorName) return '#ddd';
     const lowerName = colorName.toLowerCase();
@@ -1087,7 +1101,6 @@ function refreshTable(){
     Object.keys(data).forEach(k=>{
         if (EXCLUDED_LAYERS.includes(k)) return;
         data[k].forEach(it=>{
-            // Items are shown even if they have no label, but only ID'd ones sort specifically.
             rows.push({item: it, L:k});
         });
     });
@@ -1155,7 +1168,8 @@ function refreshTable(){
                 </div>
             </td>`;
         
-        tr.querySelector('.vis-toggle').onclick = () => {
+        tr.querySelector('.vis-toggle').onclick = (e) => {
+            e.stopPropagation();
             r.item.isVisible = r.item.isVisible === false;
             refreshTable();
             updateVisibilityMenu();
@@ -1251,16 +1265,20 @@ function updateVisibilityMenu() {
                 const kind = subKey.split(':')[1];
                 return data.tree && data.tree.some(t => t.kind === kind);
             }
+            if (subKey === 'wreath') {
+                return (data.wreath && data.wreath.length > 0) || (data.wreath32 && data.wreath32.length > 0) || (data.wreath42 && data.wreath42.length > 0);
+            }
             return data[subKey] && data[subKey].length > 0;
         });
 
         if (activeSubKeys.length === 0) return;
 
         const groupEl = document.createElement('div');
-        groupEl.className = 'vis-group';
+        groupEl.className = 'vis-acc';
+        if (openVisGroups.has(group.label)) groupEl.classList.add('open');
         
         const head = document.createElement('div');
-        head.className = 'vis-head';
+        head.className = 'vis-accHead';
         
         const groupCheck = document.createElement('input');
         groupCheck.type = 'checkbox';
@@ -1271,8 +1289,12 @@ function updateVisibilityMenu() {
                 const kind = subKey.split(':')[1];
                 return !data.tree.some(t => t.kind === kind && t.isVisible === false);
             }
+            if (subKey === 'wreath') {
+                 return !data.wreath.some(it => it.isVisible === false);
+            }
             return !data[subKey].some(it => it.isVisible === false);
         });
+        
         groupCheck.checked = states.every(s => s === true);
         groupCheck.indeterminate = !groupCheck.checked && states.some(s => s === true);
 
@@ -1281,14 +1303,12 @@ function updateVisibilityMenu() {
         
         const arrow = document.createElement('i');
         arrow.setAttribute('data-lucide', 'chevron-right');
-        arrow.style.width = '16px';
-        arrow.style.height = '16px';
 
         head.append(groupCheck, groupLabel, arrow);
         groupEl.appendChild(head);
 
         const body = document.createElement('div');
-        body.className = 'vis-body';
+        body.className = 'vis-accBody';
 
         activeSubKeys.forEach(subKey => {
             const row = document.createElement('div');
@@ -1300,6 +1320,8 @@ function updateVisibilityMenu() {
             if (subKey.startsWith('tree:')) {
                 const kind = subKey.split(':')[1];
                 subCheck.checked = !data.tree.some(t => t.kind === kind && t.isVisible === false);
+            } else if (subKey === 'wreath') {
+                subCheck.checked = !data.wreath.some(it => it.isVisible === false);
             } else {
                 subCheck.checked = !data[subKey].some(it => it.isVisible === false);
             }
@@ -1323,7 +1345,9 @@ function updateVisibilityMenu() {
 
         head.onclick = (e) => {
             if (e.target === groupCheck) return;
-            groupEl.classList.toggle('open');
+            const isNowOpen = groupEl.classList.toggle('open');
+            if (isNowOpen) openVisGroups.add(group.label);
+            else openVisGroups.delete(group.label);
         };
 
         groupEl.appendChild(body);
@@ -1336,6 +1360,8 @@ function toggleLayerVisibility(key, visible) {
     if (key.startsWith('tree:')) {
         const kind = key.split(':')[1];
         data.tree.forEach(t => { if(t.kind === kind) t.isVisible = visible; });
+    } else if (key === 'wreath') {
+        data.wreath.forEach(w => w.isVisible = visible);
     } else {
         if(data[key]) data[key].forEach(it => it.isVisible = visible);
     }
@@ -1777,7 +1803,7 @@ cv.addEventListener('pointermove',e=>{
         if(gDist>0){
             const nz = Math.max(0.1, Math.min(10, gScale * (currDist/gDist)));
             const worldMid = {x:(gMid.x-gPanX)/gScale, y:(gMid.y-gPanY)/gScale};
-            scale = nz; panX = currMid.x - worldMid.x*scale; panY = currMid.y - worldMid.y*scale; requestRender();
+            scale = nz; panX = mx - worldMid.x*scale; panY = my - worldMid.y*scale; requestRender();
         }
         cv._mx = currMid.x; cv._my = currMid.y; return;
     }
@@ -2229,7 +2255,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
     }
     if (finalColors.length <= 1) {
         const color = finalColors[0];
-        if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else ctx.shadowBlur = 0;
+        if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
         ctx.shadowBlur = 0; ctx.strokeStyle = color; ctx.lineWidth = baseWidth; 
         drawDashedPath(() => {});
     } else {
@@ -2245,7 +2271,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
                 const ptObj = getPointOnSegmentAtDist(it.points[i], it.points[i+1], worldSegDist, nextWorldDist, it.cps?.[i]);
                 const sStart = toScr(lastWorldPt); const sEnd = toScr({x: ptObj.x, y: ptObj.y});
                 if (blockDist > 0.01) {
-                    if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else ctx.shadowBlur = 0;
+                    if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
                     ctx.shadowBlur = 0; ctx.beginPath(); ctx.moveTo(sStart.x, sStart.y); ctx.lineTo(sEnd.x, sEnd.y);
                     if (isDottedSegment) { const dashLen = 8 * settings.lineScale * scale; ctx.setLineDash([dashLen, dashLen]); } else ctx.setLineDash([]);
                     ctx.strokeStyle = color; ctx.lineWidth = baseWidth; ctx.stroke();
@@ -2326,10 +2352,8 @@ function draw(){
                     const cp = toScr(e.cps);
                     for (let k = 1; k <= count; k++) {
                         let t = k / (count + 1); const invT = 1 - t;
-                        const px = invT * invT * uPos.x + 2 * invT * t * cp.x + t * t * vPos.x;
-                        const py = invT * invT * uPos.y + 2 * invT * t * cp.y + t * t * vPos.y;
-                        const tx = 2 * invT * (cp.x - uPos.x) + 2 * t * (vPos.x - cp.x);
-                        const ty = 2 * invT * (cp.y - uPos.y) + 2 * t * (vPos.y - cp.y);
+                        const px = invT * invT * uPos.x + 2 * invT * t * cp.x + t * t * vPos.x; const py = invT * invT * uPos.y + 2 * invT * t * cp.y + t * t * vPos.y;
+                        const tx = 2 * invT * (cp.x - uPos.x) + 2 * t * (vPos.x - cp.x); const ty = 2 * invT * (cp.y - uPos.y) + 2 * t * (vPos.y - cp.y);
                         let dir = { x: tx, y: ty }; if (isReversed) { dir.x = -dir.x; dir.y = -dir.y; }
                         drawArrow({ x: px, y: py }, dir, '#ef4444');
                     }
@@ -2640,7 +2664,8 @@ function captureCanvasData() {
         drawLabels(o);
         if (ITEM_COUNT > 0) {
             const footY = HEADER_H + MAP_H_PX; o.fillStyle = '#1e293b'; o.fillRect(0, footY, OUT_W, FOOTER_H);
-            o.fillStyle = '#3b82f6'; o.font = 'bold 15px \"Inter\", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top'; o.fillText('LINE INFORMATION SUMMARY', 12, footY + 12);
+            o.fillStyle = '#3b82f6'; o.font = 'bold 15px \"Inter\", system-ui'; o.textAlign = 'left'; o.textBaseline = 'top';
+            o.fillText('LINE INFORMATION SUMMARY', 12, footY + 12);
             let y = footY + FOOTER_TITLE_H;
             const cols = [ { label: 'TYPE', w: 0.15 }, { label: 'ID', w: 0.08 }, { label: 'FT', w: 0.08 }, { label: 'BULBS', w: 0.08 }, { label: 'CLIP', w: 0.12 }, { label: 'COLOUR', w: 0.15 }, { label: 'NOTES', w: 0.3 } ];
             o.fillStyle = '#0f172a'; roundRect(o, 8, y-2, OUT_W-16, 22, 6); o.fill();
