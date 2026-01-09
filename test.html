@@ -169,7 +169,6 @@ canvas {
 body.white-bg .canvasWrap { background: #ffffff; background-image: none; }
 
 /* FIX 1: SIDEBAR DRAWER & STATIONARY REVERT */
-/* Sidebar is stationary on PC/Tablet by default. Closed state shifts it out. */
 aside {
     width: 320px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; overflow-y: auto; padding: 16px;
@@ -227,7 +226,7 @@ textarea.input { resize: vertical; min-height: 80px; }
     box-shadow: 0 0 0 1px var(--accent);
 }
 
-.slider-container { padding: 8px 0 16px; position: relative; }
+.slider-container { padding: 4px 0 12px; position: relative; }
 input[type=range].input {
     -webkit-appearance: none; appearance: none; height: 6px; background: var(--border);
     border-radius: 3px; border: none; padding: 0;
@@ -239,30 +238,18 @@ input[type=range].input::-webkit-slider-thumb {
 }
 input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
-#lenWrap {
-    background: var(--panel); border-top: 1px solid var(--border);
-    position: absolute; bottom: 0; left: 0; right: 0; max-height: 60%;
-    display: flex; flex-direction: column; z-index: 25;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(calc(100% - 48px));
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+/* Restored Popup Styles */
+.pop {
+    position: fixed; background: var(--panel); border: 1px solid var(--accent);
+    padding: 8px; border-radius: 12px; display: none; gap: 4px; z-index: 9999;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
-#lenWrap.open { transform: translateY(0); }
-#lenHead {
-    display: flex; justify-content: space-between; align-items: center; padding: 0 16px;
-    background: var(--panel); cursor: pointer; height: 48px; flex: 0 0 48px;
-    border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;
+.pop button {
+    background: var(--bg); border: 1px solid var(--border); color: white;
+    padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
+    transition: all 0.2s; min-width: 50px;
 }
-#lenBody { overflow-y: auto; flex: 1; background: var(--bg); padding-bottom: 30px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { border-bottom: 1px solid var(--border); padding: 12px 8px; font-size: 13px; text-align: left; vertical-align: middle; }
-th { color: var(--text-muted); font-weight: 600; background: var(--panel); position: sticky; top: 0; z-index: 2; font-size: 12px; text-transform: uppercase; }
-td .edit { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 8px; width: 100%; }
-.xbtn {
-    background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);
-    color: var(--danger); border-radius: 6px; width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 16px; line-height: 1;
-}
-.xbtn:hover { background: var(--danger); color: white; }
+.pop button:hover { background: var(--accent); border-color: white; }
 
 #modalBack, #modalAlert, #modalGallery {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000;
@@ -306,28 +293,14 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
-/* Restored Popup Styles */
-.pop {
-    position: fixed; background: var(--panel); border: 1px solid var(--accent);
-    padding: 8px; border-radius: 12px; display: none; gap: 4px; z-index: 9999;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-}
-.pop button {
-    background: var(--bg); border: 1px solid var(--border); color: white;
-    padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
-    transition: all 0.2s; min-width: 50px;
-}
-.pop button:hover { background: var(--accent); border-color: white; }
-
 @media (max-width: 900px) {
     aside {
         position: absolute; top: 0; bottom: 0; left: 0; 
-        margin-left: 0 !important; /* Force reset for mobile mode */
+        margin-left: 0 !important; 
         transform: translateX(-105%); 
         box-shadow: 10px 0 30px rgba(0,0,0,0.5);
     }
     aside.open { transform: translateX(0); }
-    #lenWrap { width: 100%; }
     h1 { display: none; }
     header { justify-content: space-between; }
     header .btn { padding: 0 8px; }
@@ -337,6 +310,25 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     .gallery-list { grid-template-columns: 1fr; }
     .gallery-card { height: 95vh; }
 }
+
+#lenWrap {
+    background: var(--panel); border-top: 1px solid var(--border);
+    position: absolute; bottom: 0; left: 0; right: 0; max-height: 60%;
+    display: flex; flex-direction: column; z-index: 25;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(calc(100% - 48px));
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+}
+#lenWrap.open { transform: translateY(0); }
+#lenHead {
+    display: flex; justify-content: space-between; align-items: center; padding: 0 16px;
+    background: var(--panel); cursor: pointer; height: 48px; flex: 0 0 48px;
+    border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;
+}
+#lenBody { overflow-y: auto; flex: 1; background: var(--bg); padding-bottom: 30px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid var(--border); padding: 12px 8px; font-size: 13px; text-align: left; vertical-align: middle; }
+th { color: var(--text-muted); font-weight: 600; background: var(--panel); position: sticky; top: 0; z-index: 2; font-size: 12px; text-transform: uppercase; }
+td .edit { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 8px; width: 100%; }
 </style>
 </head>
 <body class="blurred">
@@ -412,6 +404,13 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
   <div id="selectionQuickEdit">
       <span id="editLabelPrefix" style="font-size:12px; color:var(--text-muted); font-weight:600">ID:</span>
       <input id="quickEditPrefix" class="input" style="width:70px; height:32px; padding:4px 8px; font-size:13px" placeholder="F1"/>
+      
+      <!-- Individual Item Scale Slider -->
+      <div id="itemScaleWrap" style="display:none; align-items:center; gap:8px; margin-left:8px; border-left:1px solid var(--border); padding-left:8px;">
+          <span style="font-size:11px; color:var(--text-muted); font-weight:600">SCALE:</span>
+          <input id="itemScaleSlider" type="range" class="input" min="0.2" max="5" step="0.1" value="1.0" style="width:80px; height:24px; padding:0"/>
+      </div>
+
       <button id="moveLabelToggleBtn" class="btn" title="Move Label"><i data-lucide="move-diagonal"></i></button>
       <button id="quickDeleteBtn" class="btn" style="color:var(--danger); height:32px" title="Delete Selected"><i data-lucide="trash-2"></i></button>
   </div>
@@ -448,6 +447,90 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
       <div id="accWrap"></div>
     </div>
     
+    <!-- RESTORED DISPLAY SETTINGS GROUP -->
+    <div class="group">
+      <h3>Display Settings</h3>
+      
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">General Style</div>
+      
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Line Thickness</div>
+      <div class="slider-container">
+          <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Thin</span><span id="lineScaleValue" style="color:var(--text)">1.0x</span><span>Thick</span>
+          </div>
+      </div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Label Size</div>
+      <div class="slider-container">
+          <input id="labelScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="3.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="labelScaleValue" style="color:var(--text)">3.0x</span><span>Large</span>
+          </div>
+      </div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Background Blur</div>
+      <div class="slider-container">
+          <input id="bgBlurInput" type="range" class="input" min="0" max="100" step="1" value="0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Clear</span><span id="bgBlurValue" style="color:var(--text)">0%</span><span>Blurry</span>
+          </div>
+      </div>
+
+      <div style="height:1px; background:var(--border); margin:12px 0;"></div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Flow Arrows</div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Frequency</div>
+      <div class="slider-container">
+          <input id="arrowFreqInput" type="range" class="input" min="0.2" max="1.5" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Few</span><span id="arrowFreqValue" style="color:var(--text)">1.0x</span><span>Many</span>
+          </div>
+      </div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Arrow Size</div>
+      <div class="slider-container">
+          <input id="arrowScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="arrowScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
+          </div>
+      </div>
+
+      <div style="height:1px; background:var(--border); margin:12px 0;"></div>
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Advanced Scaling</div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Global Decor Scale</div>
+      <div class="slider-container">
+          <input id="iconScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.5"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="iconScaleValue" style="color:var(--text)">1.5x</span><span>Huge</span>
+          </div>
+      </div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">C9 Tree Scale</div>
+      <div class="slider-container"><input id="c9TreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Mini Tree Scale</div>
+      <div class="slider-container"><input id="miniTreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">ToL Scale</div>
+      <div class="slider-container"><input id="tolScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Wreath Scale</div>
+      <div class="slider-container"><input id="wreathScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Bow Scale</div>
+      <div class="slider-container"><input id="bowScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+
+      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Power/Junction Scale</div>
+      <div class="slider-container">
+          <input id="junctionScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Small</span><span id="junctionScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
+          </div>
+      </div>
+    </div>
+    
     <div class="group">
       <h3>Project Details</h3>
       <div class="grow" style="gap:8px">
@@ -470,66 +553,6 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
             <div class="row2"><input id="on2" type="time" class="input"/><input id="off2" type="time" class="input"/></div>
             <button id="btnStd" class="btn" style="width:100%; margin-top:12px; justify-content:center; font-size:12px;">Set Standard Times</button>
         </div>
-    </div>
-    
-    <div class="group">
-      <h3>Display Settings</h3>
-      
-      <div style="font-size:11px; margin-bottom:6px; color:var(--text-muted);">Line Thickness</div>
-      <div class="slider-container" id="lineScaleContainer">
-          <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Thin</span><span id="lineScaleValue" style="color:var(--text)">1.0x</span><span>Thick</span>
-          </div>
-      </div>
-      
-      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Flow Arrows Frequency</div>
-      <div class="slider-container" id="arrowFreqContainer">
-          <input id="arrowFreqInput" type="range" class="input" min="0.2" max="1.5" step="0.1" value="1.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Few</span><span id="arrowFreqValue" style="color:var(--text)">1.0x</span><span>Many</span>
-          </div>
-      </div>
-
-      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Flow Arrow Size</div>
-      <div class="slider-container" id="arrowScaleContainer">
-          <input id="arrowScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Small</span><span id="arrowScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
-          </div>
-      </div>
-
-      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Decorations Size</div>
-      <div class="slider-container" id="iconScaleContainer">
-          <input id="iconScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.5"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Small</span><span id="iconScaleValue" style="color:var(--text)">1.5x</span><span>Huge</span>
-          </div>
-      </div>
-
-      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Background Blur</div>
-      <div class="slider-container" id="bgBlurContainer">
-          <input id="bgBlurInput" type="range" class="input" min="0" max="100" step="1" value="0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Clear</span><span id="bgBlurValue" style="color:var(--text)">0%</span><span>Blurry</span>
-          </div>
-      </div>
-      
-      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Power/Junction Size</div>
-      <div class="slider-container" id="junctionScaleContainer">
-          <input id="junctionScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Small</span><span id="junctionScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
-          </div>
-      </div>
-
-      <div style="font-size:11px; margin-top:12px; margin-bottom:6px; color:var(--text-muted);">Label Size</div>
-      <div class="slider-container" id="labelScaleContainer">
-          <input id="labelScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="3.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Small</span><span id="labelScaleValue" style="color:var(--text)">3.0x</span><span>Large</span>
-          </div>
-      </div>
     </div>
     
     <div class="group">
@@ -880,23 +903,22 @@ function getColorCode(colorName) {
 }
 const colorOf=L=>({ridges:'#fffdf0',fascia:'#fffdf0',peaks:'#fffdf0',groundstakes:'#fffdf0',shrub:'#22c55e',windows:'#7dd3fc',garland:'#22c55e',wreath:'#22c55e',bow:'#ef4444',cords:'#000000',powersource:'#ef4444',threeway:'#eab308',tree:'#22c55e'}[L]||'#ddd');
 
-let settings = { iconScale: 1.5, junctionScale: 1.0, lineScale: 1.0, labelScale: 3.0, lineThickness: 3, arrowScale: 1.0, arrowFreqFactor: 1.0, bgBlur: 0 };
+let settings = { 
+    iconScale: 1.5, junctionScale: 1.0, lineScale: 1.0, labelScale: 3.0, lineThickness: 3, arrowScale: 1.0, arrowFreqFactor: 1.0, bgBlur: 0,
+    c9TreeScale: 1.0, miniTreeScale: 1.0, tolScale: 1.0, wreathScale: 1.0, bowScale: 1.0
+};
 let isNightMode = false;
 
 const aside=document.getElementById('side'), overlay=document.getElementById('overlay');
 
-// UPDATED: Consistency fix while keeping stationary PC behavior
 function toggleMenu(){
     const isMobile = matchMedia('(max-width:900px)').matches;
     if (isMobile) {
-        // Overlay Drawer logic for mobile
         const isOpen = aside.classList.toggle('open');
         overlay.classList.toggle('show', isOpen);
     } else {
-        // Stationary Slide logic for Desktop/PC
         aside.classList.toggle('closed');
         overlay.classList.remove('show');
-        // Give time for CSS transition then fix canvas sizing
         setTimeout(initializeAndSizeContext, 350);
     }
 }
@@ -948,6 +970,15 @@ const arrowFreqValue = document.getElementById('arrowFreqValue');
 const arrowScaleInput = document.getElementById('arrowScaleInput'); 
 const arrowScaleValue = document.getElementById('arrowScaleValue'); 
 
+const c9TreeScaleInput = document.getElementById('c9TreeScaleInput');
+const miniTreeScaleInput = document.getElementById('miniTreeScaleInput');
+const tolScaleInput = document.getElementById('tolScaleInput');
+const wreathScaleInput = document.getElementById('wreathScaleInput');
+const bowScaleInput = document.getElementById('bowScaleInput');
+
+const itemScaleSlider = document.getElementById('itemScaleSlider');
+const itemScaleWrap = document.getElementById('itemScaleWrap');
+
 function updateLineScaleUI() { settings.lineScale = parseFloat(lineScaleInput.value); lineScaleValue.textContent = `${settings.lineScale.toFixed(1)}x`; }
 function updateIconScaleUI() { settings.iconScale = parseFloat(iconScaleInput.value); iconScaleValue.textContent = `${settings.iconScale.toFixed(1)}x`; }
 function updateBgBlurUI() { settings.bgBlur = parseInt(bgBlurInput.value); bgBlurValue.textContent = `${settings.bgBlur}%`; }
@@ -963,6 +994,19 @@ junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(juncti
 labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(labelScaleInput.value); updateLabelScaleUI(); requestRender(); };
 arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
 arrowScaleInput.oninput = (e) => { settings.arrowScale = parseFloat(arrowScaleInput.value); updateArrowScaleUI(); markPowerDirty(); requestRender(); };
+
+c9TreeScaleInput.oninput = (e) => { settings.c9TreeScale = parseFloat(e.target.value); requestRender(); };
+miniTreeScaleInput.oninput = (e) => { settings.miniTreeScale = parseFloat(e.target.value); requestRender(); };
+tolScaleInput.oninput = (e) => { settings.tolScale = parseFloat(e.target.value); requestRender(); };
+wreathScaleInput.oninput = (e) => { settings.wreathScale = parseFloat(e.target.value); requestRender(); };
+bowScaleInput.oninput = (e) => { settings.bowScale = parseFloat(e.target.value); requestRender(); };
+
+itemScaleSlider.oninput = (e) => {
+    if (selectedItem && (selectedItem.type === 'tree' || selectedItem.type === 'wreath' || selectedItem.type === 'bow')) {
+        selectedItem.obj.itemScale = parseFloat(e.target.value);
+        requestRender();
+    }
+};
 
 function toggleNightMode(isManualToggle=true) {
     isNightMode = !isNightMode;
@@ -1340,6 +1384,7 @@ function updateModeTag(){
     document.getElementById('btnMoveCanvas').classList.remove('toggled'); 
     
     document.getElementById('selectionQuickEdit').style.display = 'none';
+    itemScaleWrap.style.display = 'none';
     moveLabelToggleBtn.classList.remove('toggled');
 
     if (mode === 'draw') {
@@ -1360,6 +1405,12 @@ function updateModeTag(){
              if (isLabelable) quickEditPrefix.value = selectedItem.obj.label || '';
              if (mode === 'move-label') moveLabelToggleBtn.classList.add('toggled');
              
+             // Individual Scale Slider visibility
+             if (['tree', 'wreath', 'bow'].includes(selectedItem.type)) {
+                 itemScaleWrap.style.display = 'flex';
+                 itemScaleSlider.value = selectedItem.obj.itemScale || 1.0;
+             }
+
              if (selectedItem.type === 'garland') {
                  document.getElementById('btnSwag').style.display = 'inline-flex';
                  document.getElementById('btnPillar').style.display = 'inline-flex';
@@ -1549,24 +1600,24 @@ function placeItem(L, w, sx, sy){
     if(L==='tree') { placeTree(L, w, sx, sy, label, index); return; } 
     else if(L==='wreath') { placeWreath(L, w, sx, sy, label, index); return; } 
     else if(L==='custom_icon') { placeCustomIcon(w, sx, sy, label, index); return; }
-    item = {pt:w, label:label, index:index, kind: L};
+    item = {pt:w, label:label, index:index, kind: L, itemScale: 1.0};
     data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
 }
 
 function placeTree(L, w, sx, sy, label, index) {
     if (currTreeKind === 'ToL') {
         openPop(document.getElementById('tolPop'), sx, sy, (size) => {
-            const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size), ft: size};
+            const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size), ft: size, itemScale: 1.0};
             data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
         });
     } else {
-        const item = {pt:w, label:label, index:index, kind: currTreeKind};
+        const item = {pt:w, label:label, index:index, kind: currTreeKind, itemScale: 1.0};
         data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
     }
 }
 function placeWreath(L, w, sx, sy, label, index) {
     openPop(document.getElementById('wreathPop'), sx, sy, (bow) => {
-        const item = {pt:w, label:label, index:index, size: currWreathSize, bow: bow};
+        const item = {pt:w, label:label, index:index, size: currWreathSize, bow: bow, itemScale: 1.0};
         data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
     });
 }
@@ -1592,8 +1643,6 @@ cv.addEventListener('pointerdown',e=>{
     cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
     pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
     
-    // FIX 2: COORDINATE SYNC ON TOUCH START
-    // Immediately sync current visual cursor to the touch point to prevent jumps from previous zooms
     cv._mx = ex; cv._my = ey;
 
     if (!e.target.closest('#lblEditor')) {
@@ -1662,8 +1711,6 @@ cv.addEventListener('pointermove',e=>{
     if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x,y,id:e.pointerId});
     cv._mx=x; cv._my=y;
     
-    // FIX 2: PINCH ZOOM COORDINATE SYNC
-    // Ensure drawing cursor follows the midpoint of a pinch gesture
     if(gesture && pointers.size>=2){
         const v=[...pointers.values()];
         const currDist=ds(v[0],v[1]); const currMid=mp(v[0],v[1]);
@@ -1943,7 +1990,7 @@ document.getElementById('btnRedo').onclick = () => {
 let sketch=null; 
 function startNewSketch(){
     const d = getNewItemData(currLayer);
-    sketch={points:[],cps:[],layer:currLayer,label:d.label, index: d.index, firstHost:null, isPillarMode: chkPillar.checked, isSwagMode: chkSwag.checked}; 
+    sketch={points:[],cps:[],layer:currLayer,label:d.label, index: d.index, firstHost:null, isPillarMode: chkPillar.checked}; 
     document.getElementById('btnComplete').disabled=true;
     document.getElementById('btnComplete').classList.remove('selectable');
 }
@@ -1973,7 +2020,7 @@ function handleTap(sx,sy){
             if(chkSwag.checked && currLayer === 'garland') {
                 const mx = (p1.x + p2.x) / 2; const my = (p1.y + p2.y) / 2; const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
                 sketch.cps.push({x: mx, y: my + (dist * 0.2)}); 
-            } else { sketch.cps.push(null); }
+            } else { if (!sketch.cps) sketch.cps = []; sketch.cps.push(null); }
         }
     }
 
@@ -2083,8 +2130,15 @@ function getPolylineMidpoint(points){
     return points[points.length-1];
 }
 
-function drawTreeIcon(ctx, p, kind, size, scale, itemScale) { 
-    const baseScale = 3.0; scale *= (itemScale * 0.25 * baseScale);
+function drawTreeIcon(ctx, p, kind, size, scale, itemScale, overrideScale = 1.0) { 
+    const baseScale = 3.0; 
+    let catScale = 1.0;
+    if(kind === 'C9 Tree') catScale = settings.c9TreeScale || 1.0;
+    else if(kind === 'ToL') catScale = settings.tolScale || 1.0;
+    else catScale = settings.miniTreeScale || 1.0;
+
+    scale *= (itemScale * 0.25 * baseScale * catScale * (overrideScale || 1.0));
+
     if(kind.includes('Branch')) { 
         const h = 25 * scale;
         ctx.strokeStyle = 'black'; ctx.lineWidth = 5 * scale; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -2210,13 +2264,13 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
     if (finalColors.length <= 1) {
         const color = finalColors[0];
         if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
+        ctx.shadowBlur = 0;
         ctx.strokeStyle = color; ctx.lineWidth = baseWidth; 
         drawDashedPath(() => {});
     } else {
-        // Pattern logic: pinning color blocks to world space so they don't shift when zooming
         const worldBlockLength = 10 * settings.lineScale; 
         let colorIndex = 0;
-        ctx.lineCap = 'butt'; // Crucial for multi-color continuity
+        ctx.lineCap = 'butt'; 
 
         for (let i = 0; i < points.length - 1; i++) {
             const worldSegDist = segmentLength(it.points[i], it.points[i+1], it.cps?.[i]);
@@ -2254,7 +2308,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
                 colorIndex++;
             }
         }
-        ctx.lineCap = 'round'; // Restore default
+        ctx.lineCap = 'round'; 
         ctx.setLineDash([]);
     }
     ctx.shadowBlur = 0;
@@ -2284,7 +2338,7 @@ function drawLabels(ctx, isExport=false) {
                     p = getPolylineMidpoint(it.points); offY = -14 * fontScaleFactor; 
                 } else if (it.kind === 'ToL') { 
                     const treeScale = (k === 'tree') ? settings.iconScale : 1.0; 
-                    const h = (it.size || 9) * 3 * scale * treeScale; 
+                    const h = (it.size || 9) * 3 * scale * treeScale * (settings.tolScale || 1.0) * (it.itemScale || 1.0); 
                     p = {x: it.pt.x, y: it.pt.y - (h/2)/scale}; offY = 0; 
                 } else if (k === 'custom_icon') { 
                     const scaledW = it.w * it.scale; const scaledH = it.h * it.scale; 
@@ -2376,18 +2430,38 @@ function draw(){
     const itemScale = settings.iconScale; const junctionScale = settings.junctionScale; 
 
     data.wreath.forEach(w=>{
-        const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75) * scale * itemScale; const wreathColor = colorOf('wreath'); 
+        const s=toScr(w.pt);
+        const wreathCategoryScale = settings.wreathScale || 1.0;
+        const individualScale = w.itemScale || 1.0;
+        const totalWreathScale = itemScale * wreathCategoryScale * individualScale;
+
+        const r=(w.size==='42"'?12.5:8.75) * scale * totalWreathScale; 
+        const wreathColor = colorOf('wreath'); 
         if (isNightMode) { ctx.shadowBlur = 15 * scale; ctx.shadowColor = wreathColor; }
         ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2); ctx.fillStyle = colorOf('wreath'); ctx.fill();
-        ctx.shadowBlur = 0; ctx.strokeStyle='black'; ctx.lineWidth=6 * itemScale * scale; ctx.stroke(); ctx.strokeStyle=colorOf('wreath'); ctx.lineWidth=3 * itemScale * scale; ctx.stroke(); 
-        if(w.bow === 'top' || w.bow === 'bottom'){ const by = w.bow==='top' ? s.y - r : s.y + r; drawBow(s.x, by, scale, itemScale); }
+        ctx.shadowBlur = 0; ctx.strokeStyle='black'; ctx.lineWidth=6 * totalWreathScale * scale; ctx.stroke(); ctx.strokeStyle=colorOf('wreath'); ctx.lineWidth=3 * totalWreathScale * scale; ctx.stroke(); 
+        if(w.bow === 'top' || w.bow === 'bottom'){ 
+            const by = w.bow==='top' ? s.y - r : s.y + r; 
+            drawBow(s.x, by, scale, totalWreathScale); 
+        }
     });
 
-    data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, itemScale); }); 
+    data.bow.forEach(b=>{
+        const s=toScr(b.pt); 
+        const bowCategoryScale = settings.bowScale || 1.0;
+        const individualScale = b.itemScale || 1.0;
+        drawBow(s.x, s.y, scale, itemScale * bowCategoryScale * individualScale); 
+    }); 
 
     data.tree.forEach(tr => {
         const p = toScr(tr.pt);
-        drawTreeIcon(ctx, p, tr.kind, tr.size, scale, itemScale);
+        const kind = tr.kind;
+        let catScale = 1.0;
+        if(kind === 'C9 Tree') catScale = settings.c9TreeScale || 1.0;
+        else if(kind === 'ToL') catScale = settings.tolScale || 1.0;
+        else catScale = settings.miniTreeScale || 1.0;
+
+        drawTreeIcon(ctx, p, tr.kind, tr.size, scale, itemScale * catScale * (tr.itemScale || 1.0));
     });
     
     data.powersource.forEach(ps=>{
@@ -2413,12 +2487,12 @@ function draw(){
 
     if(sketch && sketch.points.length>0){
         const cursor = cv._mx!=null ? toWorld(cv._mx, cv._my) : null; const pts = [...sketch.points]; if(cursor) pts.push(cursor);
-        const skObj = {points: pts, cps: sketch.cps || [], layer: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode, isSwagMode: sketch.isSwagMode}; 
+        const skObj = {points: pts, cps: sketch.cps || [], layer: sketch.layer, col: sketch.col, isPillarMode: sketch.isPillarMode}; 
         const sketchColor = getColorCode(sketch.col) || colorOf(sketch.layer);
         drawContinuousLine(skObj, sketchColor, sketch.layer); 
     }
     
-    if(chkSnap.checked && cv._mx!=null){
+    if(chkSnap.checked && cv._mx!=null && !matchMedia('(max-width:900px)').matches){
          const sn = getSnap(cv._mx, cv._my, 25, (draggingPoint ? draggingPoint.obj : null));
          if(sn){ 
              const s = toScr({x:sn.x, y:sn.y}); 
@@ -2460,6 +2534,13 @@ function getCleanData() { const cleanData = JSON.parse(JSON.stringify(data)); if
 
 function applyUIState(o) {
     lineScaleInput.value = settings.lineScale; iconScaleInput.value = settings.iconScale; junctionScaleInput.value = settings.junctionScale; labelScaleInput.value = settings.labelScale; arrowFreqInput.value = settings.arrowFreqFactor; bgBlurInput.value = settings.bgBlur;
+    
+    c9TreeScaleInput.value = settings.c9TreeScale || 1.0;
+    miniTreeScaleInput.value = settings.miniTreeScale || 1.0;
+    tolScaleInput.value = settings.tolScale || 1.0;
+    wreathScaleInput.value = settings.wreathScale || 1.0;
+    bowScaleInput.value = settings.bowScale || 1.0;
+
     updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowFreqUI(); updateBgBlurUI();
     const uiState = o.uiState || {};
     isNightMode = uiState.isNightMode !== undefined ? uiState.isNightMode : false;
@@ -2770,22 +2851,49 @@ function captureCanvasData() {
         }
         
         data.wreath.forEach(w=>{
-            const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75)*scale*settings.iconScale; const wreathColor = colorOf('wreath');
+            const s=toScr(w.pt);
+            const wreathCategoryScale = settings.wreathScale || 1.0;
+            const individualScale = w.itemScale || 1.0;
+            const totalWreathScale = settings.iconScale * wreathCategoryScale * individualScale;
+
+            const r=(w.size==='42"'?12.5:8.75)*scale*totalWreathScale; 
+            const wreathColor = colorOf('wreath');
             o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); o.fillStyle = wreathColor; o.fill(); 
-            o.strokeStyle='black'; o.lineWidth=6 * settings.iconScale * scale; o.stroke(); 
-            o.strokeStyle=wreathColor; o.lineWidth=3 * settings.iconScale * scale; o.stroke();
-            if(w.bow === 'top' || w.bow === 'bottom'){ const by = w.bow==='top' ? s.y - r : s.y + r; drawBow(s.x, by, scale, settings.iconScale); }
+            o.strokeStyle='black'; o.lineWidth=6 * totalWreathScale * scale; o.stroke(); 
+            o.strokeStyle=wreathColor; o.lineWidth=3 * totalWreathScale * scale; o.stroke();
+            if(w.bow === 'top' || w.bow === 'bottom'){ 
+                const by = w.bow==='top' ? s.y - r : s.y + r; 
+                drawBow(s.x, by, scale, totalWreathScale); 
+            }
         });
-        data.bow.forEach(b=>{ const s=toScr(b.pt); drawBow(s.x, s.y, scale, settings.iconScale); }); 
-        data.tree.forEach(tr => { drawTreeIcon(o, toScr(tr.pt), tr.kind, tr.size, scale, settings.iconScale); });
+
+        data.bow.forEach(b=>{
+            const s=toScr(b.pt); 
+            const bowCategoryScale = settings.bowScale || 1.0;
+            const individualScale = b.itemScale || 1.0;
+            drawBow(s.x, s.y, scale, settings.iconScale * bowCategoryScale * individualScale); 
+        }); 
+
+        data.tree.forEach(tr => {
+            const p = toScr(tr.pt);
+            const kind = tr.kind;
+            let catScale = 1.0;
+            if(kind === 'C9 Tree') catScale = settings.c9TreeScale || 1.0;
+            else if(kind === 'ToL') catScale = settings.tolScale || 1.0;
+            else catScale = settings.miniTreeScale || 1.0;
+            drawTreeIcon(o, p, tr.kind, tr.size, scale, settings.iconScale * catScale * (tr.itemScale || 1.0)); 
+        });
+
         data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
         data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
+        
         data.custom_icon.forEach(ci => {
             if (!ci.url) return;
             const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
             if (!ci.imageObj || ci.imageObj.src !== ci.url) { ci.imageObj = new Image(); ci.imageObj.src = ci.url; }
             if (ci.imageObj.complete) { o.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH); }
         });
+
         drawLabels(o);
 
         if (ITEM_COUNT > 0) {
@@ -2802,7 +2910,8 @@ function captureCanvasData() {
             y += 24;
             items.sort((a,b)=>(a.label||'').localeCompare(b.label||'', undefined, {numeric:true})).forEach(r => {
                 let x = 15;
-                let typeDisplay = pretty[r.L] || r.L; if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
+                let typeDisplay = pretty[r.L] || r.L;
+                if (r.kind === 'ToL') typeDisplay = 'Tree of Lights';
                 o.fillText(typeDisplay, x, y + FOOTER_ROW_H/2); x += OUT_W * cols[0].w;
                 o.fillText(r.label || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[1].w;
                 o.fillText(r.ft || '-', x, y + FOOTER_ROW_H/2); x += OUT_W * cols[2].w;
