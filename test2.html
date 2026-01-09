@@ -168,7 +168,11 @@ canvas {
 }
 body.white-bg .canvasWrap { background: #ffffff; background-image: none; }
 
-/* FIX 1: SIDEBAR DRAWER & STATIONARY REVERT */
+/* Scissor cursor for Splice Mode */
+body.splice-cursor .canvasWrap {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cline x1='20' y1='4' x2='8.12' y2='15.88'/%3E%3Cline x1='14.47' y1='14.48' x2='20' y2='20'/%3E%3Cline x1='8.12' y1='8.12' x2='12' y2='12'/%3E%3C/svg%3E") 6 6, auto;
+}
+
 aside {
     width: 320px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; overflow-y: auto; padding: 16px;
@@ -226,6 +230,11 @@ textarea.input { resize: vertical; min-height: 80px; }
     box-shadow: 0 0 0 1px var(--accent);
 }
 
+/* Visibility Dropdown Styles */
+.vis-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
+.vis-item input[type="checkbox"] { accent-color: var(--accent); }
+.vis-submenu { padding-left: 20px; margin-top: 4px; border-left: 1px solid var(--border); }
+
 .slider-container { padding: 4px 0 12px; position: relative; }
 input[type=range].input {
     -webkit-appearance: none; appearance: none; height: 6px; background: var(--border);
@@ -238,7 +247,10 @@ input[type=range].input::-webkit-slider-thumb {
 }
 input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
-/* Restored Popup Styles */
+/* Eye icon in table */
+.vis-toggle { cursor: pointer; color: var(--accent); transition: opacity 0.2s; }
+.vis-toggle.faded { color: var(--text-muted); opacity: 0.5; }
+
 .pop {
     position: fixed; background: var(--panel); border: 1px solid var(--accent);
     padding: 8px; border-radius: 12px; display: none; gap: 4px; z-index: 9999;
@@ -447,6 +459,13 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
       <div id="accWrap"></div>
     </div>
     
+    <div class="group">
+        <h3>Visibility Settings</h3>
+        <div id="visibilityMenu">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
     <!-- RESTORED DISPLAY SETTINGS GROUP -->
     <div class="group">
       <h3>Display Settings</h3>
@@ -581,12 +600,14 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
              <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); cursor:pointer;">
                 <input id="chkAutoCalc" type="checkbox" checked style="accent-color:var(--accent)"/> Auto-calculate bulbs/feet
              </label>
-             <button id="btnRelabelIDs" class="btn" style="height:32px; font-size:12px; margin-left:auto"><i data-lucide="list-ordered"></i> Relabel IDs</button>
+             <button id="btnLineSplice" class="btn" style="height:32px; font-size:12px; margin-left:auto"><i data-lucide="scissors"></i> Line Splice</button>
+             <button id="btnMergeLines" class="btn" style="height:32px; font-size:12px;"><i data-lucide="merge"></i> Merge Lines</button>
+             <button id="btnRelabelIDs" class="btn" style="height:32px; font-size:12px;"><i data-lucide="list-ordered"></i> Relabel IDs</button>
         </div>
 
         <div style="overflow-x:auto">
           <table id="matTable">
-            <thead><tr><th>Type</th><th style="width:60px">ID</th><th>Ft</th><th>Bulbs</th><th>Clip</th><th>Colour</th><th>Notes</th><th style="width:40px"></th></tr></thead>
+            <thead><tr><th style="width:30px"></th><th>Type</th><th style="width:60px">ID</th><th>Ft</th><th>Bulbs</th><th>Clip</th><th>Colour</th><th>Notes</th><th style="width:60px"></th></tr></thead>
             <tbody id="lenRows"></tbody>
           </table>
         </div>
@@ -882,6 +903,16 @@ const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes
 const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label:'LBL', custom_icon: 'CI'};
 const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],garland:[],wreath:[],bow:[],cords:[],powersource:[],threeway:[],tree:[], label:[], custom_icon:[]}; 
 
+// Visibility Grouping Definitions
+const visibilityGroups = [
+    { label: 'House Lights', sub: ['fascia', 'peaks', 'ridges'] },
+    { label: 'Windows', sub: ['windows'] },
+    { label: 'Greenery', sub: ['garland', 'wreath'] },
+    { label: 'Shrubs', sub: ['shrub'] },
+    { label: 'Trees', sub: ['tree:Trunk + Branch (Minis)', 'tree:Trunk + Canopy (Minis)', 'tree:C9 Tree', 'tree:ToL'] },
+    { label: 'Ground Stakes', sub: ['groundstakes'] }
+];
+
 function getColorCode(colorName) {
     if (!colorName) return '#ddd';
     const lowerName = colorName.toLowerCase();
@@ -908,6 +939,7 @@ let settings = {
     c9TreeScale: 1.0, miniTreeScale: 1.0, tolScale: 1.0, wreathScale: 1.0, bowScale: 1.0
 };
 let isNightMode = false;
+let selectedForMerge = new Set(); 
 
 const aside=document.getElementById('side'), overlay=document.getElementById('overlay');
 
@@ -1078,6 +1110,67 @@ function relabelIds() {
     refreshTable(); markPowerDirty(); requestRender();
 }
 
+function mergeLines() {
+    if (selectedForMerge.size < 2) { showAlert("Select at least 2 lines to merge."); return; }
+    
+    let mergedItems = [];
+    Object.keys(data).forEach(L => {
+        data[L].forEach(item => {
+            if (selectedForMerge.has(item.index)) mergedItems.push({ layer: L, item });
+        });
+    });
+
+    // Valid only if all items are lines
+    const invalid = mergedItems.some(m => !m.item.points);
+    if (invalid) { showAlert("Only lines can be merged."); return; }
+
+    // Dimensions: concatenation of points
+    let newPoints = [];
+    let totalBulbs = 0;
+    let totalFeet = 0;
+    let clipCounts = {};
+    let dominantClip = 'T';
+    let maxBulbsForClip = -1;
+    let firstLayer = mergedItems[0].layer;
+
+    mergedItems.forEach(m => {
+        newPoints.push(...m.item.points);
+        totalBulbs += parseFloat(m.item.bulbs) || 0;
+        totalFeet += parseFloat(m.item.ft) || 0;
+        
+        const clip = m.item.clip || 'T';
+        clipCounts[clip] = (clipCounts[clip] || 0) + (parseFloat(m.item.bulbs) || 0);
+        if (clipCounts[clip] > maxBulbsForClip) {
+            maxBulbsForClip = clipCounts[clip];
+            dominantClip = clip;
+        }
+    });
+
+    // Remove old items
+    mergedItems.forEach(m => {
+        const idx = data[m.layer].indexOf(m.item);
+        if (idx > -1) data[m.layer].splice(idx, 1);
+    });
+
+    // Add new line
+    const nextMergeIdx = nextIndex("Line #");
+    const newItem = {
+        points: newPoints,
+        label: `Line #${nextMergeIdx}`,
+        bulbs: totalBulbs,
+        ft: totalFeet,
+        clip: dominantClip,
+        index: ++actionCounter,
+        isVisible: true
+    };
+    data[firstLayer].push(newItem);
+
+    selectedForMerge.clear();
+    refreshTable();
+    markPowerDirty();
+    requestRender();
+}
+
 function shouldShowGutterGuard(layer, clipType) {
     return layer === 'fascia' && (clipType === 'T' || clipType === 'ST');
 }
@@ -1085,13 +1178,12 @@ function shouldShowGutterGuard(layer, clipType) {
 function refreshTable(){
     const tbody = document.getElementById('lenRows'); tbody.innerHTML='';
     let rows=[];
-    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
+    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'powersource', 'threeway'];
     Object.keys(data).forEach(k=>{
         if (EXCLUDED_LAYERS.includes(k)) return;
         data[k].forEach(it=>{
-            if (it.label && it.label.trim() !== '') {
-                rows.push({item: it, L:k});
-            }
+            // Show even if label is empty, except for specifically excluded layers
+            rows.push({item: it, L:k});
         });
     });
     rows.sort((a,b)=> (a.item.label||'').localeCompare(b.item.label||'', undefined, {numeric:true}));
@@ -1146,6 +1238,7 @@ function refreshTable(){
         if (r.item.kind === 'ToL') typeDisplay = 'Tree of Lights';
 
         tr.innerHTML=`
+            <td><input type="checkbox" class="merge-chk" ${selectedForMerge.has(r.item.index)?'checked':''}></td>
             <td>${typeDisplay}</td>
             <td><input class="edit" style="width:50px" value="${r.item.label||''}"></td>
             <td><input class="edit" placeholder="ft" style="width:40px" value="${r.item.ft||''}"></td>
@@ -1153,8 +1246,24 @@ function refreshTable(){
             <td>${clipCellContent}</td>
             <td>${colorInputHtml}</td>
             <td><input class="edit" placeholder="Notes" style="min-width:80px" value="${r.item.notes||''}"></td>
-            <td><button class="xbtn">×</button></td>`;
+            <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="${r.item.isVisible !== false ? 'eye' : 'eye-off'}" class="vis-toggle ${r.item.isVisible !== false ? '' : 'faded'}"></i>
+                    <button class="xbtn">×</button>
+                </div>
+            </td>`;
         
+        tr.querySelector('.merge-chk').onchange = e => {
+            if (e.target.checked) selectedForMerge.add(r.item.index);
+            else selectedForMerge.delete(r.item.index);
+        };
+
+        tr.querySelector('.vis-toggle').onclick = () => {
+            r.item.isVisible = r.item.isVisible === false;
+            refreshTable();
+            requestRender();
+        };
+
         const select = tr.querySelector('.clip-select');
         const fraCheck = tr.querySelector('.fra-checkbox');
         const gguardCheck = tr.querySelector('.gg-checkbox'); 
@@ -1230,6 +1339,74 @@ function refreshTable(){
         };
         tbody.appendChild(tr);
     });
+    lucide.createIcons();
+}
+
+function updateVisibilityMenu() {
+    const container = document.getElementById('visibilityMenu');
+    container.innerHTML = '';
+
+    visibilityGroups.forEach(group => {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'vis-item-container';
+        
+        // Group toggle
+        const head = document.createElement('div');
+        head.className = 'vis-item';
+        const groupCheck = document.createElement('input');
+        groupCheck.type = 'checkbox';
+        groupCheck.checked = true; // Simplified initial state
+        
+        const label = document.createElement('span');
+        label.textContent = group.label;
+        label.style.fontWeight = 'bold';
+        
+        head.append(groupCheck, label);
+        groupEl.appendChild(head);
+
+        const subMenu = document.createElement('div');
+        subMenu.className = 'vis-submenu';
+
+        group.sub.forEach(subKey => {
+            const subRow = document.createElement('div');
+            subRow.className = 'vis-item';
+            const subCheck = document.createElement('input');
+            subCheck.type = 'checkbox';
+            subCheck.checked = true;
+
+            const subLabelStr = subKey.startsWith('tree:') ? subKey.split(':')[1].split('(')[0] : pretty[subKey] || subKey;
+            const subLabel = document.createElement('span');
+            subLabel.textContent = subLabelStr;
+
+            subRow.append(subCheck, subLabel);
+            subMenu.appendChild(subRow);
+
+            subCheck.onchange = () => {
+                toggleLayerVisibility(subKey, subCheck.checked);
+            };
+        });
+
+        groupCheck.onchange = () => {
+            subMenu.querySelectorAll('input').forEach(i => {
+                i.checked = groupCheck.checked;
+                i.onchange();
+            });
+        };
+
+        groupEl.appendChild(subMenu);
+        container.appendChild(groupEl);
+    });
+}
+
+function toggleLayerVisibility(key, visible) {
+    if (key.startsWith('tree:')) {
+        const kind = key.split(':')[1];
+        data.tree.forEach(t => { if(t.kind === kind) t.isVisible = visible; });
+    } else {
+        if(data[key]) data[key].forEach(it => it.isVisible = visible);
+    }
+    refreshTable();
+    requestRender();
 }
 
 let cv = document.getElementById('cv');
@@ -1289,10 +1466,15 @@ function buildTools(){
       const iconHtml = `<i data-lucide="${iconName}"></i>`;
       
       let displayText = pretty[k]||k;
-      if(k.startsWith('tree:')) displayText = k.slice(5).split('(')[0].trim();
-      else if(k.startsWith('wreath')) displayText = k==='wreath32'?'Wr 32"':'Wr 42"';
-      else if (k === 'custom_icon') displayText = 'Image';
-      else if (k === 'night_mode') displayText = 'Night';
+      if(k.startsWith('tree:')){
+          displayText = k.slice(5).split('(')[0].trim();
+      } else if(k.startsWith('wreath')){
+          displayText = k==='wreath32'?'Wr 32"':'Wr 42"';
+      } else if (k === 'custom_icon') {
+          displayText = 'Image';
+      } else if (k === 'night_mode') {
+          displayText = 'Night';
+      }
 
       btn.innerHTML = `${iconHtml}<span>${displayText}</span>`;
       
@@ -1345,6 +1527,8 @@ function selectTool(L, variant=null){
 document.getElementById('btnDraw').onclick=()=>{mode='draw';updateModeTag()};
 document.getElementById('btnSelect').onclick=()=>{mode='select';updateModeTag()};
 document.getElementById('btnMoveCanvas').onclick=()=>{mode='move-canvas';updateModeTag()};
+document.getElementById('btnLineSplice').onclick=()=>{mode='splice';updateModeTag()};
+document.getElementById('btnMergeLines').onclick=mergeLines;
 
 const quickEditPrefix = document.getElementById('quickEditPrefix');
 quickEditPrefix.oninput = (e) => {
@@ -1382,6 +1566,8 @@ function updateModeTag(){
     document.getElementById('btnDraw').classList.remove('toggled');
     document.getElementById('btnSelect').classList.remove('toggled');
     document.getElementById('btnMoveCanvas').classList.remove('toggled'); 
+    document.getElementById('btnLineSplice').classList.remove('toggled');
+    document.body.classList.remove('splice-cursor');
     
     document.getElementById('selectionQuickEdit').style.display = 'none';
     itemScaleWrap.style.display = 'none';
@@ -1418,13 +1604,15 @@ function updateModeTag(){
                  btnSwag.classList.toggle('toggled', !!selectedItem.obj.isSwagMode);
              }
          }
+    } else if (mode === 'splice') {
+        t.textContent = 'Splice'; t.style.borderColor = '#ef4444'; t.style.color = '#ef4444';
+        document.getElementById('btnLineSplice').classList.add('toggled');
+        document.body.classList.add('splice-cursor');
     } else if (mode === 'label') {
          t.textContent = 'Label'; t.style.borderColor = '#22c55e'; t.style.color = '#22c55e';
     } else if (mode === 'move-canvas') { 
          t.textContent = 'Pan'; t.style.borderColor = '#f87171'; t.style.color = '#f87171';
          document.getElementById('btnMoveCanvas').classList.add('toggled');
-    } else if (mode === 'move') {
-         t.textContent = 'Move'; t.style.borderColor = '#ff3b3b'; t.style.color = '#ff3b3b';
     }
     
     updateLineScaleUI(); updateIconScaleUI(); updateJunctionScaleUI(); updateLabelScaleUI(); updateArrowScaleUI();
@@ -1447,13 +1635,13 @@ function analyzePower(){
   const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
   const decorationLayers = ['powersource', 'threeway', 'wreath', 'tree', 'bow', 'custom_icon'];
 
-  decorationLayers.forEach(L => { if(data[L]) data[L].forEach(it => { if(it.pt) getId(it.pt); }); });
-  lineLayers.forEach(L => { if(data[L]) data[L].forEach(it => { if(it.points) it.points.forEach(p => getId(p)); }); });
+  decorationLayers.forEach(L => { if(data[L]) data[L].forEach(it => { if(it.pt && it.isVisible !== false) getId(it.pt); }); });
+  lineLayers.forEach(L => { if(data[L]) data[L].forEach(it => { if(it.points && it.isVisible !== false) it.points.forEach(p => getId(p)); }); });
   
   lineLayers.forEach(L => {
     if(!data[L]) return;
     data[L].forEach(it => {
-       if(!it.points || it.points.length < 2) return;
+       if(!it.points || it.points.length < 2 || it.isVisible === false) return;
        for(let i=0; i<it.points.length-1; i++){
           const p1 = it.points[i];
           const p2 = it.points[i+1];
@@ -1494,7 +1682,7 @@ function analyzePower(){
   });
   
   const queue = [];
-  data.powersource.forEach(ps => { const id = getId(ps.pt); if(nodes[id]){ nodes[id].dist = 0; queue.push(id); } });
+  data.powersource.forEach(ps => { if (ps.isVisible === false) return; const id = getId(ps.pt); if(nodes[id]){ nodes[id].dist = 0; queue.push(id); } });
   let head = 0;
   while(head < queue.length){
     const u = queue[head++]; const d = nodes[u].dist + 1;
@@ -1505,7 +1693,7 @@ function analyzePower(){
     if(n.dist !== Infinity && n.dist > 0 && n.adj.length === 1){ 
       const worldPos = {x:n.x, y:n.y}; let isDecoration = false;
       ['wreath', 'tree', 'bow', 'custom_icon'].forEach(L => {
-        data[L].forEach(item => { if (item.pt && Math.hypot(item.pt.x - worldPos.x, item.pt.y - worldPos.y) < TOL_SQR) isDecoration = true; });
+        data[L].forEach(item => { if (item.isVisible !== false && item.pt && Math.hypot(item.pt.x - worldPos.x, item.pt.y - worldPos.y) < TOL_SQR) isDecoration = true; });
       });
       deadTips.push(i); 
     } 
@@ -1535,6 +1723,7 @@ function getSnapLineOnly(wx, wy, thresholdW){
     let best = null; let minD = thresholdW; const p = {x:wx, y:wy};
     ['ridges','fascia','peaks','groundstakes','garland','shrub','windows'].forEach(L=>{
         data[L].forEach(line=>{
+            if (line.isVisible === false) return;
             for(let i=0; i<line.points.length-1; i++){
                 const a=line.points[i]; const b=line.points[i+1]; const proj=projOnSeg(p,a,b); const d=Math.hypot(p.x-proj.q.x, p.y-proj.q.y);
                 if(d<minD){ minD=d; best={x:proj.q.x, y:proj.q.y, type:'mid', host:line, seg:i}; }
@@ -1548,13 +1737,13 @@ function getSnap(sx, sy, thresholdS, excludeObj = null){
     const w=toWorld(sx, sy); const thresholdW=thresholdS/scale; let best=null; let minD=thresholdW; const p = w;
     ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'].forEach(L=>{
         data[L].forEach(line=>{ 
-            if(line === excludeObj) return;
+            if(line === excludeObj || line.isVisible === false) return;
             if(line.points.length>0){ [line.points[0], line.points[line.points.length-1]].forEach(pt=>{ const d=Math.hypot(p.x-pt.x, p.y-pt.y); if(d<minD){ minD=d; best={x:pt.x, y:pt.y, type:'end', host:line}; } }); } 
         });
     });
     ['powersource','threeway','wreath','bow','tree', 'custom_icon'].forEach(L=>{
         data[L].forEach(it=>{ 
-            if(it === excludeObj) return;
+            if(it === excludeObj || it.isVisible === false) return;
             if(it.pt){ const d=Math.hypot(p.x-it.pt.x, p.y-it.pt.y); if(d<minD){ minD=d; best={x:it.pt.x, y:it.pt.y, type:'junction', host:it}; } } 
         });
     });
@@ -1562,7 +1751,7 @@ function getSnap(sx, sy, thresholdS, excludeObj = null){
         minD = thresholdW;
         ['ridges','fascia','peaks','groundstakes','garland','shrub','windows'].forEach(L=>{
             data[L].forEach(line=>{
-                if(line === excludeObj) return;
+                if(line === excludeObj || line.isVisible === false) return;
                 for(let i=0; i<line.points.length-1; i++){
                     const a=line.points[i]; const b=line.points[i+1]; const proj=projOnSeg(p,a,b);
                     if(proj.t>=0 && proj.t<=1 && Math.hypot(p.x-proj.q.x, p.y-proj.q.y)<minD){ minD=Math.hypot(p.x-proj.q.x, p.y-proj.q.y); best={x:proj.q.x, y:proj.q.y, type:'proj', host:line, seg:i}; }
@@ -1600,30 +1789,31 @@ function placeItem(L, w, sx, sy){
     if(L==='tree') { placeTree(L, w, sx, sy, label, index); return; } 
     else if(L==='wreath') { placeWreath(L, w, sx, sy, label, index); return; } 
     else if(L==='custom_icon') { placeCustomIcon(w, sx, sy, label, index); return; }
-    item = {pt:w, label:label, index:index, kind: L, itemScale: 1.0};
+    item = {pt:w, label:label, index:index, kind: L, itemScale: 1.0, isVisible: true};
     data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
 }
 
 function placeTree(L, w, sx, sy, label, index) {
     if (currTreeKind === 'ToL') {
         openPop(document.getElementById('tolPop'), sx, sy, (size) => {
-            const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size), ft: size, itemScale: 1.0};
+            const item = {pt:w, label:label, index:index, kind: currTreeKind, size: parseInt(size), ft: size, itemScale: 1.0, isVisible: true};
             data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
         });
     } else {
-        const item = {pt:w, label:label, index:index, kind: currTreeKind, itemScale: 1.0};
+        const item = {pt:w, label:label, index:index, kind: currTreeKind, itemScale: 1.0, isVisible: true};
         data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
     }
 }
 function placeWreath(L, w, sx, sy, label, index) {
     openPop(document.getElementById('wreathPop'), sx, sy, (bow) => {
-        const item = {pt:w, label:label, index:index, size: currWreathSize, bow: bow, itemScale: 1.0};
+        const item = {pt:w, label:label, index:index, size: currWreathSize, bow: bow, itemScale: 1.0, isVisible: true};
         data[L].push(item); markPowerDirty(); requestRender(); refreshTable();
     });
 }
 
 function completeSketch() {
     if (!sketch || sketch.points.length < 2) return;
+    sketch.isVisible = true;
     data[sketch.layer].push(sketch); 
     sketch = null; document.getElementById('btnComplete').disabled = true; startNewSketch(); 
     markPowerDirty(); refreshTable(); requestRender(); 
@@ -1678,32 +1868,77 @@ cv.addEventListener('pointerdown',e=>{
     }
 });
 
-function attemptHeal(pt) {
-    const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','cords','shrub','windows'];
-    let candidates = [];
+function spliceLine(sx, sy) {
+    const w = toWorld(sx, sy);
+    let best = null;
+    let minD = 25 / scale;
+    
+    const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','shrub','windows','cords'];
     lineLayers.forEach(L => {
         data[L].forEach(line => {
-            if(line.points) {
-                const pStart = line.points[0]; const pEnd = line.points[line.points.length-1];
-                if(Math.hypot(pStart.x-pt.x, pStart.y-pt.y) < 0.1) candidates.push({line, L, end:'start'});
-                else if(Math.hypot(pEnd.x-pt.x, pEnd.y-pt.y) < 0.1) candidates.push({line, L, end:'end'});
+            if (line.isVisible === false) return;
+            for (let i = 0; i < line.points.length - 1; i++) {
+                const a = line.points[i];
+                const b = line.points[i+1];
+                const proj = projOnSeg(w, a, b);
+                const d = Math.hypot(w.x - proj.q.x, w.y - proj.q.y);
+                if (proj.t >= 0 && proj.t <= 1 && d < minD) {
+                    minD = d;
+                    best = { line, layer: L, index: i, point: proj.q, t: proj.t };
+                }
             }
         });
     });
-    if(candidates.length === 2 && candidates[0].L === candidates[1].L) {
-        const A = candidates[0].line; const B = candidates[1].line;
-        if (!A.isSplit || !B.isSplit) return; 
-        if(candidates[0].end === 'end' && candidates[1].end === 'start') mergeLines(candidates[0].L, A, B);
-        else if (candidates[1].end === 'end' && candidates[0].end === 'start') mergeLines(candidates[0].L, B, A);
+
+    if (best) {
+        const line = best.line;
+        const totalPoints = line.points.length;
+        
+        // Split math: Calculate original total length and proportional split
+        let totalLen = 0;
+        for(let i=0; i < totalPoints-1; i++) totalLen += Math.hypot(line.points[i+1].x - line.points[i].x, line.points[i+1].y - line.points[i].y);
+        
+        let splitAtLen = 0;
+        for(let i=0; i < best.index; i++) splitAtLen += Math.hypot(line.points[i+1].x - line.points[i].x, line.points[i+1].y - line.points[i].y);
+        splitAtLen += Math.hypot(best.point.x - line.points[best.index].x, best.point.y - line.points[best.index].y);
+        
+        const ratio = splitAtLen / totalLen;
+        const origBulbs = parseFloat(line.bulbs) || 0;
+        const origFeet = parseFloat(line.ft) || 0;
+
+        // Line 1: Start to split point
+        const p1 = line.points.slice(0, best.index + 1);
+        p1.push(best.point);
+        
+        // Line 2: Split point to end
+        const p2 = [best.point];
+        p2.push(...line.points.slice(best.index + 1));
+
+        // Create new item for line 2
+        const l2 = {
+            points: p2,
+            label: line.label ? `${line.label}b` : '',
+            ft: Math.round(origFeet * (1 - ratio) * 10) / 10,
+            bulbs: Math.round(origBulbs * (1 - ratio)),
+            clip: line.clip,
+            col: line.col,
+            notes: line.notes,
+            isVisible: true,
+            index: ++actionCounter
+        };
+        
+        // Modify existing line 1
+        line.points = p1;
+        line.ft = Math.round(origFeet * ratio * 10) / 10;
+        line.bulbs = Math.round(origBulbs * ratio);
+        if (line.label) line.label = `${line.label}a`;
+
+        data[best.layer].push(l2);
+        
+        markPowerDirty();
+        refreshTable();
+        requestRender();
     }
-}
-function mergeLines(L, keepLine, mergeLine) {
-    const newPoints = keepLine.points.concat(mergeLine.points.slice(1));
-    const newCps = (keepLine.cps || []).concat(mergeLine.cps || []);
-    keepLine.points = newPoints; keepLine.cps = newCps;
-    const idx = data[L].indexOf(mergeLine);
-    if(idx > -1) data[L].splice(idx, 1);
-    refreshTable(); markPowerDirty();
 }
 
 cv.addEventListener('pointermove',e=>{
@@ -1801,6 +2036,7 @@ cv.addEventListener('pointerup',e=>{
         const r=canvasWrap.getBoundingClientRect(); 
         const ex = e.clientX-r.left, ey = e.clientY-r.top;
         if (mode === 'draw') handleTap(ex, ey);
+        else if (mode === 'splice') spliceLine(ex, ey);
         else if (mode === 'label') checkCordLabelClick(ex, ey);
         else if (mode === 'select' || mode === 'move' || mode === 'move-label') handleSelectDown(ex, ey);
     }
@@ -1821,6 +2057,7 @@ iconFile.onchange = (e) => {
         img.onload = () => {
             const iconData = pendingCustomIcon; iconData.url = event.target.result;
             iconData.w = img.naturalWidth || 100; iconData.h = img.naturalHeight || 100; iconData.scale = 0.15; iconData.imageObj = img; 
+            iconData.isVisible = true;
             data.custom_icon.push(iconData); pendingCustomIcon = null; imgUploadPop.style.display = 'none'; iconFile.value = ''; 
             selectedItem = { type: 'custom_icon', obj: iconData }; markPowerDirty(); requestRender(); refreshTable();
         };
@@ -1836,7 +2073,7 @@ function checkCordLabelClick(sx, sy) {
     let best = checkLabelClick(sx, sy); if (best) { showLabelEditor(best); return; }
     const {label, index} = getNewItemData('label');
     if (!data.label) data.label = []; 
-    const newItem = {pt: w, label: label, index: index, text: ''};
+    const newItem = {pt: w, label: label, index: index, text: '', isVisible: true};
     data.label.push(newItem);
     showLabelEditor({ item: newItem, type: 'simple', index: -1, x: sx, y: sy });
 }
@@ -1990,7 +2227,7 @@ document.getElementById('btnRedo').onclick = () => {
 let sketch=null; 
 function startNewSketch(){
     const d = getNewItemData(currLayer);
-    sketch={points:[],cps:[],layer:currLayer,label:d.label, index: d.index, firstHost:null, isPillarMode: chkPillar.checked}; 
+    sketch={points:[],cps:[],layer:currLayer,label:d.label, index: d.index, firstHost:null, isPillarMode: chkPillar.checked, isVisible: true}; 
     document.getElementById('btnComplete').disabled=true;
     document.getElementById('btnComplete').classList.remove('selectable');
 }
@@ -2037,6 +2274,7 @@ function handleSelectDown(sx, sy){
 
     const searchPoints = (list, type, overrideHitbox=30) => {
         list.forEach((obj, i) => {
+            if (obj.isVisible === false) return;
             const currentHitbox = (type === 'threeway' || type === 'powersource') ? 45 : overrideHitbox; 
             if (obj.points) {
                 obj.points.forEach((p, index) => {
@@ -2062,6 +2300,7 @@ function handleSelectDown(sx, sy){
 
     let isCustomIconHandleDrag = false;
     data.custom_icon.forEach(ci => {
+        if (ci.isVisible === false) return;
         const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
         const handles = [ { pos: sTL, handle: 'move' }, { pos: {x: sTL.x + scaledW, y: sTL.y + scaledH}, handle: 'scale' } ];
         for (const { pos, handle } of handles) {
@@ -2083,6 +2322,7 @@ function handleSelectDown(sx, sy){
     let bestObject = null; let bestObjectDist = 30; const w = toWorld(sx, sy);
     const searchObjects = (list, type) => {
         list.forEach(obj => {
+            if (obj.isVisible === false) return;
             if (obj.points) {
                 for (let i = 0; i < obj.points.length - 1; i++) {
                     const p = projOnSeg(w, obj.points[i], obj.points[i + 1]); const s = toScr(p.q); const d = Math.hypot(sx - s.x, sy - s.y);
@@ -2330,7 +2570,7 @@ function drawLabels(ctx, isExport=false) {
         Object.keys(data).forEach(k=>{
             if (k === 'powersource') return;
             data[k].forEach(it=>{
-                if(!it.label && k !== 'label') return; 
+                if((!it.label && k !== 'label') || it.isVisible === false) return; 
                 let p, offY;
                 if (it.customLabelPos) {
                     p = it.customLabelPos; offY = 0;
@@ -2380,8 +2620,8 @@ function draw(){
     } 
     
     ctx.shadowBlur = 0; const pg = analyzePower();
-    data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); }); 
-    ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
+    data.cords.forEach(it => { if(it.isVisible !== false) drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); }); 
+    ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ if(it.isVisible !== false) drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
     
     if(pg){
         pg.edges.forEach(e => {
@@ -2430,6 +2670,7 @@ function draw(){
     const itemScale = settings.iconScale; const junctionScale = settings.junctionScale; 
 
     data.wreath.forEach(w=>{
+        if (w.isVisible === false) return;
         const s=toScr(w.pt);
         const wreathCategoryScale = settings.wreathScale || 1.0;
         const individualScale = w.itemScale || 1.0;
@@ -2447,6 +2688,7 @@ function draw(){
     });
 
     data.bow.forEach(b=>{
+        if (b.isVisible === false) return;
         const s=toScr(b.pt); 
         const bowCategoryScale = settings.bowScale || 1.0;
         const individualScale = b.itemScale || 1.0;
@@ -2454,6 +2696,7 @@ function draw(){
     }); 
 
     data.tree.forEach(tr => {
+        if (tr.isVisible === false) return;
         const p = toScr(tr.pt);
         const kind = tr.kind;
         let catScale = 1.0;
@@ -2465,6 +2708,7 @@ function draw(){
     });
     
     data.powersource.forEach(ps=>{
+        if (ps.isVisible === false) return;
         const s=toScr(ps.pt); const sz = 8 * junctionScale * scale; const strokeWidth = 3 * junctionScale * scale; 
         ctx.fillStyle='#ef4444'; ctx.fillRect(s.x-sz/2, s.y-sz/2, sz, sz);
         ctx.strokeStyle='black'; ctx.lineWidth=strokeWidth; ctx.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); ctx.strokeStyle='white'; ctx.lineWidth=strokeWidth/2; ctx.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz);
@@ -2472,6 +2716,7 @@ function draw(){
 
     if(data.threeway){
         data.threeway.forEach(tw=>{
+            if (tw.isVisible === false) return;
             const s = toScr(tw.pt); const sz = 6 * scale * junctionScale; const strokeWidth = 3 * junctionScale * scale;
             ctx.beginPath(); ctx.moveTo(s.x, s.y - sz); ctx.lineTo(s.x + sz, s.y + sz); ctx.lineTo(s.x - sz, s.y + sz); ctx.closePath(); ctx.fillStyle = '#eab308'; ctx.fill();
             ctx.strokeStyle = 'black'; ctx.lineWidth = strokeWidth; ctx.stroke(); ctx.strokeStyle = 'white'; ctx.lineWidth = strokeWidth/2; ctx.stroke();
@@ -2479,7 +2724,7 @@ function draw(){
     }
     
     data.custom_icon.forEach(ci => {
-        if (!ci.url) return;
+        if (!ci.url || ci.isVisible === false) return;
         const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
         if (!ci.imageObj || ci.imageObj.src !== ci.url) { ci.imageObj = new Image(); ci.imageObj.src = ci.url; }
         if (ci.imageObj.complete) { ctx.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH); }
@@ -2589,7 +2834,7 @@ function applyState(o){
         document.getElementById('on2').value = o.job?.timer?.on2 || ''; 
         document.getElementById('off2').value = o.job?.timer?.off2 || ''; 
     }
-    markPowerDirty(); refreshTable();
+    markPowerDirty(); refreshTable(); updateVisibilityMenu();
 }
 
 document.getElementById('btnStd').onclick=()=>{ 
@@ -2635,7 +2880,7 @@ function buildPayload() {
         tCtx.strokeStyle = '#fffdf0'; tCtx.lineWidth = 2;
         ['ridges','fascia','peaks'].forEach(L => {
             data[L].forEach(it => {
-                if(it.points && it.points.length > 1) {
+                if(it.isVisible !== false && it.points && it.points.length > 1) {
                     tCtx.beginPath();
                     tCtx.moveTo(it.points[0].x * thumbScale, it.points[0].y * thumbScale);
                     for(let i=1; i<it.points.length; i++) tCtx.lineTo(it.points[i].x * thumbScale, it.points[i].y * thumbScale);
@@ -2716,6 +2961,7 @@ function captureCanvasData() {
     let hasItems = false;
     Object.keys(data).forEach(L => {
         data[L].forEach(item => {
+             if (item.isVisible === false) return;
              hasItems = true; if(item.points) item.points.forEach(checkPt);
              if(item.pt) { checkPt(item.pt); }
         });
@@ -2744,7 +2990,7 @@ function captureCanvasData() {
     const HEADER_BASE = 110; 
     const HEADER_H = HEADER_BASE + estimatedNotesHeight;
     const FOOTER_ROW_H = 24; const FOOTER_TITLE_H = 40; 
-    const items = collectRows();
+    const items = collectRows(true); // IsForExport = true
     const ITEM_COUNT = items.length; 
     const FOOTER_H = ITEM_COUNT > 0 ? (FOOTER_TITLE_H + ITEM_COUNT * FOOTER_ROW_H + 40) : 0;
     const OUT_W = MAP_WIDTH_PX; const OUT_H = HEADER_H + MAP_H_PX + FOOTER_H;
@@ -2806,8 +3052,8 @@ function captureCanvasData() {
         else { o.drawImage(bg, minX, minY, cropW, cropH, 0, HEADER_H, OUT_W, MAP_H_PX); }
         o.filter = 'none';
 
-        data.cords.forEach(it => { drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
-        ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
+        data.cords.forEach(it => { if(it.isVisible !== false) drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
+        ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ if(it.isVisible !== false) drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
         
         const pg = analyzePower();
         if(pg){
@@ -2851,6 +3097,7 @@ function captureCanvasData() {
         }
         
         data.wreath.forEach(w=>{
+            if (w.isVisible === false) return;
             const s=toScr(w.pt);
             const wreathCategoryScale = settings.wreathScale || 1.0;
             const individualScale = w.itemScale || 1.0;
@@ -2868,6 +3115,7 @@ function captureCanvasData() {
         });
 
         data.bow.forEach(b=>{
+            if (b.isVisible === false) return;
             const s=toScr(b.pt); 
             const bowCategoryScale = settings.bowScale || 1.0;
             const individualScale = b.itemScale || 1.0;
@@ -2875,6 +3123,7 @@ function captureCanvasData() {
         }); 
 
         data.tree.forEach(tr => {
+            if (tr.isVisible === false) return;
             const p = toScr(tr.pt);
             const kind = tr.kind;
             let catScale = 1.0;
@@ -2884,11 +3133,11 @@ function captureCanvasData() {
             drawTreeIcon(o, p, tr.kind, tr.size, scale, settings.iconScale * catScale * (tr.itemScale || 1.0)); 
         });
 
-        data.powersource.forEach(ps=>{ const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
-        data.threeway.forEach(tw=>{ const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
+        data.powersource.forEach(ps=>{ if(ps.isVisible === false) return; const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
+        data.threeway.forEach(tw=>{ if(tw.isVisible === false) return; const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
         
         data.custom_icon.forEach(ci => {
-            if (!ci.url) return;
+            if (!ci.url || ci.isVisible === false) return;
             const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
             if (!ci.imageObj || ci.imageObj.src !== ci.url) { ci.imageObj = new Image(); ci.imageObj.src = ci.url; }
             if (ci.imageObj.complete) { o.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH); }
@@ -2931,13 +3180,23 @@ function captureCanvasData() {
     return { url: out.toDataURL('image/png'), width: OUT_W * DPI, height: OUT_H * DPI };
 }
 
-function collectRows() {
+function collectRows(isForExport = false) {
     const rows = [];
     const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
     Object.keys(data).forEach(L => {
         if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
-            if (it.label && it.label.trim() !== '') {
+            if (it.isVisible === false) return;
+            const hasId = it.label && it.label.trim() !== '';
+            const hasNotes = it.notes && it.notes.trim() !== '';
+
+            if (isForExport) {
+                // For PDF: Include if it has ID, OR if it has no ID but has notes.
+                if (hasId || hasNotes) {
+                    rows.push({ L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false, kind: it.kind });
+                }
+            } else {
+                // For UI table: Include everything (per request)
                 rows.push({ L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false, kind: it.kind });
             }
         });
@@ -2962,6 +3221,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gPickMap').onclick = () => document.getElementById('gMap').click();
     document.getElementById('gOpenGallery').onclick = openGallery;
     document.getElementById('closeGateBtn').onclick = unlock;
+    updateVisibilityMenu();
 });
 })();
 </script>
