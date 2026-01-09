@@ -119,7 +119,6 @@ h1 { margin: 0 16px 0 0; font-size: 18px; font-weight: 600; color: var(--text); 
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn.toggled { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: var(--accent); }
 
-/* Night Mode Glow Style */
 .tool.night-glow {
     box-shadow: 0 0 15px rgba(168, 85, 247, 0.5), inset 0 0 5px rgba(168, 85, 247, 0.5);
     border-color: #a855f7 !important;
@@ -168,7 +167,6 @@ canvas {
 }
 body.white-bg .canvasWrap { background: #ffffff; background-image: none; }
 
-/* Scissor cursor for Splice Mode */
 body.splice-cursor .canvasWrap {
     cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cline x1='20' y1='4' x2='8.12' y2='15.88'/%3E%3Cline x1='14.47' y1='14.48' x2='20' y2='20'/%3E%3Cline x1='8.12' y1='8.12' x2='12' y2='12'/%3E%3C/svg%3E") 6 6, auto;
 }
@@ -230,7 +228,6 @@ textarea.input { resize: vertical; min-height: 80px; }
     box-shadow: 0 0 0 1px var(--accent);
 }
 
-/* Visibility UI Styles - Matched to Toolbox Accordion */
 .vis-acc { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); margin-bottom: 8px; overflow: hidden; }
 .vis-accHead {
     display: flex; align-items: center; gap: 10px; cursor: pointer;
@@ -266,7 +263,6 @@ input[type=range].input::-webkit-slider-thumb {
 }
 input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
-/* Eye icon in table */
 .vis-toggle { cursor: pointer; color: var(--accent); transition: all 0.2s; padding: 4px; border-radius: 4px; }
 .vis-toggle:hover { background: var(--panel-hover); }
 .vis-toggle.faded { color: var(--text-muted); opacity: 0.4; }
@@ -283,7 +279,7 @@ input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
 }
 .pop button:hover { background: var(--accent); border-color: white; }
 
-#modalBack, #modalAlert, #modalGallery, #modalAi {
+#modalBack, #modalAlert, #modalGallery {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000;
     display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);
 }
@@ -293,6 +289,29 @@ input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
     max-height: 80vh; display: flex; flex-direction: column;
 }
+
+.gallery-card { max-width: 900px; width: 95%; height: 85vh; }
+.gallery-list {
+    overflow-y: auto; flex: 1; text-align: left; margin: 16px 0;
+    border: 1px solid var(--border); border-radius: 16px; background: rgba(0,0,0,0.1);
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; padding: 16px;
+}
+.gallery-item {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    padding: 10px; cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+.gallery-item:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3); }
+.gallery-item .thumb {
+    width: 100%; aspect-ratio: 16/9; background: #050a15; border-radius: 10px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.gallery-item .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-item .info { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+.gallery-item span { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.gallery-item i { color: var(--accent); width: 18px; }
 
 #lblEditor { position: fixed; z-index: 5000; transform: translate(-50%, -120%); }
 #lblInput {
@@ -338,18 +357,33 @@ th, td { border-bottom: 1px solid var(--border); padding: 12px 8px; font-size: 1
 th { color: var(--text-muted); font-weight: 600; background: var(--panel); position: sticky; top: 0; z-index: 2; font-size: 12px; text-transform: uppercase; }
 td .edit { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 8px; width: 100%; }
 
-/* AI Detect Menu */
-.ai-menu { display: grid; gap: 8px; margin-top: 16px; }
-.ai-btn { 
-    background: var(--bg); border: 1px solid var(--border); color: var(--text);
-    padding: 12px; border-radius: 10px; cursor: pointer; font-size: 13px;
-    display: flex; align-items: center; gap: 10px; transition: all 0.2s;
+/* AI Specific Styles */
+#aiMenu { flex-direction: column; min-width: 240px; padding: 12px; gap: 8px; border: 1px solid var(--accent); }
+#aiMenu h4 { margin: 0 0 8px; font-size: 14px; color: var(--text); text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.ai-btn {
+    width: 100%; justify-content: flex-start !important; padding: 12px 16px !important;
+    background: var(--panel) !important; border: 1px solid var(--border) !important;
 }
-.ai-btn:hover { background: var(--accent); border-color: white; transform: translateX(4px); }
-.ai-btn i { width: 18px; }
-.loader-wrap { display: none; flex-direction: column; align-items: center; gap: 12px; margin-top: 20px; }
-.loader { width: 40px; height: 40px; border: 4px solid var(--panel-hover); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.ai-btn:hover { border-color: var(--accent) !important; }
+.ai-btn.loading { opacity: 0.7; pointer-events: none; position: relative; overflow: hidden; }
+.ai-btn.loading::after {
+    content: ""; position: absolute; left: -100%; top: 0; height: 100%; width: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), transparent);
+    animation: loading-shimmer 1.5s infinite;
+}
+@keyframes loading-shimmer { to { left: 100%; } }
+
+#aiOverlay {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+    z-index: 10001; display: none; flex-direction: column; align-items: center; justify-content: center;
+    color: white; pointer-events: auto;
+}
+.ai-scanner {
+    width: 300px; height: 2px; background: var(--accent);
+    box-shadow: 0 0 15px var(--accent), 0 0 30px var(--accent);
+    position: relative; animation: scan-anim 2s infinite ease-in-out;
+}
+@keyframes scan-anim { 0% { transform: translateY(-100px); } 50% { transform: translateY(100px); } 100% { transform: translateY(-100px); } }
 </style>
 </head>
 <body class="blurred">
@@ -375,24 +409,6 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
       <input id="gMap" type="file" accept=".skmap,.json,application/json"/>
     </div>
   </div>
-</div>
-
-<div id="modalAi">
-    <div class="card">
-        <h3 style="margin: 0 0 8px; color: var(--accent);">AI Detect</h3>
-        <p style="font-size: 14px; color: var(--text-muted);">Select architectural features for Gemini to trace automatically.</p>
-        <div id="aiOptions" class="ai-menu">
-            <button class="ai-btn" data-type="peaks"><i data-lucide="triangle"></i> Detect Roof Peaks</button>
-            <button class="ai-btn" data-type="fascia"><i data-lucide="minus"></i> Detect Gutters (Fascia)</button>
-            <button class="ai-btn" data-type="windows"><i data-lucide="layout-grid"></i> Detect Main Windows</button>
-            <button class="ai-btn" data-type="all" style="background: rgba(59, 130, 246, 0.1); border-color: var(--accent);"><i data-lucide="sparkles"></i> Detect Everything</button>
-        </div>
-        <div id="aiLoader" class="loader-wrap">
-            <div class="loader"></div>
-            <div style="font-size: 13px; font-weight: 600;">Gemini is analyzing the architecture...</div>
-        </div>
-        <button id="closeAiBtn" class="btn" style="margin-top: 16px; justify-content: center;">Cancel</button>
-    </div>
 </div>
 
 <div id="modalBack">
@@ -430,6 +446,12 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 </div>
 
 <div id="lblEditor"><input id="lblInput" placeholder="Note/Ft"></div>
+
+<div id="aiOverlay">
+    <div class="ai-scanner"></div>
+    <h3 style="margin-top:20px; font-weight:700">Gemini AI Analysis</h3>
+    <p id="aiOverlayMsg" style="color:var(--text-muted)">Scanning architectural features...</p>
+</div>
 
 <div id="app">
 <header>
@@ -640,6 +662,15 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
   <button id="cancelIconUpload" class="btn" style="justify-content:center">Cancel</button>
 </div>
 
+<div id="aiMenu" class="pop">
+    <h4>AI Image Analysis</h4>
+    <button class="btn ai-btn" data-ai-task="peaks"><i data-lucide="triangle"></i> Detect Peaks</button>
+    <button class="btn ai-btn" data-ai-task="fascia"><i data-lucide="minus"></i> Detect Fascia (Gutters)</button>
+    <button class="btn ai-btn" data-ai-task="windows"><i data-lucide="layout-grid"></i> Detect Windows</button>
+    <div style="height:1px; background:var(--border); margin:4px 0"></div>
+    <button class="btn ai-btn" data-ai-task="all" style="background:var(--accent-hover) !important; color:white !important; border-color:white !important;"><i data-lucide="sparkles"></i> Detect Everything</button>
+</div>
+
 <script>
 (()=>{
     
@@ -669,7 +700,6 @@ const iconMap = {
     'ai_detect': 'bot'
 };
 
-const apiKey = "";
 const tp1 = "ghp_xSeuggnKkttH6z";
 const tp2 = "TSfiTENK2bjTv7ya1TsWF7";
 
@@ -814,19 +844,21 @@ let gisReady = false;
 
 const gLoadDriveBtn = document.getElementById('gLoadDrive');
 
-gapi.load('client:picker', async () => {
-    try {
-        await gapi.client.setApiKey(API_KEY);
-        await gapi.client.load('drive', 'v3'); 
-        gapiReady = true;
-        const checkGis = setInterval(() => {
-            if (window.google && window.google.accounts) {
-                clearInterval(checkGis);
-                initGis();
-            }
-        }, 100);
-    } catch (err) { console.error("Error loading GAPI:", err); }
-});
+if (window.gapi) {
+    gapi.load('client:picker', async () => {
+        try {
+            await gapi.client.setApiKey(API_KEY);
+            await gapi.client.load('drive', 'v3'); 
+            gapiReady = true;
+            const checkGis = setInterval(() => {
+                if (window.google && window.google.accounts) {
+                    clearInterval(checkGis);
+                    initGis();
+                }
+            }, 100);
+        } catch (err) { console.error("Error loading GAPI:", err); }
+    });
+}
 
 function initGis() {
     try {
@@ -1021,7 +1053,7 @@ bgBlurInput.oninput = (e) => { settings.bgBlur = parseInt(e.target.value); updat
 junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(junctionScaleInput.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
 labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(labelScaleInput.value); updateLabelScaleUI(); requestRender(); };
 arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
-arrowScaleInput.oninput = (e) => { settings.arrowScale = parseFloat(arrowScaleInput.value); arrowScaleValue.textContent = `${settings.arrowScale.toFixed(1)}x`; markPowerDirty(); requestRender(); };
+arrowScaleInput.oninput = (e) => { settings.arrowScale = parseFloat(e.target.value); arrowScaleValue.textContent = `${settings.arrowScale.toFixed(1)}x`; markPowerDirty(); requestRender(); };
 
 c9TreeScaleInput.oninput = (e) => { settings.c9TreeScale = parseFloat(e.target.value); requestRender(); };
 miniTreeScaleInput.oninput = (e) => { settings.miniTreeScale = parseFloat(e.target.value); requestRender(); };
@@ -1137,7 +1169,7 @@ function shouldShowGutterGuard(layer, clipType) { return layer === 'fascia' && (
 
 function refreshTable(){
     const tbody = document.getElementById('lenRows'); tbody.innerHTML='';
-    let rows = collectRows(false); 
+    let rows = collectRows(false);
     rows.sort((a,b)=> (a.item.label||'').localeCompare(b.item.label||'', undefined, {numeric:true}));
     const chkAuto = document.getElementById('chkAutoCalc');
 
@@ -1208,7 +1240,7 @@ function refreshTable(){
 
         tr.querySelector('.vis-toggle').onclick = (e) => {
             e.stopPropagation();
-            r.item.isVisible = r.item.isVisible === false;
+            r.item.isVisible = r.item.isVisible === false ? true : false;
             refreshTable();
             updateVisibilityMenu();
             requestRender();
@@ -1468,7 +1500,7 @@ function buildTools(){
           btn.onclick=()=>toggleNightMode(); toolBtn[k]=btn;
           btn.classList.toggle('toggled', isNightMode); btn.classList.toggle('night-glow', isNightMode);
       } else if (k === 'ai_detect') {
-          btn.onclick=()=>openAiDetect(); toolBtn[k]=btn;
+          btn.onclick=()=>toggleAiMenu(btn); toolBtn[k]=btn;
       } else {
           btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
       }
@@ -1477,6 +1509,16 @@ function buildTools(){
     body.appendChild(grid);acc.append(head,body);accWrap.appendChild(acc);
   });
   if(window.lucide) lucide.createIcons();
+}
+
+function toggleAiMenu(anchor) {
+    const menu = document.getElementById('aiMenu');
+    if (menu.style.display === 'flex') { menu.style.display = 'none'; return; }
+    const r = anchor.getBoundingClientRect();
+    menu.style.display = 'flex';
+    menu.style.left = r.left + 'px';
+    menu.style.top = r.top + 'px';
+    menu.style.transform = 'translate(-105%, 0)';
 }
 
 let mode='draw',currLayer='ridges',currTreeKind='Trunk + Branch (Minis)',currWreathSize='32"', currLabelTarget='point'; 
@@ -1490,6 +1532,7 @@ function selectTool(L, variant=null){
     else toolBtn[L]?.classList.add('active');
     if(matchMedia('(max-width:900px)').matches) toggleMenu();
     document.getElementById('imgUploadPop').style.display = 'none';
+    document.getElementById('aiMenu').style.display = 'none';
     mode='draw'; if (L === 'label') mode = 'label'; 
     updateModeTag(); startNewSketch();
     if(currLayer === 'garland') {
@@ -1787,6 +1830,8 @@ cv.addEventListener('pointerdown',e=>{
     cv._mx = ex; cv._my = ey;
     if (!e.target.closest('#lblEditor')) { document.getElementById('lblEditor').style.display = 'none'; }
     document.getElementById('imgUploadPop').style.display = 'none';
+    if (!e.target.closest('#aiMenu')) document.getElementById('aiMenu').style.display = 'none';
+    
     if(pointers.size === 1) {
         isTapCandidate = true; tapDownX = ex; tapDownY = ey; dragStartX = ex; dragStartY = ey; dragPanStartX = panX; dragPanStartY = panY;
         if (mode === 'select' && selectedItem) { handleSelectDown(ex, ey); if (draggingPoint) { isTapCandidate = false; return; } }
@@ -1848,7 +1893,7 @@ cv.addEventListener('pointermove',e=>{
         if(gDist>0){
             const nz = Math.max(0.1, Math.min(10, gScale * (currDist/gDist)));
             const worldMid = {x:(gMid.x-gPanX)/gScale, y:(gMid.y-gPanY)/gScale};
-            scale = nz; panX = mx - worldMid.x*scale; panY = my - worldMid.y*scale; requestRender();
+            scale = nz; panX = currMid.x - worldMid.x*scale; panY = currMid.y - worldMid.y*scale; requestRender();
         }
         cv._mx = currMid.x; cv._my = currMid.y; return;
     }
@@ -1870,7 +1915,7 @@ cv.addEventListener('pointermove',e=>{
             }
         } else {
             let snap = getSnap(x, y, 25, draggingPoint.obj); 
-            const ptVal = snap ? {x:snap.x, y:snap.y} : w;
+            const ptVal = snap ? {x:snap.x, y:sn.y} : w;
             if (draggingPoint.index === -1 && draggingPoint.obj.pt) draggingPoint.obj.pt = ptVal;
             else if (draggingPoint.obj.points) draggingPoint.obj.points[draggingPoint.index] = ptVal;
         }
@@ -1888,8 +1933,8 @@ cv.addEventListener('pointermove',e=>{
     } else if (mode === 'move-label' && draggedLabelTarget) {
         const w = toWorld(x, y); const obj = draggedLabelTarget.item; 
         if (draggedLabelTarget.type === 'primary') obj.customLabelPos = { x: w.x, y: w.y };
-        else if (draggedLabelTarget.type === 'point') { if(!obj.ptLabelPos) obj.ptLabelPos = {}; obj.ptLabelPos[draggingPoint.index] = {x: w.x, y: w.y}; } 
-        else if (draggedLabelTarget.type === 'seg') { if(!obj.segLabelPos) obj.segLabelPos = {}; obj.segLabelPos[draggingPoint.index] = {x: w.x, y: w.y}; } 
+        else if (draggedLabelTarget.type === 'point') { if(!obj.ptLabelPos) obj.ptLabelPos = {}; obj.ptLabelPos[draggedLabelTarget.index] = {x: w.x, y: w.y}; } 
+        else if (draggedLabelTarget.type === 'seg') { if(!obj.segLabelPos) obj.segLabelPos = {}; obj.segLabelPos[draggedLabelTarget.index] = {x: w.x, y: w.y}; } 
         else if (draggedLabelTarget.type === 'simple') { obj.pt.x = w.x; obj.pt.y = w.y; }
         requestRender(); return;
     }
@@ -1956,7 +2001,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                 Object.keys(item.ptLabels).forEach(idx => {
                     const i = parseInt(idx); const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
                 });
             }
             if(item.segLabels) {
@@ -1965,7 +2010,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     if (item.segLabelPos && item.segLabelPos[i]) labelPos = item.segLabelPos[i];
                     else labelPos = getPolylineMidpoint([item.points[i], item.points[i+1]]);
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
@@ -2045,7 +2090,7 @@ document.getElementById('btnUndo').onclick=()=>{
 document.getElementById('btnRedo').onclick = () => {
     if(redoStack.length === 0) return; const record = redoStack.pop(); if(redoStack.length === 0) document.getElementById('btnRedo').disabled = true;
     if (record.layer === 'custom_icon' && record.item.url) { const img = new Image(); img.src = record.item.url; record.item.imageObj = img; }
-    data[record.layer].push(record.item); markPowerDirty(); requestRender(); refreshTable(); updateVisibilityMenu(); requestRender();
+    data[record.layer].push(record.item); markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender();
 };
 
 let sketch=null; 
@@ -2741,96 +2786,107 @@ function collectRows(isForExport = false) {
     return rows;
 }
 
-function openAiDetect() {
-    if (!imgReady || !imgDataUrl) { showAlert("Please upload a property photo first."); return; }
-    document.getElementById('modalAi').style.display = 'flex';
-    document.getElementById('aiOptions').style.display = 'grid';
-    document.getElementById('aiLoader').style.display = 'none';
-    lucide.createIcons();
-}
+// ================= AI DETECTION LOGIC =================
 
-async function performAiDetection(type) {
-    document.getElementById('aiOptions').style.display = 'none';
-    const loader = document.getElementById('aiLoader');
-    loader.style.display = 'flex';
+const apiKey = ""; // Runtime-provided
+const AI_MODEL = "gemini-2.5-flash-preview-09-2025";
+
+async function runAiDetection(task) {
+    if (!imgDataUrl) { showAlert("Please upload an image first."); return; }
     
-    // Convert canvas image to smaller base64 if needed, but imgDataUrl is standard
+    const overlay = document.getElementById('aiOverlay');
+    const overlayMsg = document.getElementById('aiOverlayMsg');
+    overlay.style.display = 'flex';
+    document.getElementById('aiMenu').style.display = 'none';
+
+    let prompt = `Analyze this house image for architectural features to add holiday lights. 
+    Find the following features and return their coordinates as 0-1000 normalized values (Top-Left is 0,0).
+    Features requested: ${task === 'all' ? 'Roof Peaks, Gutter lines (Fascia), and Main Window outlines' : task}.
+    Return the data in a strict JSON format:
+    {
+       "peaks": [ {"x": number, "y": number}, ... ],
+       "fascia": [ [{"x": number, "y": number}, ...], ... ],
+       "windows": [ [{"x": number, "y": number}, ...], ... ]
+    }
+    For fascia and windows, return an array of paths (arrays of points). Each path represents a continuous line or shape.`;
+
     const base64Data = imgDataUrl.split(',')[1];
     
-    const promptText = `Analyze the provided architectural photo. Your task is to identify and trace specific lines for Christmas light planning. 
-    ${type === 'all' || type === 'peaks' ? '- Identify roof PEAKS and RIDGES as line segments.' : ''}
-    ${type === 'all' || type === 'fascia' ? '- Identify GUTTERS and FASCIA lines.' : ''}
-    ${type === 'all' || type === 'windows' ? '- Identify the rectangular frames of MAIN WINDOWS.' : ''}
-    
-    Return ONLY a JSON object with this schema:
-    {
-      "peaks": [[{"x": number, "y": number}, ...], ...],
-      "fascia": [[{"x": number, "y": number}, ...], ...],
-      "windows": [[{"x": number, "y": number}, ...], ...]
-    }
-    Coordinates must be PIXEL values relative to the original image size (${bg.width}x${bg.height}).
-    Do not return any text, only the JSON. If a feature isn't found, return an empty array for that key.`;
+    try {
+        const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${AI_MODEL}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: "image/png", data: base64Data } }
+                    ]
+                }],
+                generationConfig: { responseMimeType: "application/json" }
+            })
+        });
 
-    const payload = {
-        contents: [{
-            role: "user",
-            parts: [
-                { text: promptText },
-                { inlineData: { mimeType: "image/png", data: base64Data } }
-            ]
-        }],
-        generationConfig: { responseMimeType: "application/json" }
-    };
-
-    let retries = 0;
-    while (retries < 5) {
-        try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-            
-            if (!response.ok) throw new Error("API call failed");
-            
-            const result = await response.json();
-            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!text) throw new Error("Empty response");
-            
-            const aiData = JSON.parse(text);
-            applyAiResults(aiData);
-            document.getElementById('modalAi').style.display = 'none';
-            return;
-        } catch (err) {
-            retries++;
-            await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
-        }
+        const json = await result.json();
+        const textResponse = json.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!textResponse) throw new Error("Empty AI Response");
+        
+        const detectedData = JSON.parse(textResponse);
+        processAiResults(detectedData, task);
+        overlay.style.display = 'none';
+    } catch (err) {
+        console.error(err);
+        overlay.style.display = 'none';
+        showAlert("AI analysis failed. Please check connection and try again.");
     }
-    
-    showAlert("Gemini was unable to process the detection. Please try again.");
-    document.getElementById('modalAi').style.display = 'none';
 }
 
-function applyAiResults(aiData) {
-    const keys = ['peaks', 'fascia', 'windows'];
-    keys.forEach(key => {
-        if (aiData[key] && Array.isArray(aiData[key])) {
-            aiData[key].forEach(points => {
-                if (points.length < 2) return;
-                const d = getNewItemData(key);
-                const newItem = {
-                    points: points,
-                    layer: key,
-                    label: d.label,
-                    index: d.index,
-                    isVisible: true,
-                    clip: (key === 'ridges' || key === 'peaks') ? 'ST' : 'T'
-                };
-                data[key].push(newItem);
-            });
-        }
-    });
-    
+async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const res = await fetch(url, options);
+            if (res.ok) return res;
+            if (res.status === 429) { /* Rate limited */ }
+        } catch (e) {}
+        await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
+    }
+    throw new Error("Max retries reached");
+}
+
+function processAiResults(results, task) {
+    const imgW = bg.width;
+    const imgH = bg.height;
+
+    const normToWorld = (p) => ({ x: (p.x / 1000) * imgW, y: (p.y / 1000) * imgH });
+
+    // Process Peaks (Point Items)
+    if (results.peaks && (task === 'all' || task === 'peaks')) {
+        results.peaks.forEach(p => {
+            const worldPt = normToWorld(p);
+            const { label, index } = getNewItemData('peaks');
+            data.peaks.push({ pt: worldPt, label, index, kind: 'peaks', isVisible: true });
+        });
+    }
+
+    // Process Fascia (Line Items)
+    if (results.fascia && (task === 'all' || task === 'fascia')) {
+        results.fascia.forEach(path => {
+            if (path.length < 2) return;
+            const worldPoints = path.map(normToWorld);
+            const { label, index } = getNewItemData('fascia');
+            data.fascia.push({ points: worldPoints, label, index, clip: 'T', isVisible: true });
+        });
+    }
+
+    // Process Windows (Line Items)
+    if (results.windows && (task === 'all' || task === 'windows')) {
+        results.windows.forEach(path => {
+            if (path.length < 2) return;
+            const worldPoints = path.map(normToWorld);
+            const { label, index } = getNewItemData('windows');
+            data.windows.push({ points: worldPoints, label, index, isVisible: true });
+        });
+    }
+
     markPowerDirty();
     refreshTable();
     updateVisibilityMenu();
@@ -2845,12 +2901,8 @@ function initializeUI() {
     };
     
     document.querySelectorAll('.ai-btn').forEach(btn => {
-        btn.onclick = () => performAiDetection(btn.dataset.type);
+        btn.onclick = () => runAiDetection(btn.dataset.aiTask);
     });
-    
-    document.getElementById('closeAiBtn').onclick = () => {
-        document.getElementById('modalAi').style.display = 'none';
-    };
 
     buildTools(); 
 }
