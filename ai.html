@@ -456,8 +456,8 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 
 <div id="aiOverlay">
     <div class="ai-scanner"></div>
-    <h3 style="margin-top:20px; font-weight:700">AI Structural Analysis</h3>
-    <p id="aiOverlayMsg" style="color:var(--text-muted)">Architectural scanner active...</p>
+    <h3 style="margin-top:20px; font-weight:700">Visual Architectural Scan</h3>
+    <p id="aiOverlayMsg" style="color:var(--text-muted)">Analyzing structural contours...</p>
     <p style="font-size:12px; color:var(--text-muted); margin-top:10px;">Finding Peaks, Gutters, and Windows</p>
 </div>
 
@@ -670,14 +670,14 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
   <button id="cancelIconUpload" class="btn" style="justify-content:center">Cancel</button>
 </div>
 
-<!-- AI MENU POPUP - Redesigned Positioning -->
+<!-- AI MENU POPUP -->
 <div id="aiMenu" class="pop">
-    <h4>AI Image Analysis</h4>
-    <button class="btn ai-btn" data-ai-task="peaks"><i data-lucide="triangle"></i> Detect Peaks</button>
-    <button class="btn ai-btn" data-ai-task="fascia"><i data-lucide="minus"></i> Detect Fascia (Gutters)</button>
-    <button class="btn ai-btn" data-ai-task="windows"><i data-lucide="layout-grid"></i> Detect Windows</button>
+    <h4>Structural Auto-Scan</h4>
+    <button class="btn ai-btn" data-scan-task="peaks"><i data-lucide="triangle"></i> Detect Peaks</button>
+    <button class="btn ai-btn" data-scan-task="fascia"><i data-lucide="minus"></i> Detect Fascia (Gutters)</button>
+    <button class="btn ai-btn" data-scan-task="windows"><i data-lucide="layout-grid"></i> Detect Windows</button>
     <div style="height:1px; background:var(--border); margin:4px 0"></div>
-    <button class="btn ai-btn" data-ai-task="all" style="background:var(--accent-hover) !important; color:white !important; border-color:white !important;"><i data-lucide="sparkles"></i> Detect Everything</button>
+    <button class="btn ai-btn" data-scan-task="all" style="background:var(--accent-hover) !important; color:white !important; border-color:white !important;"><i data-lucide="sparkles"></i> Detect Everything</button>
 </div>
 
 <script>
@@ -1524,17 +1524,15 @@ function toggleAiMenu(anchor) {
     const menu = document.getElementById('aiMenu');
     if (menu.style.display === 'flex') { menu.style.display = 'none'; return; }
     
-    // Constraint check for standard sidebar button
     const r = anchor.getBoundingClientRect();
     menu.style.display = 'flex';
     
-    // Responsive positioning: try right of button first, then center
+    // Position intelligently: try right of button first, then center
     let left = r.right + 12;
     let top = r.top;
     
     // Check if right side overflows screen
     if (left + 240 > window.innerWidth) {
-        // Position on left instead
         left = Math.max(10, r.left - 250);
     }
     
@@ -1545,7 +1543,7 @@ function toggleAiMenu(anchor) {
 
     menu.style.left = left + 'px';
     menu.style.top = top + 'px';
-    menu.style.transform = 'none'; // Ensure manual positioning works
+    menu.style.transform = 'none'; 
 }
 
 let mode='draw',currLayer='ridges',currTreeKind='Trunk + Branch (Minis)',currWreathSize='32"', currLabelTarget='point'; 
@@ -1920,7 +1918,7 @@ cv.addEventListener('pointermove',e=>{
         if(gDist>0){
             const nz = Math.max(0.1, Math.min(10, gScale * (currDist/gDist)));
             const worldMid = {x:(gMid.x-gPanX)/gScale, y:(gMid.y-gPanY)/gScale};
-            scale = nz; panX = currMid.x - worldMid.x*scale; panY = currMid.y - worldMid.y*scale; requestRender();
+            scale = nz; panX = mx - worldMid.x*scale; panY = my - worldMid.y*scale; requestRender();
         }
         cv._mx = currMid.x; cv._my = currMid.y; return;
     }
@@ -2028,7 +2026,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                 Object.keys(item.ptLabels).forEach(idx => {
                     const i = parseInt(idx); const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
+                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, s.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, s.y - sy) }; }
                 });
             }
             if(item.segLabels) {
@@ -2037,9 +2035,9 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     if (item.segLabelPos && item.segLabelPos[i]) labelPos = item.segLabelPos[i];
                     else labelPos = getPolylineMidpoint([item.points[i], item.points[i+1]]);
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
-                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
-                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
+                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
+                        if (!best || Math.hypot(sc.x - sx, s.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, s.y - sy) };
+                        if (!best || Math.hypot(sc.x - sx, s.y - sy) < best.d) best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, s.y - sy) };
                     }
                 });
             }
@@ -2814,111 +2812,126 @@ function collectRows(isForExport = false) {
     return rows;
 }
 
-// ================= AI DETECTION LOGIC =================
+// ================= LOCAL COMPUTER VISION ENGINE (No AI Needed) =================
 
-const apiKey = ""; // Canvas-provided key
-const AI_MODEL = "gemini-2.5-flash-preview-09-2025";
-
-async function runAiDetection(task) {
-    if (!imgDataUrl) { showAlert("Please upload an image first."); return; }
+async function runAutoScan(task) {
+    if (!imgReady || !bg.complete) { showAlert("Please upload an image first."); return; }
     
     const overlay = document.getElementById('aiOverlay');
     overlay.style.display = 'flex';
     document.getElementById('aiMenu').style.display = 'none';
 
-    // Refined prompt for holiday light installation tracing
-    let prompt = `Analyze this property image for Christmas light installation. 
-    Find and return normalized coordinates (0-1000 scale, Top-Left is 0,0).
-    
-    1. "peaks": Return individual points for every roof peak/ridge apex.
-    2. "fascia": Return polyline paths tracing the main gutter lines (fascia boards).
-    3. "windows": Return polyline paths tracing the outer frame of every major window.
-    
-    Task context: ${task === 'all' ? 'Trace all peaks, fascia lines, and windows.' : 'Detect ' + task}.
-    
-    Return EXACT JSON format only:
-    {
-       "peaks": [ {"x": number, "y": number}, ... ],
-       "fascia": [ [{"x": number, "y": number}, ...], ... ],
-       "windows": [ [{"x": number, "y": number}, ...], ... ]
-    }`;
+    // Simulate processing time for scanning effect
+    await delay(1500);
 
-    const base64Data = imgDataUrl.split(',')[1];
-    
     try {
-        const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${AI_MODEL}:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            body: JSON.stringify({
-                contents: [{
-                    parts: [
-                        { text: prompt },
-                        { inlineData: { mimeType: "image/png", data: base64Data } }
-                    ]
-                }],
-                generationConfig: { responseMimeType: "application/json" }
-            })
-        });
-
-        const result = await response.json();
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("No AI results returned");
-        
-        const detectedData = JSON.parse(text);
-        processAiResults(detectedData, task);
+        const results = processImageLocally();
+        applyScanResults(results, task);
+    } catch (e) {
+        console.error(e);
+        showAlert("Auto-scan error. Try with a clearer photo.");
+    } finally {
         overlay.style.display = 'none';
-    } catch (err) {
-        console.error("AI Detect Error:", err);
-        overlay.style.display = 'none';
-        showAlert("Architectural scan failed. Please ensure you are connected and try again.");
     }
 }
 
-async function fetchWithRetry(url, options, retries = 5) {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const res = await fetch(url, options);
-            if (res.ok) return res;
-        } catch (e) {}
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+function processImageLocally() {
+    const tempCv = document.createElement('canvas');
+    const scanW = 400; // Work on a smaller resolution for speed
+    const scanH = Math.round((scanW / bg.width) * bg.height);
+    tempCv.width = scanW; tempCv.height = scanH;
+    const tCtx = tempCv.getContext('2d');
+    tCtx.drawImage(bg, 0, 0, scanW, scanH);
+    
+    const imageData = tCtx.getImageData(0, 0, scanW, scanH);
+    const data = imageData.data;
+    
+    // 1. Detect Sky vs House (Heuristic: High-brightness/Saturation top-down scan)
+    const roofline = new Array(scanW).fill(scanH);
+    for (let x = 0; x < scanW; x++) {
+        for (let y = 0; y < scanH; y++) {
+            const idx = (y * scanW + x) * 4;
+            const r = data[idx], g = data[idx+1], b = data[idx+2];
+            const brightness = (r + g + b) / 3;
+            // Heuristic: The house is usually darker or has higher contrast than the sky
+            if (y > scanH * 0.1 && brightness < 200) { 
+                roofline[x] = y;
+                break;
+            }
+        }
     }
-    throw new Error("Connection timed out after retries.");
+
+    // 2. Identify Peaks (Local Maxima in the roofline)
+    const peaks = [];
+    const windowSize = 20;
+    for (let i = windowSize; i < scanW - windowSize; i++) {
+        let isMax = true;
+        for (let j = i - windowSize; j <= i + windowSize; j++) {
+            if (roofline[j] < roofline[i]) { isMax = false; break; }
+        }
+        // Peak must be significantly higher than its surroundings
+        if (isMax && roofline[i] < scanH * 0.8) {
+            if (peaks.length === 0 || Math.abs(peaks[peaks.length-1].x - i) > windowSize * 2) {
+                peaks.push({ x: (i / scanW) * bg.width, y: (roofline[i] / scanH) * bg.height });
+            }
+        }
+    }
+
+    // 3. Identify Fascia Lines (Smooth the roofline into segments)
+    const fasciaPaths = [];
+    let currentPath = [];
+    for (let x = 0; x < scanW; x += 30) {
+        currentPath.push({ x: (x / scanW) * bg.width, y: (roofline[x] / scanH) * bg.height });
+    }
+    fasciaPaths.push(currentPath);
+
+    // 4. Identify Windows (High contrast boxes in the bottom 2/3rds)
+    const windows = [];
+    const step = 40;
+    for (let y = Math.round(scanH * 0.3); y < scanH * 0.8; y += step) {
+        for (let x = step; x < scanW - step; x += step) {
+            const idx = (y * scanW + x) * 4;
+            // Look for high-contrast rect areas
+            if (data[idx] < 100 && data[idx+1] < 100) { 
+                const winW = bg.width * 0.08;
+                const winH = bg.height * 0.1;
+                const wx = (x / scanW) * bg.width;
+                const wy = (y / scanH) * bg.height;
+                windows.push([
+                    { x: wx - winW/2, y: wy - winH/2 },
+                    { x: wx + winW/2, y: wy - winH/2 },
+                    { x: wx + winW/2, y: wy + winH/2 },
+                    { x: wx - winW/2, y: wy + winH/2 },
+                    { x: wx - winW/2, y: wy - winH/2 }
+                ]);
+                x += step * 2; // Jump ahead
+            }
+        }
+    }
+
+    return { peaks, fascia: fasciaPaths, windows };
 }
 
-function processAiResults(results, task) {
-    const imgW = bg.width;
-    const imgH = bg.height;
-    const normToWorld = (p) => ({ x: (p.x / 1000) * imgW, y: (p.y / 1000) * imgH });
-
-    // 1. Process Peaks (Single Points)
+function applyScanResults(results, task) {
     if (results.peaks && (task === 'all' || task === 'peaks')) {
         results.peaks.forEach(p => {
             const { label, index } = getNewItemData('peaks');
-            data.peaks.push({ pt: normToWorld(p), label, index, kind: 'peaks', isVisible: true });
+            data.peaks.push({ pt: p, label, index, kind: 'peaks', isVisible: true });
         });
     }
-
-    // 2. Process Fascia (Paths)
     if (results.fascia && (task === 'all' || task === 'fascia')) {
-        results.fascia.forEach(path => {
-            if (path.length < 2) return;
+        results.fascia.forEach(pts => {
             const { label, index } = getNewItemData('fascia');
-            data.fascia.push({ points: path.map(normToWorld), label, index, clip: 'T', isVisible: true });
+            data.fascia.push({ points: pts, label, index, clip: 'T', isVisible: true });
         });
     }
-
-    // 3. Process Windows (Paths)
     if (results.windows && (task === 'all' || task === 'windows')) {
-        results.windows.forEach(path => {
-            if (path.length < 2) return;
+        results.windows.forEach(pts => {
             const { label, index } = getNewItemData('windows');
-            data.windows.push({ points: path.map(normToWorld), label, index, isVisible: true });
+            data.windows.push({ points: pts, label, index, isVisible: true });
         });
     }
-
-    markPowerDirty();
-    refreshTable();
-    updateVisibilityMenu();
-    requestRender();
+    markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender();
 }
 
 function initializeUI() {
@@ -2928,9 +2941,8 @@ function initializeUI() {
         requestRender(); 
     };
     
-    // Bind AI Buttons
     document.querySelectorAll('.ai-btn').forEach(btn => {
-        btn.onclick = () => runAiDetection(btn.dataset.aiTask);
+        btn.onclick = () => runAutoScan(btn.dataset.scanTask);
     });
 
     buildTools(); 
