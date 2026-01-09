@@ -168,6 +168,11 @@ canvas {
 }
 body.white-bg .canvasWrap { background: #ffffff; background-image: none; }
 
+/* Scissor cursor for Splice Mode */
+body.splice-cursor .canvasWrap {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cline x1='20' y1='4' x2='8.12' y2='15.88'/%3E%3Cline x1='14.47' y1='14.48' x2='20' y2='20'/%3E%3Cline x1='8.12' y1='8.12' x2='12' y2='12'/%3E%3C/svg%3E") 6 6, auto;
+}
+
 aside {
     width: 320px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; overflow-y: auto; padding: 16px;
@@ -598,12 +603,14 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
              <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); cursor:pointer;">
                 <input id="chkAutoCalc" type="checkbox" checked style="accent-color:var(--accent)"/> Auto-calculate bulbs/feet
              </label>
-             <button id="btnRelabelIDs" class="btn" style="height:32px; font-size:12px; margin-left:auto"><i data-lucide="list-ordered"></i> Relabel IDs</button>
+             <button id="btnLineSplice" class="btn" style="height:32px; font-size:12px; margin-left:auto"><i data-lucide="scissors"></i> Line Splice</button>
+             <button id="btnMergeLines" class="btn" style="height:32px; font-size:12px;"><i data-lucide="merge"></i> Merge Lines</button>
+             <button id="btnRelabelIDs" class="btn" style="height:32px; font-size:12px;"><i data-lucide="list-ordered"></i> Relabel IDs</button>
         </div>
 
         <div style="overflow-x:auto">
           <table id="matTable">
-            <thead><tr><th>Type</th><th style="width:60px">ID</th><th>Ft</th><th>Bulbs</th><th>Clip</th><th>Colour</th><th>Notes</th><th style="width:70px"></th></tr></thead>
+            <thead><tr><th style="width:30px"></th><th>Type</th><th style="width:60px">ID</th><th>Ft</th><th>Bulbs</th><th>Clip</th><th>Colour</th><th>Notes</th><th style="width:70px"></th></tr></thead>
             <tbody id="lenRows"></tbody>
           </table>
         </div>
@@ -886,14 +893,14 @@ const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],gar
 const visibilityGroups = [
     { label: 'House Lights', sub: ['fascia', 'peaks', 'ridges'] },
     { label: 'Windows', sub: ['windows'] },
-    { label: 'Greenery', sub: ['garland', 'wreath32', 'wreath42', 'bow'] },
+    { label: 'Greenery', sub: ['garland', 'wreath', 'wreath32', 'wreath42', 'bow'] },
     { label: 'Shrubs', sub: ['shrub'] },
     { label: 'Trees', sub: ['tree:Trunk + Branch (Minis)', 'tree:Trunk + Canopy (Minis)', 'tree:C9 Tree', 'tree:ToL'] },
     { label: 'Ground Stakes', sub: ['groundstakes'] }
 ];
 
-// State to keep track of which visibility categories are expanded
 const openVisGroups = new Set();
+let selectedForMerge = new Set(); 
 
 function getColorCode(colorName) {
     if (!colorName) return '#ddd';
@@ -1090,20 +1097,39 @@ function relabelIds() {
     refreshTable(); markPowerDirty(); requestRender();
 }
 
-function shouldShowGutterGuard(layer, clipType) {
-    return layer === 'fascia' && (clipType === 'T' || clipType === 'ST');
+function mergeLines() {
+    if (selectedForMerge.size < 2) { showAlert("Select at least 2 lines to merge."); return; }
+    let mergedItems = [];
+    Object.keys(data).forEach(L => {
+        data[L].forEach(item => { if (selectedForMerge.has(item.index)) mergedItems.push({ layer: L, item }); });
+    });
+    if (mergedItems.some(m => !m.item.points)) { showAlert("Only lines can be merged."); return; }
+    let newPoints = []; let totalBulbs = 0; let totalFeet = 0;
+    let clipCounts = {}; let dominantClip = 'T'; let maxBulbsForClip = -1;
+    let firstLayer = mergedItems[0].layer;
+    mergedItems.forEach(m => {
+        newPoints.push(...m.item.points);
+        totalBulbs += parseFloat(m.item.bulbs) || 0;
+        totalFeet += parseFloat(m.item.ft) || 0;
+        const clip = m.item.clip || 'T';
+        clipCounts[clip] = (clipCounts[clip] || 0) + (parseFloat(m.item.bulbs) || 0);
+        if (clipCounts[clip] > maxBulbsForClip) { maxBulbsForClip = clipCounts[clip]; dominantClip = clip; }
+    });
+    mergedItems.forEach(m => { const idx = data[m.layer].indexOf(m.item); if (idx > -1) data[m.layer].splice(idx, 1); });
+    const nextMergeIdx = nextIndex("Line #");
+    const newItem = {
+        points: newPoints, label: `Line #${nextMergeIdx}`, bulbs: totalBulbs, ft: totalFeet,
+        clip: dominantClip, index: ++actionCounter, isVisible: true
+    };
+    data[firstLayer].push(newItem);
+    selectedForMerge.clear(); refreshTable(); updateVisibilityMenu(); markPowerDirty(); requestRender();
 }
+
+function shouldShowGutterGuard(layer, clipType) { return layer === 'fascia' && (clipType === 'T' || clipType === 'ST'); }
 
 function refreshTable(){
     const tbody = document.getElementById('lenRows'); tbody.innerHTML='';
-    let rows=[];
-    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
-    Object.keys(data).forEach(k=>{
-        if (EXCLUDED_LAYERS.includes(k)) return;
-        data[k].forEach(it=>{
-            rows.push({item: it, L:k});
-        });
-    });
+    let rows = collectRows(false); // isForExport = false, includes invisible items
     rows.sort((a,b)=> (a.item.label||'').localeCompare(b.item.label||'', undefined, {numeric:true}));
     const chkAuto = document.getElementById('chkAutoCalc');
 
@@ -1137,7 +1163,6 @@ function refreshTable(){
         let colorInputHtml = '';
         const rawColorValue = r.item.col || '';
         const processedColorCode = getColorCode(rawColorValue);
-
         if (r.L === 'garland' || r.L === 'wreath') { 
              const color = getColorCode('green');
              colorInputHtml = `<span style="color:#0f172a; font-weight:bold; background:${color}; padding: 2px 6px; border-radius: 4px; font-size:11px;">Green</span>`; 
@@ -1154,6 +1179,7 @@ function refreshTable(){
         if (r.item.kind === 'ToL') typeDisplay = 'Tree of Lights';
 
         tr.innerHTML=`
+            <td><input type="checkbox" class="merge-chk" ${selectedForMerge.has(r.item.index)?'checked':''}></td>
             <td>${typeDisplay}</td>
             <td><input class="edit" style="width:50px" value="${r.item.label||''}"></td>
             <td><input class="edit" placeholder="ft" style="width:40px" value="${r.item.ft||''}"></td>
@@ -1168,9 +1194,13 @@ function refreshTable(){
                 </div>
             </td>`;
         
+        tr.querySelector('.merge-chk').onchange = e => {
+            if (e.target.checked) selectedForMerge.add(r.item.index); else selectedForMerge.delete(r.item.index);
+        };
+
         tr.querySelector('.vis-toggle').onclick = (e) => {
             e.stopPropagation();
-            r.item.isVisible = r.item.isVisible === false;
+            r.item.isVisible = r.item.isVisible === false ? true : false;
             refreshTable();
             updateVisibilityMenu();
             requestRender();
@@ -1259,15 +1289,12 @@ function updateVisibilityMenu() {
     container.innerHTML = '';
 
     visibilityGroups.forEach(group => {
-        // Filter subkeys that actually have items in data
         const activeSubKeys = group.sub.filter(subKey => {
             if (subKey.startsWith('tree:')) {
                 const kind = subKey.split(':')[1];
                 return data.tree && data.tree.some(t => t.kind === kind);
             }
-            if (subKey === 'wreath') {
-                return (data.wreath && data.wreath.length > 0) || (data.wreath32 && data.wreath32.length > 0) || (data.wreath42 && data.wreath42.length > 0);
-            }
+            if (subKey === 'wreath') return data.wreath && data.wreath.length > 0;
             return data[subKey] && data[subKey].length > 0;
         });
 
@@ -1283,14 +1310,10 @@ function updateVisibilityMenu() {
         const groupCheck = document.createElement('input');
         groupCheck.type = 'checkbox';
         
-        // Determine group check state based on children
         const states = activeSubKeys.map(subKey => {
             if (subKey.startsWith('tree:')) {
                 const kind = subKey.split(':')[1];
                 return !data.tree.some(t => t.kind === kind && t.isVisible === false);
-            }
-            if (subKey === 'wreath') {
-                 return !data.wreath.some(it => it.isVisible === false);
             }
             return !data[subKey].some(it => it.isVisible === false);
         });
@@ -1313,15 +1336,12 @@ function updateVisibilityMenu() {
         activeSubKeys.forEach(subKey => {
             const row = document.createElement('div');
             row.className = 'vis-row';
-            
             const subCheck = document.createElement('input');
             subCheck.type = 'checkbox';
             
             if (subKey.startsWith('tree:')) {
                 const kind = subKey.split(':')[1];
                 subCheck.checked = !data.tree.some(t => t.kind === kind && t.isVisible === false);
-            } else if (subKey === 'wreath') {
-                subCheck.checked = !data.wreath.some(it => it.isVisible === false);
             } else {
                 subCheck.checked = !data[subKey].some(it => it.isVisible === false);
             }
@@ -1333,7 +1353,8 @@ function updateVisibilityMenu() {
             row.append(subCheck, subLabel);
             body.appendChild(row);
 
-            subCheck.onchange = () => {
+            subCheck.onchange = (e) => {
+                e.stopPropagation();
                 toggleLayerVisibility(subKey, subCheck.checked);
             };
         });
@@ -1346,8 +1367,7 @@ function updateVisibilityMenu() {
         head.onclick = (e) => {
             if (e.target === groupCheck) return;
             const isNowOpen = groupEl.classList.toggle('open');
-            if (isNowOpen) openVisGroups.add(group.label);
-            else openVisGroups.delete(group.label);
+            if (isNowOpen) openVisGroups.add(group.label); else openVisGroups.delete(group.label);
         };
 
         groupEl.appendChild(body);
@@ -1360,8 +1380,6 @@ function toggleLayerVisibility(key, visible) {
     if (key.startsWith('tree:')) {
         const kind = key.split(':')[1];
         data.tree.forEach(t => { if(t.kind === kind) t.isVisible = visible; });
-    } else if (key === 'wreath') {
-        data.wreath.forEach(w => w.isVisible = visible);
     } else {
         if(data[key]) data[key].forEach(it => it.isVisible = visible);
     }
@@ -1425,16 +1443,13 @@ function buildTools(){
       const btn=document.createElement('button');btn.className='tool';
       const iconName = iconMap[k] || 'circle';
       const iconHtml = `<i data-lucide="${iconName}"></i>`;
-      
       let displayText = pretty[k]||k;
       if(k.startsWith('tree:')) displayText = k.slice(5).split('(')[0].trim();
       else if(k.startsWith('wreath')) displayText = k==='wreath32'?'Wr 32"':'Wr 42"';
       else if (k === 'custom_icon') displayText = 'Image';
       else if (k === 'night_mode') displayText = 'Night';
       else if (k === 'ai_detect') displayText = 'Ai Detect';
-
       btn.innerHTML = `${iconHtml}<span>${displayText}</span>`;
-      
       if(k.startsWith('tree:')){
           const t=k.slice(5); btn.onclick=()=>selectTool('tree',t); toolBtn[k]=btn;
       } else if(k.startsWith('wreath')){
@@ -1443,8 +1458,7 @@ function buildTools(){
           btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
       } else if (k === 'night_mode') {
           btn.onclick=()=>toggleNightMode(); toolBtn[k]=btn;
-          btn.classList.toggle('toggled', isNightMode); 
-          btn.classList.toggle('night-glow', isNightMode);
+          btn.classList.toggle('toggled', isNightMode); btn.classList.toggle('night-glow', isNightMode);
       } else if (k === 'ai_detect') {
           btn.onclick=()=>showAlert("Ai Detect feature in development."); toolBtn[k]=btn;
       } else {
@@ -1468,8 +1482,7 @@ function selectTool(L, variant=null){
     else toolBtn[L]?.classList.add('active');
     if(matchMedia('(max-width:900px)').matches) toggleMenu();
     document.getElementById('imgUploadPop').style.display = 'none';
-    mode='draw'; 
-    if (L === 'label') mode = 'label'; 
+    mode='draw'; if (L === 'label') mode = 'label'; 
     updateModeTag(); startNewSketch();
     if(currLayer === 'garland') {
         document.getElementById('btnSwag').style.display = 'inline-flex';
@@ -1485,36 +1498,27 @@ function selectTool(L, variant=null){
 document.getElementById('btnDraw').onclick=()=>{mode='draw';updateModeTag()};
 document.getElementById('btnSelect').onclick=()=>{mode='select';updateModeTag()};
 document.getElementById('btnMoveCanvas').onclick=()=>{mode='move-canvas';updateModeTag()};
+document.getElementById('btnLineSplice').onclick=()=>{mode='splice';updateModeTag()};
+document.getElementById('btnMergeLines').onclick=mergeLines;
 
 const quickEditPrefix = document.getElementById('quickEditPrefix');
 quickEditPrefix.oninput = (e) => {
     if (selectedItem && selectedItem.obj) {
         selectedItem.obj.label = e.target.value;
         if (selectedItem.type === 'label') selectedItem.obj.text = e.target.value;
-        markPowerDirty();
-        requestRender();
+        markPowerDirty(); requestRender();
     }
 };
-quickEditPrefix.onchange = () => {
-    refreshTable();
-};
+quickEditPrefix.onchange = () => refreshTable();
 
 const moveLabelToggleBtn = document.getElementById('moveLabelToggleBtn');
 moveLabelToggleBtn.onclick = () => {
-    if (mode === 'move-label') {
-        mode = 'select';
-    } else {
-        mode = 'move-label';
-    }
+    mode = (mode === 'move-label') ? 'select' : 'move-label';
     updateModeTag();
 };
 
 document.getElementById('quickDeleteBtn').onclick = () => {
-    if (selectedItem) {
-        deleteItem(selectedItem);
-        selectedItem = null;
-        updateModeTag();
-    }
+    if (selectedItem) { deleteItem(selectedItem); selectedItem = null; updateModeTag(); }
 };
 
 function updateModeTag(){
@@ -1522,6 +1526,8 @@ function updateModeTag(){
     document.getElementById('btnDraw').classList.remove('toggled');
     document.getElementById('btnSelect').classList.remove('toggled');
     document.getElementById('btnMoveCanvas').classList.remove('toggled'); 
+    document.getElementById('btnLineSplice').classList.remove('toggled');
+    document.body.classList.remove('splice-cursor');
     document.getElementById('selectionQuickEdit').style.display = 'none';
     itemScaleWrap.style.display = 'none';
     moveLabelToggleBtn.classList.remove('toggled');
@@ -1553,6 +1559,10 @@ function updateModeTag(){
                  btnSwag.classList.toggle('toggled', !!selectedItem.obj.isSwagMode);
              }
          }
+    } else if (mode === 'splice') {
+        t.textContent = 'Splice'; t.style.borderColor = '#ef4444'; t.style.color = '#ef4444';
+        document.getElementById('btnLineSplice').classList.add('toggled');
+        document.body.classList.add('splice-cursor');
     } else if (mode === 'label') {
          t.textContent = 'Label'; t.style.borderColor = '#22c55e'; t.style.color = '#22c55e';
     } else if (mode === 'move-canvas') { 
@@ -1767,43 +1777,70 @@ cv.addEventListener('pointerdown',e=>{
     cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
     pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
     cv._mx = ex; cv._my = ey;
-    if (!e.target.closest('#lblEditor')) {
-        document.getElementById('lblEditor').style.display = 'none';
-    }
+    if (!e.target.closest('#lblEditor')) { document.getElementById('lblEditor').style.display = 'none'; }
     document.getElementById('imgUploadPop').style.display = 'none';
     if(pointers.size === 1) {
         isTapCandidate = true; tapDownX = ex; tapDownY = ey; dragStartX = ex; dragStartY = ey; dragPanStartX = panX; dragPanStartY = panY;
-        if (mode === 'select' && selectedItem) {
-            handleSelectDown(ex, ey); 
-            if (draggingPoint) { isTapCandidate = false; return; }
-        }
+        if (mode === 'select' && selectedItem) { handleSelectDown(ex, ey); if (draggingPoint) { isTapCandidate = false; return; } }
         if (mode === 'move' && selectedItem) {
              dragStartPt = { x: selectedItem.obj.pt ? selectedItem.obj.pt.x : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).x : 0),
                              y: selectedItem.obj.pt ? selectedItem.obj.pt.y : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).y : 0) };
              return;
         } else if (mode === 'move-label' && selectedItem) { 
-             const w = toWorld(ex, ey);
-             draggedLabelTarget = { item: selectedItem.obj, type: 'primary' };
-             isTapCandidate = false; return;
+             const w = toWorld(ex, ey); draggedLabelTarget = { item: selectedItem.obj, type: 'primary' }; isTapCandidate = false; return;
         }
     }
-    if(pointers.size >= 2){
-        isTapCandidate = false; gesture=true; const v=[...pointers.values()];
-        gDist=ds(v[0],v[1]); gMid=mp(v[0],v[1]); gScale=scale; gPanX=panX; gPanY=panY; return;
-    }
+    if(pointers.size >= 2){ isTapCandidate = false; gesture=true; const v=[...pointers.values()]; gDist=ds(v[0],v[1]); gMid=mp(v[0],v[1]); gScale=scale; gPanX=panX; gPanY=panY; return; }
 });
+
+function spliceLine(sx, sy) {
+    const w = toWorld(sx, sy); let best = null; let minD = 25 / scale;
+    const lineLayers = ['ridges','fascia','peaks','groundstakes','garland','shrub','windows','cords'];
+    lineLayers.forEach(L => {
+        data[L].forEach(line => {
+            if (line.isVisible === false) return;
+            for (let i = 0; i < line.points.length - 1; i++) {
+                const a = line.points[i]; const b = line.points[i+1]; const proj = projOnSeg(w, a, b); const d = Math.hypot(w.x - proj.q.x, w.y - proj.q.y);
+                if (proj.t >= 0 && proj.t <= 1 && d < minD) { minD = d; best = { line, layer: L, index: i, point: proj.q, t: proj.t }; }
+            }
+        });
+    });
+    if (best) {
+        const line = best.line; const totalPoints = line.points.length;
+        let totalLen = 0; for(let i=0; i < totalPoints-1; i++) totalLen += Math.hypot(line.points[i+1].x - line.points[i].x, line.points[i+1].y - line.points[i].y);
+        let splitAtLen = 0; for(let i=0; i < best.index; i++) splitAtLen += Math.hypot(line.points[i+1].x - line.points[i].x, line.points[i+1].y - line.points[i].y);
+        splitAtLen += Math.hypot(best.point.x - line.points[best.index].x, best.point.y - line.points[best.index].y);
+        const ratio = splitAtLen / totalLen; const origBulbs = parseFloat(line.bulbs) || 0; const origFeet = parseFloat(line.ft) || 0;
+        const p1 = line.points.slice(0, best.index + 1); p1.push(best.point);
+        const p2 = [best.point]; p2.push(...line.points.slice(best.index + 1));
+        let rootLabel = line.label || ""; const suffixMatch = rootLabel.match(/^(.*?)\s*\([a-z]\)$/i);
+        if (suffixMatch) rootLabel = suffixMatch[1];
+        const l2 = {
+            points: p2, label: rootLabel, ft: Math.round(origFeet * (1 - ratio) * 10) / 10, bulbs: Math.round(origBulbs * (1 - ratio)),
+            clip: line.clip, col: line.col, notes: line.notes, isVisible: true, index: ++actionCounter
+        };
+        line.points = p1; line.ft = Math.round(origFeet * ratio * 10) / 10; line.bulbs = Math.round(origBulbs * ratio); line.label = rootLabel;
+        data[best.layer].push(l2);
+        const relatives = data[best.layer].filter(item => {
+            let itemRoot = item.label || ""; const sm = itemRoot.match(/^(.*?)\s*\([a-z]\)$/i);
+            if (sm) itemRoot = sm[1]; return itemRoot === rootLabel;
+        });
+        relatives.sort((a, b) => getItemCenter(a).x - getItemCenter(b).x);
+        relatives.forEach((item, idx) => { const char = String.fromCharCode(97 + idx); item.label = `${rootLabel} (${char})`; });
+        markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender();
+    }
+}
 
 cv.addEventListener('pointermove',e=>{
     const r=canvasWrap.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
     if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x,y,id:e.pointerId});
     cv._mx=x; cv._my=y;
     if(gesture && pointers.size>=2){
-        const v=[...pointers.values()];
-        const currDist=ds(v[0],v[1]); const currMid=mp(v[0],v[1]);
+        const v=[...pointers.values()]; const currDist=ds(v[0],v[1]); const currMid=mp(v[0],v[1]);
         if(gDist>0){
             const nz = Math.max(0.1, Math.min(10, gScale * (currDist/gDist)));
             const worldMid = {x:(gMid.x-gPanX)/gScale, y:(gMid.y-gPanY)/gScale};
-            scale = nz; panX = mx - worldMid.x*scale; panY = my - worldMid.y*scale; requestRender();
+            scale = nz; panX = currMid.x - worldMid.x*scale; panY = currMid.y - worldMid.y*scale; requestRender();
         }
         cv._mx = currMid.x; cv._my = currMid.y; return;
     }
@@ -1859,14 +1896,13 @@ cv.addEventListener('pointermove',e=>{
 
 cv.addEventListener('pointerup',e=>{
     const wasGesture = gesture;
-    if (pointers.size === 1 && !wasGesture) { 
-        if (draggingPoint) { draggingPoint = null; markPowerDirty(); requestRender(); refreshTable(); } 
-    }
+    if (pointers.size === 1 && !wasGesture) { if (draggingPoint) { draggingPoint = null; markPowerDirty(); requestRender(); refreshTable(); } }
     if (mode === 'move' && dragStartPt) dragStartPt = null;
     if (mode === 'move-label' && draggedLabelTarget) draggedLabelTarget = null;
     if (!wasGesture && pointers.size === 1 && isTapCandidate) {
         const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
         if (mode === 'draw') handleTap(ex, ey);
+        else if (mode === 'splice') spliceLine(ex, ey);
         else if (mode === 'label') checkCordLabelClick(ex, ey);
         else if (mode === 'select' || mode === 'move' || mode === 'move-label') handleSelectDown(ex, ey);
     }
@@ -1886,8 +1922,7 @@ iconFile.onchange = (e) => {
         img.onload = () => {
             const iconData = pendingCustomIcon; iconData.url = event.target.result;
             iconData.w = img.naturalWidth || 100; iconData.h = img.naturalHeight || 100; iconData.scale = 0.15; iconData.imageObj = img; 
-            iconData.isVisible = true;
-            data.custom_icon.push(iconData); pendingCustomIcon = null; imgUploadPop.style.display = 'none'; iconFile.value = ''; 
+            iconData.isVisible = true; data.custom_icon.push(iconData); pendingCustomIcon = null; imgUploadPop.style.display = 'none'; iconFile.value = ''; 
             selectedItem = { type: 'custom_icon', obj: iconData }; markPowerDirty(); requestRender(); refreshTable(); updateVisibilityMenu();
         };
         img.onerror = () => { showAlert("Failed to load image"); pendingCustomIcon = null; imgUploadPop.style.display = 'none'; };
@@ -1900,10 +1935,8 @@ function checkCordLabelClick(sx, sy) {
     const w = toWorld(sx, sy);
     for (const item of data.label) { const s = toScr(item.pt); if(Math.hypot(s.x - sx, s.y - sy) < 40) { showLabelEditor({ item: item, type: 'simple', index: -1, x: sx, y: sy }); return; } }
     let best = checkLabelClick(sx, sy); if (best) { showLabelEditor(best); return; }
-    const {label, index} = getNewItemData('label');
-    if (!data.label) data.label = []; 
-    const newItem = {pt: w, label: label, index: index, text: '', isVisible: true};
-    data.label.push(newItem);
+    const {label, index} = getNewItemData('label'); if (!data.label) data.label = []; 
+    const newItem = {pt: w, label: label, index: index, text: '', isVisible: true}; data.label.push(newItem);
     showLabelEditor({ item: newItem, type: 'simple', index: -1, x: sx, y: sy });
 }
 
@@ -1915,9 +1948,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                 Object.keys(item.ptLabels).forEach(idx => {
                     const i = parseInt(idx); const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
-                        if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
-                    }
+                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
                 });
             }
             if(item.segLabels) {
@@ -1934,17 +1965,13 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
             }
         }
     }
-    if (specificItem) search(specificItem, specificType);
-    else Object.keys(data).forEach(L => { if (L === 'label') return; data[L].forEach(item => search(item, L)); });
+    if (specificItem) search(specificItem, specificType); else Object.keys(data).forEach(L => { if (L === 'label') return; data[L].forEach(item => search(item, L)); });
     return best;
 }
 
 function showLabelEditor(target) {
-    activeLabelTarget = target; 
-    const el = document.getElementById('lblEditor'); 
-    const inp = document.getElementById('lblInput'); 
-    let val = '';
-    let worldPos;
+    activeLabelTarget = target; const el = document.getElementById('lblEditor'); const inp = document.getElementById('lblInput'); 
+    let val = ''; let worldPos;
     if (target.type === 'simple') worldPos = target.item.pt;
     else if (target.type === 'point') worldPos = target.item.ptLabelPos && target.item.ptLabelPos[target.index] ? target.item.ptLabelPos[target.index] : target.item.points[target.index];
     else if (target.type === 'seg') worldPos = target.item.segLabelPos && target.item.segLabelPos[target.index] ? target.item.segLabelPos[target.index] : getPolylineMidpoint([target.item.points[target.index], target.item.points[target.index+1]]);
@@ -1961,10 +1988,7 @@ document.getElementById('lblInput').onchange = (e) => {
     const val = e.target.value; const item = activeLabelTarget.item;
     if(activeLabelTarget.type === 'point') item.ptLabels[activeLabelTarget.index] = val;
     else if (activeLabelTarget.type === 'seg') item.segLabels[activeLabelTarget.index] = val;
-    else if (activeLabelTarget.type === 'simple') { 
-        item.text = val; 
-        if (val === '') { const idx = data.label.indexOf(item); if(idx > -1) data.label.splice(idx, 1); } 
-    }
+    else if (activeLabelTarget.type === 'simple') { item.text = val; if (val === '') { const idx = data.label.indexOf(item); if(idx > -1) data.label.splice(idx, 1); } }
     document.getElementById('lblEditor').style.display = 'none'; requestRender();
 };
 
@@ -1972,9 +1996,7 @@ document.getElementById('lblInput').addEventListener('keydown', (e) => { if (e.k
 document.getElementById('lblInput').onblur = (e) => {
     setTimeout(() => {
         if (activeLabelTarget && activeLabelTarget.type === 'simple' && (!activeLabelTarget.item.text || activeLabelTarget.item.text.trim() === '')) {
-            const idx = data.label.indexOf(activeLabelTarget.item);
-            if (idx > -1) data.label.splice(idx, 1);
-            requestRender();
+            const idx = data.label.indexOf(activeLabelTarget.item); if (idx > -1) data.label.splice(idx, 1); requestRender();
         }
     }, 150);
 };
@@ -2009,13 +2031,13 @@ document.getElementById('btnUndo').onclick=()=>{
     }
     if (targetObj && targetLayer) {
         redoStack.push({layer: targetLayer, item: targetObj}); document.getElementById('btnRedo').disabled = false;
-        data[targetLayer].splice(targetIdxInArray, 1); markPowerDirty(); requestRender(); refreshTable(); updateVisibilityMenu();
+        data[targetLayer].splice(targetIdxInArray, 1); markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender();
     }
 };
 document.getElementById('btnRedo').onclick = () => {
     if(redoStack.length === 0) return; const record = redoStack.pop(); if(redoStack.length === 0) document.getElementById('btnRedo').disabled = true;
     if (record.layer === 'custom_icon' && record.item.url) { const img = new Image(); img.src = record.item.url; record.item.imageObj = img; }
-    data[record.layer].push(record.item); markPowerDirty(); requestRender(); refreshTable(); updateVisibilityMenu();
+    data[record.layer].push(record.item); markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender();
 };
 
 let sketch=null; 
@@ -2239,8 +2261,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
             ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
             const isDotted = it.isPillarMode && layerName === 'garland' && (i % 2 !== 0); 
             if (isDotted) {
-                const dashLen = 8 * settings.lineScale * scale;
-                ctx.setLineDash([dashLen, dashLen]);
+                const dashLen = 8 * settings.lineScale * scale; ctx.setLineDash([dashLen, dashLen]);
             } else ctx.setLineDash([]);
             if (cp) ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y); else ctx.lineTo(p2.x, p2.y);
             styleFn(isDotted); ctx.stroke(); ctx.setLineDash([]); 
@@ -2576,7 +2597,7 @@ function captureCanvasData() {
         }
     }
     const HEADER_BASE = 110; const HEADER_H = HEADER_BASE + estimatedNotesHeight; const FOOTER_ROW_H = 24; const FOOTER_TITLE_H = 40; 
-    const items = collectRows(); const ITEM_COUNT = items.length; const FOOTER_H = ITEM_COUNT > 0 ? (FOOTER_TITLE_H + ITEM_COUNT * FOOTER_ROW_H + 40) : 0;
+    const items = collectRows(true); const ITEM_COUNT = items.length; const FOOTER_H = ITEM_COUNT > 0 ? (FOOTER_TITLE_H + ITEM_COUNT * FOOTER_ROW_H + 40) : 0;
     const OUT_W = MAP_WIDTH_PX; const OUT_H = HEADER_H + MAP_H_PX + FOOTER_H;
     const out = document.createElement('canvas'); out.width = OUT_W * DPI; out.height = OUT_H * DPI; const o = out.getContext('2d'); o.scale(DPI, DPI); 
     const oldScale = scale; const oldPanX = panX; const oldPanY = panY; const originalCtx = ctx; 
@@ -2694,14 +2715,20 @@ function captureCanvasData() {
     return { url: out.toDataURL('image/png'), width: OUT_W * DPI, height: OUT_H * DPI };
 }
 
-function collectRows() {
+function collectRows(isForExport = false) {
     const rows = [];
     const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
     Object.keys(data).forEach(L => {
         if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
-            if (it.isVisible === false) return;
-            rows.push({ L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false, kind: it.kind });
+            if (isForExport && it.isVisible === false) return;
+            // PDF Export only includes items with ID or Notes
+            if (isForExport) {
+                const hasId = it.label && it.label.trim() !== '';
+                const hasNotes = it.notes && it.notes.trim() !== '';
+                if (!hasId && !hasNotes) return;
+            }
+            rows.push({ L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false, kind: it.kind, item: it });
         });
     });
     return rows;
