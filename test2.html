@@ -1026,7 +1026,7 @@ bgBlurInput.oninput = (e) => { settings.bgBlur = parseInt(e.target.value); updat
 junctionScaleInput.oninput = (e) => { settings.junctionScale = parseFloat(junctionScaleInput.value); updateJunctionScaleUI(); markPowerDirty(); requestRender(); };
 labelScaleInput.oninput = (e) => { settings.labelScale = parseFloat(labelScaleInput.value); updateLabelScaleUI(); requestRender(); };
 arrowFreqInput.oninput = (e) => { settings.arrowFreqFactor = parseFloat(arrowFreqInput.value); updateArrowFreqUI(); markPowerDirty(); requestRender(); };
-arrowScaleInput.oninput = (e) => { settings.arrowScale = parseFloat(arrowScaleInput.value); updateArrowScaleUI(); markPowerDirty(); requestRender(); };
+arrowScaleInput.oninput = (e) => { settings.arrowScale = parseFloat(arrowScaleInput.value); arrowScaleValue.textContent = `${settings.arrowScale.toFixed(1)}x`; markPowerDirty(); requestRender(); };
 
 c9TreeScaleInput.oninput = (e) => { settings.c9TreeScale = parseFloat(e.target.value); requestRender(); };
 miniTreeScaleInput.oninput = (e) => { settings.miniTreeScale = parseFloat(e.target.value); requestRender(); };
@@ -1175,7 +1175,7 @@ function shouldShowGutterGuard(layer, clipType) {
 function refreshTable(){
     const tbody = document.getElementById('lenRows'); tbody.innerHTML='';
     let rows=[];
-    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'powersource', 'threeway'];
+    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'powersource', 'threeway', 'cords'];
     Object.keys(data).forEach(k=>{
         if (EXCLUDED_LAYERS.includes(k)) return;
         data[k].forEach(it=>{
@@ -1257,6 +1257,7 @@ function refreshTable(){
         tr.querySelector('.vis-toggle').onclick = () => {
             r.item.isVisible = r.item.isVisible === false;
             refreshTable();
+            markPowerDirty();
             requestRender();
         };
 
@@ -1906,7 +1907,6 @@ function spliceLine(sx, sy) {
         const p2 = [best.point];
         p2.push(...line.points.slice(best.index + 1));
 
-        // Get root label (e.g. "P1" from "P1 (a)")
         let rootLabel = line.label || "";
         const suffixMatch = rootLabel.match(/^(.*?)\s*\([a-z]\)$/i);
         if (suffixMatch) rootLabel = suffixMatch[1];
@@ -1930,7 +1930,6 @@ function spliceLine(sx, sy) {
 
         data[best.layer].push(l2);
         
-        // Re-index all related segments by centerX
         const relatives = data[best.layer].filter(item => {
             let itemRoot = item.label || "";
             const sm = itemRoot.match(/^(.*?)\s*\([a-z]\)$/i);
@@ -3191,7 +3190,7 @@ function collectRows(isForExport = false) {
     Object.keys(data).forEach(L => {
         if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
-            if (it.isVisible === false) return;
+            if (it.isVisible === false && isForExport) return;
             const hasId = it.label && it.label.trim() !== '';
             const hasNotes = it.notes && it.notes.trim() !== '';
 
