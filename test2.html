@@ -263,6 +263,19 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 }
 .xbtn:hover { background: var(--danger); color: white; }
 
+/* Restored Popup Styles */
+.pop {
+    position: fixed; background: var(--panel); border: 1px solid var(--accent);
+    padding: 8px; border-radius: 12px; display: none; gap: 4px; z-index: 9999;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+.pop button {
+    background: var(--bg); border: 1px solid var(--border); color: white;
+    padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
+    transition: all 0.2s; min-width: 50px;
+}
+.pop button:hover { background: var(--accent); border-color: white; }
+
 #modalBack, #modalAlert, #modalGallery {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000;
     display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);
@@ -304,19 +317,6 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     padding: 6px 12px; border-radius: 8px; font-size: 13px; min-width: 100px; text-align: center;
     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
-
-/* Restored Popup Styles */
-.pop {
-    position: fixed; background: var(--panel); border: 1px solid var(--accent);
-    padding: 8px; border-radius: 12px; display: none; gap: 4px; z-index: 9999;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-}
-.pop button {
-    background: var(--bg); border: 1px solid var(--border); color: white;
-    padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
-    transition: all 0.2s; min-width: 50px;
-}
-.pop button:hover { background: var(--accent); border-color: white; }
 
 @media (max-width: 900px) {
     aside {
@@ -2037,7 +2037,7 @@ function handleTap(sx,sy){
             if(chkSwag.checked && currLayer === 'garland') {
                 const mx = (p1.x + p2.x) / 2; const my = (p1.y + p2.y) / 2; const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
                 sketch.cps.push({x: mx, y: my + (dist * 0.2)}); 
-            } else { sketch.cps.push(null); }
+            } else { if (!sketch.cps) sketch.cps = []; sketch.cps.push(null); }
         }
     }
 
@@ -2150,11 +2150,11 @@ function getPolylineMidpoint(points){
 function drawTreeIcon(ctx, p, kind, size, scale, itemScale, overrideScale = 1.0) { 
     const baseScale = 3.0; 
     let catScale = 1.0;
-    if(kind === 'C9 Tree') catScale = settings.c9TreeScale;
-    else if(kind === 'ToL') catScale = settings.tolScale;
-    else catScale = settings.miniTreeScale;
+    if(kind === 'C9 Tree') catScale = settings.c9TreeScale || 1.0;
+    else if(kind === 'ToL') catScale = settings.tolScale || 1.0;
+    else catScale = settings.miniTreeScale || 1.0;
 
-    scale *= (itemScale * 0.25 * baseScale * catScale * overrideScale);
+    scale *= (itemScale * 0.25 * baseScale * catScale * (overrideScale || 1.0));
 
     if(kind.includes('Branch')) { 
         const h = 25 * scale;
@@ -2306,7 +2306,6 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
 
                 if (blockDist > 0.01) {
                     if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
-                    ctx.shadowBlur = 0;
                     ctx.beginPath();
                     ctx.moveTo(sStart.x, sStart.y);
                     ctx.lineTo(sEnd.x, sEnd.y);
@@ -2319,6 +2318,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
                     ctx.strokeStyle = color;
                     ctx.lineWidth = baseWidth;
                     ctx.stroke();
+                    ctx.shadowBlur = 0;
                 }
                 currentWorldDist = nextWorldDist;
                 lastWorldPt = {x: ptObj.x, y: ptObj.y};
@@ -2355,7 +2355,7 @@ function drawLabels(ctx, isExport=false) {
                     p = getPolylineMidpoint(it.points); offY = -14 * fontScaleFactor; 
                 } else if (it.kind === 'ToL') { 
                     const treeScale = (k === 'tree') ? settings.iconScale : 1.0; 
-                    const h = (it.size || 9) * 3 * scale * treeScale * settings.tolScale * (it.itemScale || 1.0); 
+                    const h = (it.size || 9) * 3 * scale * treeScale * (settings.tolScale || 1.0) * (it.itemScale || 1.0); 
                     p = {x: it.pt.x, y: it.pt.y - (h/2)/scale}; offY = 0; 
                 } else if (k === 'custom_icon') { 
                     const scaledW = it.w * it.scale; const scaledH = it.h * it.scale; 
@@ -2447,7 +2447,7 @@ function draw(){
     const itemScale = settings.iconScale; const junctionScale = settings.junctionScale; 
 
     data.wreath.forEach(w=>{
-        const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75) * scale * itemScale * settings.wreathScale * (w.itemScale || 1.0); const wreathColor = colorOf('wreath'); 
+        const s=toScr(w.pt); const r=(w.size==='42"'?12.5:8.75) * scale * itemScale * (settings.wreathScale || 1.0) * (w.itemScale || 1.0); const wreathColor = colorOf('wreath'); 
         if (isNightMode) { ctx.shadowBlur = 15 * scale; ctx.shadowColor = wreathColor; }
         ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2); ctx.fillStyle = colorOf('wreath'); ctx.fill();
         ctx.shadowBlur = 0; ctx.strokeStyle='black'; ctx.lineWidth=6 * itemScale * scale; ctx.stroke(); ctx.strokeStyle=colorOf('wreath'); ctx.lineWidth=3 * itemScale * scale; ctx.stroke(); 
