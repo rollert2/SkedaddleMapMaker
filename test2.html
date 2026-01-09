@@ -427,6 +427,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
       <button id="quickDeleteBtn" class="btn" style="color:var(--danger); height:32px" title="Delete Selected"><i data-lucide="trash-2"></i></button>
   </div>
 
+  <button id="btnAiDetect" class="btn" title="AI Detect"><i data-lucide="bot"></i><span>Ai Detect</span></button>
   <button id="btnDraw" class="btn" title="Draw Mode"><i data-lucide="pencil"></i><span>Draw</span></button>
   <button id="btnSelect" class="btn" title="Select Mode"><i data-lucide="mouse-pointer-2"></i><span>Select</span></button>
   <button id="btnMoveCanvas" class="btn" title="Pan Canvas"><i data-lucide="move"></i><span>Pan</span></button>
@@ -1120,11 +1121,9 @@ function mergeLines() {
         });
     });
 
-    // Valid only if all items are lines
     const invalid = mergedItems.some(m => !m.item.points);
     if (invalid) { showAlert("Only lines can be merged."); return; }
 
-    // Dimensions: concatenation of points
     let newPoints = [];
     let totalBulbs = 0;
     let totalFeet = 0;
@@ -1146,13 +1145,11 @@ function mergeLines() {
         }
     });
 
-    // Remove old items
     mergedItems.forEach(m => {
         const idx = data[m.layer].indexOf(m.item);
         if (idx > -1) data[m.layer].splice(idx, 1);
     });
 
-    // Add new line
     const nextMergeIdx = nextIndex("Line #");
     const newItem = {
         points: newPoints,
@@ -1182,7 +1179,6 @@ function refreshTable(){
     Object.keys(data).forEach(k=>{
         if (EXCLUDED_LAYERS.includes(k)) return;
         data[k].forEach(it=>{
-            // Show even if label is empty, except for specifically excluded layers
             rows.push({item: it, L:k});
         });
     });
@@ -1350,12 +1346,11 @@ function updateVisibilityMenu() {
         const groupEl = document.createElement('div');
         groupEl.className = 'vis-item-container';
         
-        // Group toggle
         const head = document.createElement('div');
         head.className = 'vis-item';
         const groupCheck = document.createElement('input');
         groupCheck.type = 'checkbox';
-        groupCheck.checked = true; // Simplified initial state
+        groupCheck.checked = true;
         
         const label = document.createElement('span');
         label.textContent = group.label;
@@ -1529,6 +1524,7 @@ document.getElementById('btnSelect').onclick=()=>{mode='select';updateModeTag()}
 document.getElementById('btnMoveCanvas').onclick=()=>{mode='move-canvas';updateModeTag()};
 document.getElementById('btnLineSplice').onclick=()=>{mode='splice';updateModeTag()};
 document.getElementById('btnMergeLines').onclick=mergeLines;
+document.getElementById('btnAiDetect').onclick=() => { /* AI Logic Placeholder */ };
 
 const quickEditPrefix = document.getElementById('quickEditPrefix');
 quickEditPrefix.oninput = (e) => {
@@ -1591,7 +1587,6 @@ function updateModeTag(){
              if (isLabelable) quickEditPrefix.value = selectedItem.obj.label || '';
              if (mode === 'move-label') moveLabelToggleBtn.classList.add('toggled');
              
-             // Individual Scale Slider visibility
              if (['tree', 'wreath', 'bow'].includes(selectedItem.type)) {
                  itemScaleWrap.style.display = 'flex';
                  itemScaleSlider.value = selectedItem.obj.itemScale || 1.0;
@@ -1894,7 +1889,6 @@ function spliceLine(sx, sy) {
         const line = best.line;
         const totalPoints = line.points.length;
         
-        // Split math: Calculate original total length and proportional split
         let totalLen = 0;
         for(let i=0; i < totalPoints-1; i++) totalLen += Math.hypot(line.points[i+1].x - line.points[i].x, line.points[i+1].y - line.points[i].y);
         
@@ -1906,18 +1900,20 @@ function spliceLine(sx, sy) {
         const origBulbs = parseFloat(line.bulbs) || 0;
         const origFeet = parseFloat(line.ft) || 0;
 
-        // Line 1: Start to split point
         const p1 = line.points.slice(0, best.index + 1);
         p1.push(best.point);
         
-        // Line 2: Split point to end
         const p2 = [best.point];
         p2.push(...line.points.slice(best.index + 1));
 
-        // Create new item for line 2
+        // Get root label (e.g. "P1" from "P1 (a)")
+        let rootLabel = line.label || "";
+        const suffixMatch = rootLabel.match(/^(.*?)\s*\([a-z]\)$/i);
+        if (suffixMatch) rootLabel = suffixMatch[1];
+
         const l2 = {
             points: p2,
-            label: line.label ? `${line.label}b` : '',
+            label: rootLabel,
             ft: Math.round(origFeet * (1 - ratio) * 10) / 10,
             bulbs: Math.round(origBulbs * (1 - ratio)),
             clip: line.clip,
@@ -1927,14 +1923,27 @@ function spliceLine(sx, sy) {
             index: ++actionCounter
         };
         
-        // Modify existing line 1
         line.points = p1;
         line.ft = Math.round(origFeet * ratio * 10) / 10;
         line.bulbs = Math.round(origBulbs * ratio);
-        if (line.label) line.label = `${line.label}a`;
+        line.label = rootLabel;
 
         data[best.layer].push(l2);
         
+        // Re-index all related segments by centerX
+        const relatives = data[best.layer].filter(item => {
+            let itemRoot = item.label || "";
+            const sm = itemRoot.match(/^(.*?)\s*\([a-z]\)$/i);
+            if (sm) itemRoot = sm[1];
+            return itemRoot === rootLabel;
+        });
+
+        relatives.sort((a, b) => getItemCenter(a).x - getItemCenter(b).x);
+        relatives.forEach((item, idx) => {
+            const char = String.fromCharCode(97 + idx); // a, b, c...
+            item.label = `${rootLabel} (${char})`;
+        });
+
         markPowerDirty();
         refreshTable();
         requestRender();
@@ -2337,7 +2346,7 @@ function handleSelectDown(sx, sy){
     Object.keys(data).forEach(k => searchObjects(data[k], k));
     if (bestObject) {
         selectedItem = bestObject;
-        if (mode === 'move-label') mode = 'select'; // Switch back if we clicked a new object
+        if (mode === 'move-label') mode = 'select'; 
         updateModeTag();
     } else { selectedItem = null; mode = 'select'; updateModeTag(); }
     requestRender();
@@ -2867,7 +2876,6 @@ async function performDualSave() {
 function buildPayload() {
     const isCC = document.getElementById('btnCustomerControlled').classList.contains('toggled');
     
-    // Create a small thumbnail for the gallery
     let thumbnail = null;
     const thumbCanvas = document.createElement('canvas');
     thumbCanvas.width = 160; thumbCanvas.height = 90;
@@ -2917,7 +2925,6 @@ async function performSaveMapOnly() {
     const blob = new Blob([JSON.stringify(payload)], {type:'application/octet-stream'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filenameMap; a.click();
     
-    // Cloud Backup
     saveToGitHub(filenameMap, JSON.stringify(payload));
 }
 
@@ -2929,7 +2936,6 @@ async function performSavePdf() {
     const pdfName = `${getFilenameBase()}.pdf`;
     pdf.save(pdfName);
 
-    // Cloud Backup (as base64)
     saveToGitHub(pdfName, pngData.split(',')[1], true);
 }
 
@@ -2990,7 +2996,7 @@ function captureCanvasData() {
     const HEADER_BASE = 110; 
     const HEADER_H = HEADER_BASE + estimatedNotesHeight;
     const FOOTER_ROW_H = 24; const FOOTER_TITLE_H = 40; 
-    const items = collectRows(true); // IsForExport = true
+    const items = collectRows(true); 
     const ITEM_COUNT = items.length; 
     const FOOTER_H = ITEM_COUNT > 0 ? (FOOTER_TITLE_H + ITEM_COUNT * FOOTER_ROW_H + 40) : 0;
     const OUT_W = MAP_WIDTH_PX; const OUT_H = HEADER_H + MAP_H_PX + FOOTER_H;
@@ -3064,7 +3070,6 @@ function captureCanvasData() {
                      const uPos = toScr({x:uNode.x, y:uNode.y}); const vPos = toScr({x:vNode.x, y:vNode.y});
                      let from, to, isReversed; 
                      if(uNode.dist < vNode.dist) { from = uPos; to = vPos; isReversed = false; } else { from = vPos; to = uPos; isReversed = true; }
-                     const dx = to.x - from.x, dy = to.y - from.y; 
                      
                      const worldDist = segmentLength({x:uNode.x, y:uNode.y}, {x:vNode.x, y:vNode.y}, e.cps);
                      let count = Math.floor((worldDist + 0.5) / 100 * settings.arrowFreqFactor);
@@ -3191,12 +3196,10 @@ function collectRows(isForExport = false) {
             const hasNotes = it.notes && it.notes.trim() !== '';
 
             if (isForExport) {
-                // For PDF: Include if it has ID, OR if it has no ID but has notes.
                 if (hasId || hasNotes) {
                     rows.push({ L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false, kind: it.kind });
                 }
             } else {
-                // For UI table: Include everything (per request)
                 rows.push({ L: L, label: it.label, ft: it.ft || '', bulbs: it.bulbs || '', col: it.col || '', clip: it.clip || '', notes: it.notes || '', fra: it.fra || false, gguard: it.gguard || false, kind: it.kind });
             }
         });
