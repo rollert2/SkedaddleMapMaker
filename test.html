@@ -168,16 +168,15 @@ canvas {
 }
 body.white-bg .canvasWrap { background: #ffffff; background-image: none; }
 
-/* FIX 1: SIDEBAR DRAWER CONSISTENCY */
-/* Moved position absolute and transform to the base class so it acts as a drawer on all sizes */
+/* FIX 1: SIDEBAR DRAWER & STATIONARY REVERT */
+/* Sidebar is stationary on PC/Tablet by default. Closed state shifts it out. */
 aside {
-    width: 320px; background: var(--panel); border-right: 1px solid var(--border);
+    width: 320px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; overflow-y: auto; padding: 16px;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 20;
-    position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(-105%); 
-    box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+    z-index: 20;
 }
-aside.open { transform: translateX(0); }
+aside.closed { margin-left: -320px; }
 
 .overlay {
     position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px);
@@ -321,6 +320,13 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
 .pop button:hover { background: var(--accent); border-color: white; }
 
 @media (max-width: 900px) {
+    aside {
+        position: absolute; top: 0; bottom: 0; left: 0; 
+        margin-left: 0 !important; /* Force reset for mobile mode */
+        transform: translateX(-105%); 
+        box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+    }
+    aside.open { transform: translateX(0); }
     #lenWrap { width: 100%; }
     h1 { display: none; }
     header { justify-content: space-between; }
@@ -878,10 +884,21 @@ let settings = { iconScale: 1.5, junctionScale: 1.0, lineScale: 1.0, labelScale:
 let isNightMode = false;
 
 const aside=document.getElementById('side'), overlay=document.getElementById('overlay');
+
+// UPDATED: Consistency fix while keeping stationary PC behavior
 function toggleMenu(){
-    const isOpen = aside.classList.contains('open');
-    if(isOpen) { aside.classList.remove('open'); overlay.classList.remove('show'); }
-    else { aside.classList.add('open'); overlay.classList.add('show'); }
+    const isMobile = matchMedia('(max-width:900px)').matches;
+    if (isMobile) {
+        // Overlay Drawer logic for mobile
+        const isOpen = aside.classList.toggle('open');
+        overlay.classList.toggle('show', isOpen);
+    } else {
+        // Stationary Slide logic for Desktop/PC
+        aside.classList.toggle('closed');
+        overlay.classList.remove('show');
+        // Give time for CSS transition then fix canvas sizing
+        setTimeout(initializeAndSizeContext, 350);
+    }
 }
 document.getElementById('logoBtn').onclick=toggleMenu;
 overlay.onclick=toggleMenu;
@@ -1097,9 +1114,9 @@ function refreshTable(){
         const select = tr.querySelector('.clip-select');
         const fraCheck = tr.querySelector('.fra-checkbox');
         const gguardCheck = tr.querySelector('.gg-checkbox'); 
-        const inputId = tr.querySelector('input[style*="width:50px"]');
-        const inputCol = tr.querySelector('input[placeholder="Col"]');
-        const inputFt = tr.querySelector('input[placeholder="ft"]');
+        const inputId = tr.querySelector('input[style*=\"width:50px\"]');
+        const inputCol = tr.querySelector('input[placeholder=\"Col\"]');
+        const inputFt = tr.querySelector('input[placeholder=\"ft\"]');
         const inputBulbs = tr.querySelector('input[placeholder=\"#\"]');
         const inputNotes = tr.querySelector('input[placeholder=\"Notes\"]');
         
@@ -1575,6 +1592,10 @@ cv.addEventListener('pointerdown',e=>{
     cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
     pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
     
+    // FIX 2: COORDINATE SYNC ON TOUCH START
+    // Immediately sync current visual cursor to the touch point to prevent jumps from previous zooms
+    cv._mx = ex; cv._my = ey;
+
     if (!e.target.closest('#lblEditor')) {
         document.getElementById('lblEditor').style.display = 'none';
     }
@@ -1641,9 +1662,8 @@ cv.addEventListener('pointermove',e=>{
     if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x,y,id:e.pointerId});
     cv._mx=x; cv._my=y;
     
-    /* FIX 2: PINCH ZOOM COORDINATE SYNC */
-    // Ensure that while zooming, the internal cursor tracking (used for the sketch preview)
-    // follows the midpoint of the gesture so it doesn't reference a stale touch position.
+    // FIX 2: PINCH ZOOM COORDINATE SYNC
+    // Ensure drawing cursor follows the midpoint of a pinch gesture
     if(gesture && pointers.size>=2){
         const v=[...pointers.values()];
         const currDist=ds(v[0],v[1]); const currMid=mp(v[0],v[1]);
@@ -2215,6 +2235,7 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
 
                 if (blockDist > 0.01) {
                     if (isNightMode && isLightElement) { ctx.shadowBlur = glowStrength; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
+                    ctx.shadowBlur = 0;
                     ctx.beginPath();
                     ctx.moveTo(sStart.x, sStart.y);
                     ctx.lineTo(sEnd.x, sEnd.y);
@@ -2227,7 +2248,6 @@ function drawContinuousLine(it, col, layerName, isForExport = false, arrowDensit
                     ctx.strokeStyle = color;
                     ctx.lineWidth = baseWidth;
                     ctx.stroke();
-                    ctx.shadowBlur = 0;
                 }
                 currentWorldDist = nextWorldDist;
                 lastWorldPt = {x: ptObj.x, y: ptObj.y};
