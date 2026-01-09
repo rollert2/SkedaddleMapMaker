@@ -119,6 +119,7 @@ h1 { margin: 0 16px 0 0; font-size: 18px; font-weight: 600; color: var(--text); 
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn.toggled { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: var(--accent); }
 
+/* Night Mode Glow Style */
 .tool.night-glow {
     box-shadow: 0 0 15px rgba(168, 85, 247, 0.5), inset 0 0 5px rgba(168, 85, 247, 0.5);
     border-color: #a855f7 !important;
@@ -167,8 +168,9 @@ canvas {
 }
 body.white-bg .canvasWrap { background: #ffffff; background-image: none; }
 
+/* Scissor cursor for Splice Mode */
 body.splice-cursor .canvasWrap {
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cline x1='20' y1='4' x2='8.12' y2='15.88'/%3E%3Cline x1='14.47' y1='14.48' x2='20' y2='20'/%3E%3Cline x1='8.12' y1='8.12' x2='12' y2='12'/%3E%3C/svg%3E") 6 6, auto;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cline x1='20' y1='4' x2='8.12' y2='15.88'/%3E%3Cline x1='14.47' y1='14.48'/%3E%3Cline x1='8.12' y1='8.12' x2='12' y2='12'/%3E%3C/svg%3E") 6 6, auto;
 }
 
 aside {
@@ -228,6 +230,7 @@ textarea.input { resize: vertical; min-height: 80px; }
     box-shadow: 0 0 0 1px var(--accent);
 }
 
+/* Visibility UI Styles - Matched to Toolbox Accordion */
 .vis-acc { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); margin-bottom: 8px; overflow: hidden; }
 .vis-accHead {
     display: flex; align-items: center; gap: 10px; cursor: pointer;
@@ -263,6 +266,7 @@ input[type=range].input::-webkit-slider-thumb {
 }
 input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
+/* Eye icon in table */
 .vis-toggle { cursor: pointer; color: var(--accent); transition: all 0.2s; padding: 4px; border-radius: 4px; }
 .vis-toggle:hover { background: var(--panel-hover); }
 .vis-toggle.faded { color: var(--text-muted); opacity: 0.4; }
@@ -290,6 +294,7 @@ input[type=range].input::-webkit-slider-thumb:hover { transform: scale(1.1); }
     max-height: 80vh; display: flex; flex-direction: column;
 }
 
+/* Enhanced Gallery Styling */
 .gallery-card { max-width: 900px; width: 95%; height: 85vh; }
 .gallery-list {
     overflow-y: auto; flex: 1; text-align: left; margin: 16px 0;
@@ -365,13 +370,6 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     background: var(--panel) !important; border: 1px solid var(--border) !important;
 }
 .ai-btn:hover { border-color: var(--accent) !important; }
-.ai-btn.loading { opacity: 0.7; pointer-events: none; position: relative; overflow: hidden; }
-.ai-btn.loading::after {
-    content: ""; position: absolute; left: -100%; top: 0; height: 100%; width: 100%;
-    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), transparent);
-    animation: loading-shimmer 1.5s infinite;
-}
-@keyframes loading-shimmer { to { left: 100%; } }
 
 #aiOverlay {
     position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
@@ -844,21 +842,19 @@ let gisReady = false;
 
 const gLoadDriveBtn = document.getElementById('gLoadDrive');
 
-if (window.gapi) {
-    gapi.load('client:picker', async () => {
-        try {
-            await gapi.client.setApiKey(API_KEY);
-            await gapi.client.load('drive', 'v3'); 
-            gapiReady = true;
-            const checkGis = setInterval(() => {
-                if (window.google && window.google.accounts) {
-                    clearInterval(checkGis);
-                    initGis();
-                }
-            }, 100);
-        } catch (err) { console.error("Error loading GAPI:", err); }
-    });
-}
+gapi.load('client:picker', async () => {
+    try {
+        await gapi.client.setApiKey(API_KEY);
+        await gapi.client.load('drive', 'v3'); 
+        gapiReady = true;
+        const checkGis = setInterval(() => {
+            if (window.google && window.google.accounts) {
+                clearInterval(checkGis);
+                initGis();
+            }
+        }, 100);
+    } catch (err) { console.error("Error loading GAPI:", err); }
+});
 
 function initGis() {
     try {
@@ -1169,7 +1165,7 @@ function shouldShowGutterGuard(layer, clipType) { return layer === 'fascia' && (
 
 function refreshTable(){
     const tbody = document.getElementById('lenRows'); tbody.innerHTML='';
-    let rows = collectRows(false);
+    let rows = collectRows(false); // isForExport = false, includes invisible items
     rows.sort((a,b)=> (a.item.label||'').localeCompare(b.item.label||'', undefined, {numeric:true}));
     const chkAuto = document.getElementById('chkAutoCalc');
 
@@ -1516,9 +1512,22 @@ function toggleAiMenu(anchor) {
     if (menu.style.display === 'flex') { menu.style.display = 'none'; return; }
     const r = anchor.getBoundingClientRect();
     menu.style.display = 'flex';
-    menu.style.left = r.left + 'px';
-    menu.style.top = r.top + 'px';
-    menu.style.transform = 'translate(-105%, 0)';
+    
+    // Position intelligently relative to the sidebar button
+    let left = r.right + 12;
+    let top = r.top;
+    
+    // Check viewport bounds
+    if (left + 240 > window.innerWidth) {
+        left = Math.max(10, r.left - 250);
+    }
+    if (top + 300 > window.innerHeight) {
+        top = Math.max(10, window.innerHeight - 310);
+    }
+
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    menu.style.transform = 'none'; // Clear translate so absolute pixel values work
 }
 
 let mode='draw',currLayer='ridges',currTreeKind='Trunk + Branch (Minis)',currWreathSize='32"', currLabelTarget='point'; 
@@ -1532,7 +1541,7 @@ function selectTool(L, variant=null){
     else toolBtn[L]?.classList.add('active');
     if(matchMedia('(max-width:900px)').matches) toggleMenu();
     document.getElementById('imgUploadPop').style.display = 'none';
-    document.getElementById('aiMenu').style.display = 'none';
+    document.getElementById('aiMenu').style.display = 'none'; // Close AI menu on tool swap
     mode='draw'; if (L === 'label') mode = 'label'; 
     updateModeTag(); startNewSketch();
     if(currLayer === 'garland') {
@@ -1830,8 +1839,6 @@ cv.addEventListener('pointerdown',e=>{
     cv._mx = ex; cv._my = ey;
     if (!e.target.closest('#lblEditor')) { document.getElementById('lblEditor').style.display = 'none'; }
     document.getElementById('imgUploadPop').style.display = 'none';
-    if (!e.target.closest('#aiMenu')) document.getElementById('aiMenu').style.display = 'none';
-    
     if(pointers.size === 1) {
         isTapCandidate = true; tapDownX = ex; tapDownY = ey; dragStartX = ex; dragStartY = ey; dragPanStartX = panX; dragPanStartY = panY;
         if (mode === 'select' && selectedItem) { handleSelectDown(ex, ey); if (draggingPoint) { isTapCandidate = false; return; } }
@@ -2775,6 +2782,7 @@ function collectRows(isForExport = false) {
         if (EXCLUDED_LAYERS.includes(L)) return;
         data[L].forEach(it => {
             if (isForExport && it.isVisible === false) return;
+            // PDF Export only includes items with ID or Notes
             if (isForExport) {
                 const hasId = it.label && it.label.trim() !== '';
                 const hasNotes = it.notes && it.notes.trim() !== '';
@@ -2799,16 +2807,18 @@ async function runAiDetection(task) {
     overlay.style.display = 'flex';
     document.getElementById('aiMenu').style.display = 'none';
 
-    let prompt = `Analyze this house image for architectural features to add holiday lights. 
-    Find the following features and return their coordinates as 0-1000 normalized values (Top-Left is 0,0).
-    Features requested: ${task === 'all' ? 'Roof Peaks, Gutter lines (Fascia), and Main Window outlines' : task}.
-    Return the data in a strict JSON format:
+    let prompt = `Analyze this house image for holiday light installation.
+    Find and trace the architectural features.
+    
+    Return EXACT JSON:
     {
        "peaks": [ {"x": number, "y": number}, ... ],
        "fascia": [ [{"x": number, "y": number}, ...], ... ],
        "windows": [ [{"x": number, "y": number}, ...], ... ]
     }
-    For fascia and windows, return an array of paths (arrays of points). Each path represents a continuous line or shape.`;
+    
+    Requested features: ${task === 'all' ? 'All available' : task}.
+    Normalized coordinates 0-1000 (Top-Left: 0,0). Windows should be closed loops if possible.`;
 
     const base64Data = imgDataUrl.split(',')[1];
     
@@ -2899,7 +2909,8 @@ function initializeUI() {
         Object.keys(data).forEach(k => { data[k].forEach(it => { if(it.label) it.col = v; }); });
         requestRender(); 
     };
-    
+
+    // Initialize AI Detect Buttons
     document.querySelectorAll('.ai-btn').forEach(btn => {
         btn.onclick = () => runAiDetection(btn.dataset.aiTask);
     });
