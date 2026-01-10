@@ -659,7 +659,8 @@ const iconMap = {
     'label': 'type',
     'custom_icon': 'image',
     'night_mode': 'moon',
-    'ai_detect': 'bot'
+    'ai_detect': 'bot',
+    'ghost_door': 'door-open'
 };
 
 const tp1 = "ghp_xSeuggnKkttH6z";
@@ -884,11 +885,11 @@ const cats=[
     {name:'Greenery',key:'grn',list:['wreath32','wreath42','garland','bow']},
     {name:'Trees',key:'tre',list:['tree:Trunk + Branch (Minis)','tree:Trunk + Canopy (Minis)','tree:C9 Tree','tree:ToL']},
     {name:'Power',key:'pwr',list:['powersource','cords','threeway']},
-    {name:'Specials', key:'spec', list:['label', 'custom_icon', 'night_mode', 'ai_detect']}
+    {name:'Specials', key:'spec', list:['label', 'custom_icon', 'ghost_door', 'night_mode', 'ai_detect']}
 ]; 
-const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label', custom_icon: 'Image', night_mode: 'Night', ai_detect: 'Ai Detect'};
+const pretty={ridges:'Ridges',fascia:'Fascia',peaks:'Peaks',groundstakes:'Stakes',shrub:'Shrub',windows:'Windows',garland:'Garland',wreath:'Wreath',bow:'Bow',cords:'Cord',powersource:'Source',threeway:'3-Way',tree:'Tree', label: 'Label', custom_icon: 'Image', ghost_door: 'Ghost Door', night_mode: 'Night', ai_detect: 'Ai Detect'};
 const pfx={ridges:'R',fascia:'F',peaks:'P',groundstakes:'GS',shrub:'S',windows:'W',garland:'GA',wreath:'WR',bow:'B',cords:'C',powersource:'PS',tree:'T', label:'LBL', custom_icon: 'CI'};
-const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],garland:[],wreath:[],bow:[],cords:[],powersource:[],threeway:[],tree:[], label:[], custom_icon:[]}; 
+const data={ridges:[],fascia:[],peaks:[],groundstakes:[],shrub:[],windows:[],garland:[],wreath:[],bow:[],cords:[],powersource:[],threeway:[],tree:[], label:[], custom_icon:[], ghostDoor: null}; 
 
 const visibilityGroups = [
     { label: 'House Lights', sub: ['fascia', 'peaks', 'ridges'] },
@@ -925,7 +926,8 @@ const colorOf=L=>({ridges:'#fffdf0',fascia:'#fffdf0',peaks:'#fffdf0',groundstake
 
 let settings = { 
     iconScale: 1.5, junctionScale: 1.0, lineScale: 1.0, labelScale: 3.0, lineThickness: 3, arrowScale: 1.0, arrowFreqFactor: 1.0, bgBlur: 0,
-    c9TreeScale: 1.0, miniTreeScale: 1.0, tolScale: 1.0, wreathScale: 1.0, bowScale: 1.0
+    c9TreeScale: 1.0, miniTreeScale: 1.0, tolScale: 1.0, wreathScale: 1.0, bowScale: 1.0,
+    pixelsPerFoot: 0, perspectiveFactor: 1.0
 };
 let isNightMode = false;
 
@@ -1039,6 +1041,22 @@ function toggleNightMode(isManualToggle=true) {
     requestRender();
 }
 
+function updatePerspectiveFromDoor() {
+    if (!data.ghostDoor) return;
+    const d = data.ghostDoor;
+    // Standard residential door height is ~80 inches (6.6 ft)
+    const leftHeight = Math.hypot(d.tl.x - d.bl.x, d.tl.y - d.bl.y);
+    const rightHeight = Math.hypot(d.tr.x - d.br.x, d.tr.y - d.br.y);
+    
+    // Set global pixels-per-foot based on average vertical height
+    const avgHeightPx = (leftHeight + rightHeight) / 2;
+    settings.pixelsPerFoot = avgHeightPx / 6.6; 
+    
+    // Calculate simple horizontal skew
+    // If right side is smaller, objects on the right are "deeper"
+    settings.perspectiveFactor = leftHeight / rightHeight; 
+}
+
 const chkSnap = { checked: true };
 const btnSnap = document.getElementById('btnSnap');
 btnSnap.onclick = () => { chkSnap.checked = !chkSnap.checked; btnSnap.classList.toggle('toggled', chkSnap.checked); };
@@ -1073,7 +1091,7 @@ function isC9(L) { const c = cats.find(x => x.key === 'c9'); return c && c.list.
 function relabelIds() {
     let itemsToRelabel = [];
     Object.keys(data).forEach(L => {
-        if (L === 'cords' || L === 'threeway' || L === 'powersource' || L === 'bow' || L === 'custom_icon' || L === 'label') return; 
+        if (L === 'cords' || L === 'threeway' || L === 'powersource' || L === 'bow' || L === 'custom_icon' || L === 'label' || L === 'ghostDoor') return; 
         data[L].forEach(item => {
             const prefix = pfx[L] || 'L';
             const isStandardLabel = !item.label || new RegExp('^' + prefix + '\\d+$', 'i').test(item.label);
@@ -1444,17 +1462,13 @@ function buildTools(){
       const iconName = iconMap[k] || 'circle';
       const iconHtml = `<i data-lucide="${iconName}"></i>`;
       let displayText = pretty[k]||k;
-      if(k.startsWith('tree:')) displayText = k.slice(5).split('(')[0].trim();
-      else if(k.startsWith('wreath')) displayText = k==='wreath32'?'Wr 32"':'Wr 42"';
-      else if (k === 'custom_icon') displayText = 'Image';
-      else if (k === 'night_mode') displayText = 'Night';
-      else if (k === 'ai_detect') displayText = 'Ai Detect';
-      btn.innerHTML = `${iconHtml}<span>${displayText}</span>`;
       if(k.startsWith('tree:')){
           const t=k.slice(5); btn.onclick=()=>selectTool('tree',t); toolBtn[k]=btn;
       } else if(k.startsWith('wreath')){
           btn.onclick=()=>selectTool('wreath', k==='wreath32'?'32"':'42"'); toolBtn[k]=btn;
       } else if (k === 'custom_icon') {
+          btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
+      } else if (k === 'ghost_door') {
           btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
       } else if (k === 'night_mode') {
           btn.onclick=()=>toggleNightMode(); toolBtn[k]=btn;
@@ -1464,6 +1478,7 @@ function buildTools(){
       } else {
           btn.onclick=()=>selectTool(k); toolBtn[k]=btn;
       }
+      btn.innerHTML = `${iconHtml}<span>${displayText}</span>`;
       grid.appendChild(btn);
     });
     body.appendChild(grid);acc.append(head,body);accWrap.appendChild(acc);
@@ -1542,7 +1557,7 @@ function updateModeTag(){
          if (selectedItem) {
              const sqe = document.getElementById('selectionQuickEdit');
              sqe.style.display = 'flex';
-             const isLabelable = !['powersource','threeway'].includes(selectedItem.type);
+             const isLabelable = !['powersource','threeway', 'ghostDoor'].includes(selectedItem.type);
              document.getElementById('editLabelPrefix').style.display = isLabelable ? 'inline' : 'none';
              quickEditPrefix.style.display = isLabelable ? 'inline' : 'none';
              moveLabelToggleBtn.style.display = isLabelable ? 'inline-flex' : 'none';
@@ -1661,7 +1676,7 @@ function analyzePower(){
   powerGraph = {nodes, edges, deadTips, singleArrowEdges}; powerDirty = false; return powerGraph;
 }
 function projOnSeg(p,a,b){ const ABx=b.x-a.x, ABy=b.y-a.y; const d=ABx*ABx+ABy*ABy||1; const t=((p.x-a.x)*ABx+(p.y-a.y)*ABy)/d; return{t,q:{x:a.x+ABx*t,y:a.y+ABy*t}}; }
-function nextIndex(prefix){const re=new RegExp('^'+prefix+'(\\d+)$','i');const used=new Set();for(const L in data){for(const it of data[L]){const m=(it.label||'').match(re);if(m)used.add(+m[1])}}let i=1;while(used.has(i))i++;return i}
+function nextIndex(prefix){const re=new RegExp('^'+prefix+'(\\d+)$','i');const used=new Set();for(const L in data){for(const it of (Array.isArray(data[L]) ? data[L] : [])){const m=(it.label||'').match(re);if(m)used.add(+m[1])}}let i=1;while(used.has(i))i++;return i}
 
 function getSnapLineOnly(wx, wy, thresholdW){
     let best = null; let minD = thresholdW; const p = {x:wx, y:wy};
@@ -1728,11 +1743,31 @@ function placeCustomIcon(w, sx, sy, label, index) {
     popEl.style.left = sx + 'px'; popEl.style.top = sy + 'px'; popEl.style.transform = 'translate(-50%, -100%)'; popEl.style.display = 'flex';
 }
 
+function placeGhostDoor(w, sx, sy) {
+    // Places a standard door frame: 3ft x 6.6ft
+    const wDoor = 3 * 20; // placeholder pixels if no scale exists
+    const hDoor = 6.6 * 20;
+    data.ghostDoor = {
+        tl: {x: w.x - wDoor/2, y: w.y - hDoor},
+        tr: {x: w.x + wDoor/2, y: w.y - hDoor},
+        bl: {x: w.x - wDoor/2, y: w.y},
+        br: {x: w.x + wDoor/2, y: w.y},
+        index: ++actionCounter,
+        isVisible: true,
+        type: 'ghostDoor'
+    };
+    updatePerspectiveFromDoor();
+    selectedItem = { type: 'ghostDoor', obj: data.ghostDoor };
+    updateModeTag();
+    requestRender();
+}
+
 function placeItem(L, w, sx, sy){
     let item; const {label, index} = getNewItemData(L);
     if(L==='tree') { placeTree(L, w, sx, sy, label, index); return; } 
     else if(L==='wreath') { placeWreath(L, w, sx, sy, label, index); return; } 
     else if(L==='custom_icon') { placeCustomIcon(w, sx, sy, label, index); return; }
+    else if(L==='ghost_door') { placeGhostDoor(w, sx, sy); return; }
     item = {pt:w, label:label, index:index, kind: L, itemScale: 1.0, isVisible: true};
     data[L].push(item); markPowerDirty(); requestRender(); refreshTable(); updateVisibilityMenu();
 }
@@ -1783,8 +1818,8 @@ cv.addEventListener('pointerdown',e=>{
         isTapCandidate = true; tapDownX = ex; tapDownY = ey; dragStartX = ex; dragStartY = ey; dragPanStartX = panX; dragPanStartY = panY;
         if (mode === 'select' && selectedItem) { handleSelectDown(ex, ey); if (draggingPoint) { isTapCandidate = false; return; } }
         if (mode === 'move' && selectedItem) {
-             dragStartPt = { x: selectedItem.obj.pt ? selectedItem.obj.pt.x : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).x : 0),
-                             y: selectedItem.obj.pt ? selectedItem.obj.pt.y : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).y : 0) };
+             dragStartPt = { x: selectedItem.obj.pt ? selectedItem.obj.pt.x : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).x : (selectedItem.obj.tl ? selectedItem.obj.bl.x : 0)),
+                             y: selectedItem.obj.pt ? selectedItem.obj.pt.y : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).y : (selectedItem.obj.tl ? selectedItem.obj.bl.y : 0)) };
              return;
         } else if (mode === 'move-label' && selectedItem) { 
              const w = toWorld(ex, ey); draggedLabelTarget = { item: selectedItem.obj, type: 'primary' }; isTapCandidate = false; return;
@@ -1853,6 +1888,10 @@ cv.addEventListener('pointermove',e=>{
                  if (snap) { draggingPoint.obj.pt = {x: snap.x, y: snap.y}; if(snap.type === 'mid') currentSnapLine = snap; } 
                  else draggingPoint.obj.pt = w;
              }
+        } else if (draggingPoint.type === 'ghostDoor') {
+            const d = draggingPoint.obj;
+            if (draggingPoint.key) d[draggingPoint.key] = w;
+            updatePerspectiveFromDoor();
         } else if (draggingPoint.type === 'custom_icon') {
             const ci = draggingPoint.obj;
             if (draggingPoint.handle === 'move' || draggingPoint.index === -1) { ci.pt.x = w.x; ci.pt.y = w.y; } 
@@ -1875,6 +1914,9 @@ cv.addEventListener('pointermove',e=>{
             obj.points.forEach(p => { p.x += dx; p.y += dy; });
             dragStartX = x; dragStartY = y; dragStartPt.x = obj.points[0].x; dragStartPt.y = obj.points[0].y; 
             if (obj.cps) obj.cps.forEach(cp => { if (cp) { cp.x += dx; cp.y += dy; } });
+        } else if (obj.tl) {
+            ['tl','tr','bl','br'].forEach(k => { obj[k].x += dx; obj[k].y += dy; });
+            dragStartX = x; dragStartY = y; dragStartPt.x = obj.bl.x; dragStartPt.y = obj.bl.y;
         }
         markPowerDirty(); requestRender(); return;
     } else if (mode === 'move-label' && draggedLabelTarget) {
@@ -1948,7 +1990,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                 Object.keys(item.ptLabels).forEach(idx => {
                     const i = parseInt(idx); const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
                 });
             }
             if(item.segLabels) {
@@ -1957,7 +1999,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                     if (item.segLabelPos && item.segLabelPos[i]) labelPos = item.segLabelPos[i];
                     else labelPos = getPolylineMidpoint([item.points[i], item.points[i+1]]);
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) {
+                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) {
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                         if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'seg', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) };
                     }
@@ -2027,17 +2069,20 @@ document.getElementById('btnUndo').onclick=()=>{
     }
     let maxIndex = -1; let targetObj = null; let targetLayer = null; let targetIdxInArray = -1;
     for (const L in data) {
-        if (!data[L]) continue; data[L].forEach((item, idx) => { if (item.index > maxIndex) { maxIndex = item.index; targetObj = item; targetLayer = L; targetIdxInArray = idx; } });
+        const arr = Array.isArray(data[L]) ? data[L] : (data[L] ? [data[L]] : []);
+        arr.forEach((item, idx) => { if (item.index > maxIndex) { maxIndex = item.index; targetObj = item; targetLayer = L; targetIdxInArray = idx; } });
     }
     if (targetObj && targetLayer) {
         redoStack.push({layer: targetLayer, item: targetObj}); document.getElementById('btnRedo').disabled = false;
-        data[targetLayer].splice(targetIdxInArray, 1); markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender();
+        if (Array.isArray(data[targetLayer])) data[targetLayer].splice(targetIdxInArray, 1); else data[targetLayer] = null;
+        markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender();
     }
 };
 document.getElementById('btnRedo').onclick = () => {
     if(redoStack.length === 0) return; const record = redoStack.pop(); if(redoStack.length === 0) document.getElementById('btnRedo').disabled = true;
     if (record.layer === 'custom_icon' && record.item.url) { const img = new Image(); img.src = record.item.url; record.item.imageObj = img; }
-    data[record.layer].push(record.item); markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender();
+    if (Array.isArray(data[record.layer])) data[record.layer].push(record.item); else data[record.layer] = record.item;
+    markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender();
 };
 
 let sketch=null; 
@@ -2051,7 +2096,7 @@ document.getElementById('btnComplete').onclick = completeSketch;
 function handleTap(sx,sy){
     if(!imgReady || mode!=='draw' || draggingPoint) return;
     const w=toWorld(sx,sy); redoStack = []; document.getElementById('btnRedo').disabled = true;
-    if(['powersource','threeway','tree','wreath','bow', 'custom_icon'].includes(currLayer)){ placeItem(currLayer, w, sx, sy); return; }
+    if(['powersource','threeway','tree','wreath','bow', 'custom_icon', 'ghost_door'].includes(currLayer)){ placeItem(currLayer, w, sx, sy); return; }
     if(!sketch) startNewSketch();
     let pt = w; 
     if(chkSnap.checked){
@@ -2083,7 +2128,9 @@ function handleSelectDown(sx, sy){
     isMovingLabel = false;
     let hitPoint = null; let bestPointDist = 45; 
     const searchPoints = (list, type, overrideHitbox=30) => {
-        list.forEach((obj, i) => {
+        if (!list) return;
+        const arr = Array.isArray(list) ? list : [list];
+        arr.forEach((obj, i) => {
             if (obj.isVisible === false) return;
             const currentHitbox = (type === 'threeway' || type === 'powersource') ? 45 : overrideHitbox; 
             if (obj.points) {
@@ -2091,6 +2138,11 @@ function handleSelectDown(sx, sy){
                     const d = Math.hypot(sx - toScr(p).x, sy - toScr(p).y);
                     if (d < currentHitbox) { if (!hitPoint || d < hitPoint.d) hitPoint = { obj, index, type, d: d }; }
                 });
+            } else if (obj.tl) {
+                 ['tl','tr','bl','br'].forEach(k => {
+                     const d = Math.hypot(sx - toScr(obj[k]).x, sy - toScr(obj[k]).y);
+                     if (d < 30) { if (!hitPoint || d < hitPoint.d) hitPoint = { obj, key: k, type, d: d }; }
+                 });
             } else if (obj.pt) {
                 const scaleFactor = (type === 'threeway' || type === 'powersource') ? settings.junctionScale : settings.iconScale;
                 const scaledHitbox = (type === 'label') ? 40 : 30 * scaleFactor; 
@@ -2115,7 +2167,9 @@ function handleSelectDown(sx, sy){
     if (hitPoint) { draggingPoint = hitPoint; selectedItem = { type: hitPoint.type, obj: hitPoint.obj }; updateModeTag(); requestRender(); return; }
     let bestObject = null; let bestObjectDist = 30; const w = toWorld(sx, sy);
     const searchObjects = (list, type) => {
-        list.forEach(obj => {
+        if(!list) return;
+        const arr = Array.isArray(list) ? list : [list];
+        arr.forEach(obj => {
             if (obj.isVisible === false) return;
             if (obj.points) {
                 for (let i = 0; i < obj.points.length - 1; i++) {
@@ -2124,6 +2178,9 @@ function handleSelectDown(sx, sy){
                 }
             } else if (obj.pt) {
                  const d = Math.hypot(sx - toScr(obj.pt).x, sy - toScr(obj.pt).y);
+                 if (d < bestObjectDist) { bestObjectDist = d; bestObject = { type, obj }; }
+            } else if (obj.tl) {
+                 const d = Math.hypot(sx - toScr(obj.bl).x, sy - toScr(obj.bl).y);
                  if (d < bestObjectDist) { bestObjectDist = d; bestObject = { type, obj }; }
             }
         });
@@ -2136,10 +2193,13 @@ function handleSelectDown(sx, sy){
 
 function getItemCenter(obj){
     if(obj.pt) { if (obj.kind === 'custom_icon') { const scaledW = obj.w * obj.scale; const scaledH = obj.h * obj.scale; return { x: obj.pt.x + scaledW / 2, y: obj.pt.y + scaledH / 2 }; } return obj.pt; }
-    if(obj.points){ let sx=0, sy=0; obj.points.forEach(p=>{sx+=p.x; sy+=p.y}); return {x:sx/obj.points.length, y:sy/obj.points.length}; } return {x:0,y:0};
+    if(obj.points){ let sx=0, sy=0; obj.points.forEach(p=>{sx+=p.x; sy+=p.y}); return {x:sx/obj.points.length, y:sy/obj.points.length}; } 
+    if(obj.bl) return obj.bl;
+    return {x:0,y:0};
 }
 function deleteItem(sel){
-    const arr = data[sel.type]; const idx = arr.indexOf(sel.obj); if(idx > -1) arr.splice(idx, 1);
+    const arr = data[sel.type]; 
+    if (Array.isArray(arr)) { const idx = arr.indexOf(sel.obj); if(idx > -1) arr.splice(idx, 1); } else data[sel.type] = null;
     markPowerDirty(); refreshTable(); updateVisibilityMenu(); redoStack = []; document.getElementById('btnRedo').disabled = true;
 }
 
@@ -2215,6 +2275,36 @@ function drawBow(x, y, scale, itemScale){
     ctx.beginPath(); ctx.ellipse(x+s*0.5, y-s*0.15, s*0.5, s*0.35, 0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x-s*0.5, y+s*0.8, x-s*0.6, y+s*1.2); ctx.lineTo(x-s*0.3, y+s*1.2); ctx.quadraticCurveTo(x-s*0.2, y+s*0.8, x,y); ctx.fill();
     ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x+s*0.5, y+s*0.8, x+s*0.6, y+s*1.2); ctx.lineTo(x+s*0.3, y+s*1.2); ctx.quadraticCurveTo(x+s*0.2, y+s*0.8, x,y); ctx.fill(); ctx.stroke();
+}
+
+function drawGhostDoor(ctx) {
+    if (!data.ghostDoor) return;
+    const d = data.ghostDoor;
+    const pts = [toScr(d.tl), toScr(d.tr), toScr(d.br), toScr(d.bl)];
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    pts.forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.closePath();
+    
+    ctx.strokeStyle = '#fbbf24'; 
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.1)';
+    ctx.fill();
+
+    // Draw handles
+    ctx.setLineDash([]);
+    pts.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.stroke();
+    });
+    ctx.restore();
 }
 
 function segmentLength(p1, p2, cp = null) {
@@ -2317,7 +2407,7 @@ function drawLabels(ctx, isExport=false) {
     if (currentFontSize > 0.1) { 
         ctx.font=`bold ${currentFontSize}px "Inter", system-ui`; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.textBaseline='middle';
         Object.keys(data).forEach(k=>{
-            if (k === 'powersource') return;
+            if (k === 'powersource' || k === 'ghostDoor') return;
             data[k].forEach(it=>{
                 if((!it.label && k !== 'label') || it.isVisible === false) return; 
                 let p, offY;
@@ -2445,10 +2535,16 @@ function draw(){
          const sn = getSnap(cv._mx, cv._my, 25, (draggingPoint ? draggingPoint.obj : null));
          if(sn){ const s = toScr({x:sn.x, y:sn.y}); ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, Math.PI*2); ctx.fillStyle = 'rgba(234, 179, 8, 0.6)'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth=1; ctx.stroke(); }
     }
+    drawGhostDoor(ctx);
     drawLabels(ctx);
     if(selectedItem){
         const obj = selectedItem.obj; const selectionBaseScale = 1.0; 
         if(obj.points){ obj.points.forEach(p=>{ const s = toScr(p); ctx.beginPath(); ctx.arc(s.x, s.y, 6 * selectionBaseScale, 0, Math.PI*2); ctx.fillStyle = 'white'; ctx.fill(); ctx.strokeStyle = '#3b82f6'; ctx.lineWidth=2 * selectionBaseScale; ctx.stroke(); }); } 
+        else if (obj.tl) {
+            ['tl','tr','bl','br'].forEach(k => {
+                const s = toScr(obj[k]); ctx.beginPath(); ctx.arc(s.x, s.y, 8, 0, Math.PI*2); ctx.fillStyle = 'white'; ctx.fill(); ctx.strokeStyle = '#3b82f6'; ctx.lineWidth=2; ctx.stroke();
+            });
+        }
         else if (obj.pt && obj.kind !== 'custom_icon'){ const s = toScr(obj.pt); ctx.beginPath(); ctx.arc(s.x, s.y, 15 * selectionBaseScale, 0, Math.PI*2); ctx.strokeStyle = '#3b82f6'; ctx.lineWidth=2 * selectionBaseScale; ctx.stroke(); }
     }
 }
@@ -2463,7 +2559,7 @@ const handleImg = (f)=>{
 };
 
 function startBlankMap() { 
-    for(const key in data) data[key] = [];
+    for(const key in data) data[key] = Array.isArray(data[key]) ? [] : null;
     bg.width = 1000; bg.height = 1000; imgDataUrl = null; imgReady = true; document.body.classList.add('white-bg'); resetView(); refreshTable(); updateVisibilityMenu(); unlock(); 
 }
 
@@ -2488,7 +2584,7 @@ const handleMap = (f)=>{
         try{ 
             const o=JSON.parse(r.result); imgDataUrl=o.image||null; 
             if(o.data) {
-                 let maxIndex = 0; for (const L in data) { data[L] = o.data[L] || []; data[L].forEach(item => { if(item.index > maxIndex) maxIndex = item.index; }); }
+                 let maxIndex = 0; for (const L in data) { data[L] = o.data[L]; const arr = Array.isArray(data[L]) ? data[L] : (data[L] ? [data[L]] : []); arr.forEach(item => { if(item.index > maxIndex) maxIndex = item.index; }); }
                  actionCounter = maxIndex;
             }
             if (o.settings) { settings = {...settings, ...o.settings}; }
@@ -2584,7 +2680,10 @@ function captureCanvasData() {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     const checkPt = (p) => { if(p.x < minX) minX = p.x; if(p.y < minY) minY = p.y; if(p.x > maxX) maxX = p.x; if(p.y > maxY) maxY = p.y; };
     let hasItems = false;
-    Object.keys(data).forEach(L => { data[L].forEach(item => { if (item.isVisible === false) return; hasItems = true; if(item.points) item.points.forEach(checkPt); if(item.pt) checkPt(item.pt); }); });
+    Object.keys(data).forEach(L => { 
+        const arr = Array.isArray(data[L]) ? data[L] : (data[L] ? [data[L]] : []);
+        arr.forEach(item => { if (item.isVisible === false) return; hasItems = true; if(item.points) item.points.forEach(checkPt); if(item.pt) checkPt(item.pt); if(item.tl) ['tl','tr','bl','br'].forEach(k => checkPt(item[k])); }); 
+    });
     if(!hasItems) { minX = 0; minY = 0; maxX = bg.width; maxY = bg.height; } 
     else { const pad = 50; minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad); maxX = Math.min(bg.width, maxX + pad); maxY = Math.min(bg.height, maxY + pad); }
     const cropW = maxX - minX; const cropH = maxY - minY; const DPI = 2; const MAP_WIDTH_PX = 1000; const MAP_H_PX = Math.round((MAP_WIDTH_PX / cropW) * cropH);
@@ -2717,12 +2816,12 @@ function captureCanvasData() {
 
 function collectRows(isForExport = false) {
     const rows = [];
-    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway'];
+    const EXCLUDED_LAYERS = ['label', 'custom_icon', 'bow', 'cords', 'powersource', 'threeway', 'ghostDoor'];
     Object.keys(data).forEach(L => {
         if (EXCLUDED_LAYERS.includes(L)) return;
-        data[L].forEach(it => {
+        const arr = Array.isArray(data[L]) ? data[L] : (data[L] ? [data[L]] : []);
+        arr.forEach(it => {
             if (isForExport && it.isVisible === false) return;
-            // PDF Export only includes items with ID or Notes
             if (isForExport) {
                 const hasId = it.label && it.label.trim() !== '';
                 const hasNotes = it.notes && it.notes.trim() !== '';
@@ -2737,7 +2836,10 @@ function collectRows(isForExport = false) {
 function initializeUI() {
     document.getElementById('inputAllCol').oninput = (e) => {
         const v = e.target.value;
-        Object.keys(data).forEach(k => { data[k].forEach(it => { if(it.label) it.col = v; }); });
+        Object.keys(data).forEach(k => { 
+            const arr = Array.isArray(data[k]) ? data[k] : (data[k] ? [data[k]] : []);
+            arr.forEach(it => { if(it.label) it.col = v; }); 
+        });
         requestRender(); 
     };
     buildTools(); 
