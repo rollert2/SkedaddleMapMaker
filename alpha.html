@@ -487,12 +487,12 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
     </div>
 
     <div class="group">
-        <h3>Preferences</h3>
+        <h3>Display Preferences</h3>
         <div class="acc" id="dispAcc">
-            <div class="accHead">
-                <b>Display Settings</b><i data-lucide="chevron-right"></i>
+            <div class="accHead" onclick="this.parentElement.classList.toggle('open')">
+                <b>Rendering & Scale</b><i data-lucide="chevron-right"></i>
             </div>
-            <div class="accBody">
+            <div class="accBody" style="padding:16px;">
                 <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">General Style</div>
                 <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Line Thickness</div>
                 <div class="slider-container">
@@ -1261,8 +1261,8 @@ function refreshTable(){
                     if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
-                        // Ratio: 7.8ft = 6.2 bulbs
-                        let b = Math.round(val * (6.2 / 7.8));
+                        // Ratio Update: 28.7ft = 25 bulbs
+                        let b = Math.round(val * (25 / 28.7));
                         if(isMinis(r.L, r.item)) {
                             b = val * 2; b = Math.ceil(b / 50) * 50; const balls = b / 50;
                             if(inputNotes) inputNotes.value = `${balls} Ball${balls > 1 ? 's' : ''}`;
@@ -1281,8 +1281,8 @@ function refreshTable(){
                     if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
-                        // Ratio: 6.2 bulbs = 7.8ft
-                        let f = Math.round(val * (7.8 / 6.2) * 10) / 10; 
+                        // Ratio Update: 25 bulbs = 28.7ft
+                        let f = Math.round(val * (28.7 / 25) * 10) / 10; 
                         if(isMinis(r.L, r.item)) {
                             const balls = Math.ceil(val / 50); const exactBulbs = balls * 50;
                             f = exactBulbs / 2; 
@@ -1820,8 +1820,8 @@ function completeSketch() {
             totalFt += (segPx / settings.pixelsPerFoot) * compensation;
         }
         sketch.ft = Math.round(totalFt * 10) / 10;
-        // Updated logic: 7.8ft = 6.2 bulbs (~0.7948 bulbs per foot)
-        const bulbRatio = 6.2 / 7.8;
+        // Ratio Update: 28.7ft = 25 bulbs (~0.871 bulbs per foot)
+        const bulbRatio = 25 / 28.7;
         if (isC9(sketch.layer)) sketch.bulbs = Math.round(sketch.ft * bulbRatio);
         else if (isMinis(sketch.layer)) sketch.bulbs = Math.ceil((sketch.ft * 2) / 50) * 50;
     }
