@@ -170,7 +170,7 @@ body.white-bg .canvasWrap { background: #ffffff; background-image: none; }
 
 /* Scissor cursor for Splice Mode */
 body.splice-cursor .canvasWrap {
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cline x1='20' y1='4' x2='8.12' y2='15.88'/%3E%3Cline x1='14.47' y1='14.48' x2='20' y2='20'/%3E%3Cline x1='8.12' y1='8.12' x2='12' y2='12'/%3E%3C/svg%3E") 6 6, auto;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cline x1='20' y1='4' x2='8.12' y2='15.88'/%3E%3Cline x1='14.47' y1='14.48' x2='20' y2='20'/%3E%3C/svg%3E") 6 6, auto;
 }
 
 aside {
@@ -486,72 +486,78 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
         </div>
     </div>
 
-    <div class="group">
-      <h3>Display Settings</h3>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">General Style</div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Line Thickness</div>
-      <div class="slider-container">
-          <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Thin</span><span id="lineScaleValue" style="color:var(--text)">1.0x</span><span>Thick</span>
-          </div>
-      </div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Label Size</div>
-      <div class="slider-container">
-          <input id="labelScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="3.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Small</span><span id="labelScaleValue" style="color:var(--text)">3.0x</span><span>Large</span>
-          </div>
-      </div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Background Blur</div>
-      <div class="slider-container">
-          <input id="bgBlurInput" type="range" class="input" min="0" max="100" step="1" value="0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Clear</span><span id="bgBlurValue" style="color:var(--text)">0%</span><span>Blurry</span>
-          </div>
-      </div>
-      <div style="height:1px; background:var(--border); margin:12px 0;"></div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Flow Arrows</div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Frequency</div>
-      <div class="slider-container">
-          <input id="arrowFreqInput" type="range" class="input" min="0.2" max="1.5" step="0.1" value="1.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Few</span><span id="arrowFreqValue" style="color:var(--text)">1.0x</span><span>Many</span>
-          </div>
-      </div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Arrow Size</div>
-      <div class="slider-container">
-          <input id="arrowScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Small</span><span id="arrowScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
-          </div>
-      </div>
-      <div style="height:1px; background:var(--border); margin:12px 0;"></div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Advanced Scaling</div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Global Decor Scale</div>
-      <div class="slider-container">
-          <input id="iconScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.5"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Small</span><span id="iconScaleValue" style="color:var(--text)">1.5x</span><span>Huge</span>
-          </div>
-      </div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">C9 Tree Scale</div>
-      <div class="slider-container"><input id="c9TreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Mini Tree Scale</div>
-      <div class="slider-container"><input id="miniTreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">ToL Scale</div>
-      <div class="slider-container"><input id="tolScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Wreath Scale</div>
-      <div class="slider-container"><input id="wreathScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Bow Scale</div>
-      <div class="slider-container"><input id="bowScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
-      <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Power/Junction Scale</div>
-      <div class="slider-container">
-          <input id="junctionScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Small</span><span id="junctionScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
-          </div>
-      </div>
+    <div class="group" style="padding:0; overflow:hidden; border:none; background:transparent;">
+        <div class="acc" id="dispAcc">
+            <div class="accHead" onclick="this.parentElement.classList.toggle('open')">
+                <b>Display Settings</b><i data-lucide="chevron-right"></i>
+            </div>
+            <div class="accBody" style="padding:16px;">
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">General Style</div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Line Thickness</div>
+                <div class="slider-container">
+                    <input id="lineScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+                    <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+                        <span>Thin</span><span id="lineScaleValue" style="color:var(--text)">1.0x</span><span>Thick</span>
+                    </div>
+                </div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Label Size</div>
+                <div class="slider-container">
+                    <input id="labelScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="3.0"/>
+                    <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+                        <span>Small</span><span id="labelScaleValue" style="color:var(--text)">3.0x</span><span>Large</span>
+                    </div>
+                </div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Background Blur</div>
+                <div class="slider-container">
+                    <input id="bgBlurInput" type="range" class="input" min="0" max="100" step="1" value="0"/>
+                    <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+                        <span>Clear</span><span id="bgBlurValue" style="color:var(--text)">0%</span><span>Blurry</span>
+                    </div>
+                </div>
+                <div style="height:1px; background:var(--border); margin:12px 0;"></div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Flow Arrows</div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Frequency</div>
+                <div class="slider-container">
+                    <input id="arrowFreqInput" type="range" class="input" min="0.2" max="1.5" step="0.1" value="1.0"/>
+                    <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+                        <span>Few</span><span id="arrowFreqValue" style="color:var(--text)">1.0x</span><span>Many</span>
+                    </div>
+                </div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Arrow Size</div>
+                <div class="slider-container">
+                    <input id="arrowScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+                    <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+                        <span>Small</span><span id="arrowScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
+                    </div>
+                </div>
+                <div style="height:1px; background:var(--border); margin:12px 0;"></div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Advanced Scaling</div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Global Decor Scale</div>
+                <div class="slider-container">
+                    <input id="iconScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.5"/>
+                    <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+                        <span>Small</span><span id="iconScaleValue" style="color:var(--text)">1.5x</span><span>Huge</span>
+                    </div>
+                </div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">C9 Tree Scale</div>
+                <div class="slider-container"><input id="c9TreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Mini Tree Scale</div>
+                <div class="slider-container"><input id="miniTreeScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">ToL Scale</div>
+                <div class="slider-container"><input id="tolScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Wreath Scale</div>
+                <div class="slider-container"><input id="wreathScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Bow Scale</div>
+                <div class="slider-container"><input id="bowScaleInput" type="range" class="input" min="0.5" max="5" step="0.1" value="1.0"/></div>
+                <div style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Power/Junction Scale</div>
+                <div class="slider-container">
+                    <input id="junctionScaleInput" type="range" class="input" min="0.5" max="3" step="0.1" value="1.0"/>
+                    <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+                        <span>Small</span><span id="junctionScaleValue" style="color:var(--text)">1.0x</span><span>Large</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div class="group">
@@ -660,7 +666,7 @@ const iconMap = {
     'custom_icon': 'image',
     'night_mode': 'moon',
     'ai_detect': 'bot',
-    'ghost_door': 'door-open'
+    'ghost_door': 'ghost'
 };
 
 const tp1 = "ghp_xSeuggnKkttH6z";
@@ -1052,8 +1058,8 @@ function updatePerspectiveFromDoor() {
     const avgHeightPx = (leftHeight + rightHeight) / 2;
     settings.pixelsPerFoot = avgHeightPx / 6.6; 
     
-    // Calculate simple horizontal skew
-    // If right side is smaller, objects on the right are "deeper"
+    // Calculate horizontal perspective skew
+    // If right side is smaller (closer to 0), factor > 1 (compensation for depth)
     settings.perspectiveFactor = leftHeight / rightHeight; 
 }
 
@@ -1261,7 +1267,7 @@ function refreshTable(){
                             r.item.notes = inputNotes ? inputNotes.value : r.item.notes;
                             r.item.ft = b / 2; inputFt.value = b / 2;
                         }
-                        if(inputBulbs) inputBulbs.value = b; r.item.bulbs = b;
+                        if(inputBulbs) b = Math.ceil(b); inputBulbs.value = b; r.item.bulbs = b;
                     }
                 }
             };
@@ -1273,7 +1279,7 @@ function refreshTable(){
                     if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
-                        let f = Math.round(val / 0.8); 
+                        let f = Math.round(val * 0.8); 
                         if(isMinis(r.L, r.item)) {
                             const balls = Math.ceil(val / 50); const exactBulbs = balls * 50;
                             f = exactBulbs / 2; 
@@ -1744,9 +1750,8 @@ function placeCustomIcon(w, sx, sy, label, index) {
 }
 
 function placeGhostDoor(w, sx, sy) {
-    // Places a standard door frame: 3ft x 6.6ft
-    const wDoor = 3 * 20; // placeholder pixels if no scale exists
-    const hDoor = 6.6 * 20;
+    const wDoor = 60; // default start width
+    const hDoor = 132; // default start height (~6.6ft)
     data.ghostDoor = {
         tl: {x: w.x - wDoor/2, y: w.y - hDoor},
         tr: {x: w.x + wDoor/2, y: w.y - hDoor},
@@ -1758,6 +1763,7 @@ function placeGhostDoor(w, sx, sy) {
     };
     updatePerspectiveFromDoor();
     selectedItem = { type: 'ghostDoor', obj: data.ghostDoor };
+    mode = 'select'; // Switch to select tool so corners can be moved
     updateModeTag();
     requestRender();
 }
@@ -1793,6 +1799,25 @@ function placeWreath(L, w, sx, sy, label, index) {
 function completeSketch() {
     if (!sketch || sketch.points.length < 2) return;
     sketch.isVisible = true;
+    
+    // Auto-calculate footage on completion
+    if (settings.pixelsPerFoot > 0) {
+        let totalFt = 0;
+        for (let i = 0; i < sketch.points.length - 1; i++) {
+            const segPx = segmentLength(sketch.points[i], sketch.points[i+1], sketch.cps?.[i]);
+            // Simple depth compensation: if line is more horizontal, use perspective factor
+            const dx = Math.abs(sketch.points[i+1].x - sketch.points[i].x);
+            const dy = Math.abs(sketch.points[i+1].y - sketch.points[i].y);
+            const horizRatio = dx / (dx + dy + 0.1);
+            const compensation = 1 + (settings.perspectiveFactor - 1) * horizRatio;
+            totalFt += (segPx / settings.pixelsPerFoot) * compensation;
+        }
+        sketch.ft = Math.round(totalFt * 10) / 10;
+        // Auto bulbs
+        if (isC9(sketch.layer)) sketch.bulbs = Math.round(sketch.ft / 0.8);
+        else if (isMinis(sketch.layer)) sketch.bulbs = Math.ceil((sketch.ft * 2) / 50) * 50;
+    }
+
     data[sketch.layer].push(sketch); 
     sketch = null; document.getElementById('btnComplete').disabled = true; startNewSketch(); 
     markPowerDirty(); refreshTable(); updateVisibilityMenu(); requestRender(); 
@@ -1990,7 +2015,7 @@ function checkLabelClick(sx, sy, specificItem=null, specificType=null) {
                 Object.keys(item.ptLabels).forEach(idx => {
                     const i = parseInt(idx); const labelPos = item.ptLabelPos && item.ptLabelPos[i] ? item.ptLabelPos[i] : item.points[i];
                     const sc = toScr(labelPos);
-                    if(Math.hypot(sc.x - sx, sc.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
+                    if(Math.hypot(sc.x - sx, s.y - sy) < 30) { if (!best || Math.hypot(sc.x - sx, sc.y - sy) < best.d) best = { item: item, type: 'point', index: i, x: sc.x, y: sc.y, L, d: Math.hypot(sc.x - sx, sc.y - sy) }; }
                 });
             }
             if(item.segLabels) {
@@ -2131,7 +2156,7 @@ function handleSelectDown(sx, sy){
         if (!list) return;
         const arr = Array.isArray(list) ? list : [list];
         arr.forEach((obj, i) => {
-            if (obj.isVisible === false) return;
+            if (!obj || obj.isVisible === false) return;
             const currentHitbox = (type === 'threeway' || type === 'powersource') ? 45 : overrideHitbox; 
             if (obj.points) {
                 obj.points.forEach((p, index) => {
@@ -2139,10 +2164,15 @@ function handleSelectDown(sx, sy){
                     if (d < currentHitbox) { if (!hitPoint || d < hitPoint.d) hitPoint = { obj, index, type, d: d }; }
                 });
             } else if (obj.tl) {
+                 // Ghost Door handles
                  ['tl','tr','bl','br'].forEach(k => {
                      const d = Math.hypot(sx - toScr(obj[k]).x, sy - toScr(obj[k]).y);
                      if (d < 30) { if (!hitPoint || d < hitPoint.d) hitPoint = { obj, key: k, type, d: d }; }
                  });
+                 // Ghost Door Center (the ghost icon) click to hide
+                 const center = { x: (obj.tl.x + obj.br.x) / 2, y: (obj.tl.y + obj.br.y) / 2 };
+                 const dCenter = Math.hypot(sx - toScr(center).x, sy - toScr(center).y);
+                 if (dCenter < 30) { obj.isVisible = false; selectedItem = null; requestRender(); return; }
             } else if (obj.pt) {
                 const scaleFactor = (type === 'threeway' || type === 'powersource') ? settings.junctionScale : settings.iconScale;
                 const scaledHitbox = (type === 'label') ? 40 : 30 * scaleFactor; 
@@ -2170,7 +2200,7 @@ function handleSelectDown(sx, sy){
         if(!list) return;
         const arr = Array.isArray(list) ? list : [list];
         arr.forEach(obj => {
-            if (obj.isVisible === false) return;
+            if (!obj || obj.isVisible === false) return;
             if (obj.points) {
                 for (let i = 0; i < obj.points.length - 1; i++) {
                     const p = projOnSeg(w, obj.points[i], obj.points[i + 1]); const s = toScr(p.q); const d = Math.hypot(sx - s.x, sy - s.y);
@@ -2278,7 +2308,7 @@ function drawBow(x, y, scale, itemScale){
 }
 
 function drawGhostDoor(ctx) {
-    if (!data.ghostDoor) return;
+    if (!data.ghostDoor || (currLayer !== 'ghost_door' && !data.ghostDoor.isVisible)) return;
     const d = data.ghostDoor;
     const pts = [toScr(d.tl), toScr(d.tr), toScr(d.br), toScr(d.bl)];
 
@@ -2304,6 +2334,16 @@ function drawGhostDoor(ctx) {
         ctx.fill();
         ctx.stroke();
     });
+    
+    // Draw Ghost Center Icon click to hide
+    const centerX = (pts[0].x + pts[2].x) / 2;
+    const centerY = (pts[0].y + pts[2].y) / 2;
+    ctx.font = '24px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'white';
+    ctx.fillText('👻', centerX, centerY);
+    
     ctx.restore();
 }
 
@@ -2584,7 +2624,7 @@ const handleMap = (f)=>{
         try{ 
             const o=JSON.parse(r.result); imgDataUrl=o.image||null; 
             if(o.data) {
-                 let maxIndex = 0; for (const L in data) { data[L] = o.data[L]; const arr = Array.isArray(data[L]) ? data[L] : (data[L] ? [data[L]] : []); arr.forEach(item => { if(item.index > maxIndex) maxIndex = item.index; }); }
+                 let maxIndex = 0; for (const L in data) { data[L] = o.data[L]; const arr = Array.isArray(data[L]) ? data[L] : (data[L] ? [data[L]] : []); arr.forEach(item => { if(item && item.index > maxIndex) maxIndex = item.index; }); }
                  actionCounter = maxIndex;
             }
             if (o.settings) { settings = {...settings, ...o.settings}; }
@@ -2682,7 +2722,7 @@ function captureCanvasData() {
     let hasItems = false;
     Object.keys(data).forEach(L => { 
         const arr = Array.isArray(data[L]) ? data[L] : (data[L] ? [data[L]] : []);
-        arr.forEach(item => { if (item.isVisible === false) return; hasItems = true; if(item.points) item.points.forEach(checkPt); if(item.pt) checkPt(item.pt); if(item.tl) ['tl','tr','bl','br'].forEach(k => checkPt(item[k])); }); 
+        arr.forEach(item => { if (!item || item.isVisible === false) return; hasItems = true; if(item.points) item.points.forEach(checkPt); if(item.pt) checkPt(item.pt); if(item.tl) ['tl','tr','bl','br'].forEach(k => checkPt(item[k])); }); 
     });
     if(!hasItems) { minX = 0; minY = 0; maxX = bg.width; maxY = bg.height; } 
     else { const pad = 50; minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad); maxX = Math.min(bg.width, maxX + pad); maxY = Math.min(bg.height, maxY + pad); }
@@ -2821,7 +2861,7 @@ function collectRows(isForExport = false) {
         if (EXCLUDED_LAYERS.includes(L)) return;
         const arr = Array.isArray(data[L]) ? data[L] : (data[L] ? [data[L]] : []);
         arr.forEach(it => {
-            if (isForExport && it.isVisible === false) return;
+            if (!it || (isForExport && it.isVisible === false)) return;
             if (isForExport) {
                 const hasId = it.label && it.label.trim() !== '';
                 const hasNotes = it.notes && it.notes.trim() !== '';
@@ -2838,7 +2878,7 @@ function initializeUI() {
         const v = e.target.value;
         Object.keys(data).forEach(k => { 
             const arr = Array.isArray(data[k]) ? data[k] : (data[k] ? [data[k]] : []);
-            arr.forEach(it => { if(it.label) it.col = v; }); 
+            arr.forEach(it => { if(it && it.label) it.col = v; }); 
         });
         requestRender(); 
     };
