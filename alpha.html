@@ -1261,8 +1261,8 @@ function refreshTable(){
                     if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
-                        // Ratio Update: 28.7ft = 25 bulbs
-                        let b = Math.round(val * (25 / 28.7));
+                        // Updated Ratio Logic: 19.5ft = 17 bulbs
+                        let b = Math.round(val * (17 / 19.5));
                         if(isMinis(r.L, r.item)) {
                             b = val * 2; b = Math.ceil(b / 50) * 50; const balls = b / 50;
                             if(inputNotes) inputNotes.value = `${balls} Ball${balls > 1 ? 's' : ''}`;
@@ -1281,8 +1281,8 @@ function refreshTable(){
                     if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
-                        // Ratio Update: 25 bulbs = 28.7ft
-                        let f = Math.round(val * (28.7 / 25) * 10) / 10; 
+                        // Updated Ratio Logic: 17 bulbs = 19.5ft
+                        let f = Math.round(val * (19.5 / 17) * 10) / 10; 
                         if(isMinis(r.L, r.item)) {
                             const balls = Math.ceil(val / 50); const exactBulbs = balls * 50;
                             f = exactBulbs / 2; 
@@ -1820,8 +1820,8 @@ function completeSketch() {
             totalFt += (segPx / settings.pixelsPerFoot) * compensation;
         }
         sketch.ft = Math.round(totalFt * 10) / 10;
-        // Ratio Update: 28.7ft = 25 bulbs (~0.871 bulbs per foot)
-        const bulbRatio = 25 / 28.7;
+        // Updated Conversion Rate: 19.5ft = 17 bulbs (~0.8717 bulbs per foot)
+        const bulbRatio = 17 / 19.5;
         if (isC9(sketch.layer)) sketch.bulbs = Math.round(sketch.ft * bulbRatio);
         else if (isMinis(sketch.layer)) sketch.bulbs = Math.ceil((sketch.ft * 2) / 50) * 50;
     }
@@ -1842,20 +1842,20 @@ let currentSnapLine = null; let draggedLabelTarget = null;
 let dragStartX=0, dragStartY=0, dragPanStartX=0, dragPanStartY=0;
 
 cv.addEventListener('pointerdown',e=>{
-    cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const ex = e.clientX-r.left, ey = e.clientY-r.top;
-    pointers.set(e.pointerId,{x:ex,y:ey,id:e.pointerId});
-    cv._mx = ex; cv._my = ey;
+    cv.setPointerCapture(e.pointerId); const r=canvasWrap.getBoundingClientRect(); const x = e.clientX-r.left, y = e.clientY-r.top;
+    pointers.set(e.pointerId,{x,y,id:e.pointerId});
+    cv._mx = x; cv._my = y;
     if (!e.target.closest('#lblEditor')) { document.getElementById('lblEditor').style.display = 'none'; }
     document.getElementById('imgUploadPop').style.display = 'none';
     if(pointers.size === 1) {
-        isTapCandidate = true; tapDownX = ex; tapDownY = ey; dragStartX = ex; dragStartY = ey; dragPanStartX = panX; dragPanStartY = panY;
-        if (mode === 'select' && selectedItem) { handleSelectDown(ex, ey); if (draggingPoint) { isTapCandidate = false; return; } }
+        isTapCandidate = true; tapDownX = x; tapDownY = y; dragStartX = x; dragStartY = y; dragPanStartX = panX; dragPanStartY = panY;
+        if (mode === 'select' && selectedItem) { handleSelectDown(x, y); if (draggingPoint) { isTapCandidate = false; return; } }
         if (mode === 'move' && selectedItem) {
              dragStartPt = { x: selectedItem.obj.pt ? selectedItem.obj.pt.x : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).x : (selectedItem.obj.tl ? selectedItem.obj.bl.x : 0)),
                              y: selectedItem.obj.pt ? selectedItem.obj.pt.y : (selectedItem.obj.points ? getItemCenter(selectedItem.obj).y : (selectedItem.obj.tl ? selectedItem.obj.bl.y : 0)) };
              return;
         } else if (mode === 'move-label' && selectedItem) { 
-             const w = toWorld(ex, ey); draggedLabelTarget = { item: selectedItem.obj, type: 'primary' }; isTapCandidate = false; return;
+             const w = toWorld(x, y); draggedLabelTarget = { item: selectedItem.obj, type: 'primary' }; isTapCandidate = false; return;
         }
     }
     if(pointers.size >= 2){ isTapCandidate = false; gesture=true; const v=[...pointers.values()]; gDist=ds(v[0],v[1]); gMid=mp(v[0],v[1]); gScale=scale; gPanX=panX; gPanY=panY; return; }
