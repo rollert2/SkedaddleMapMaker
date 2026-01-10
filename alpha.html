@@ -486,6 +486,7 @@ td .edit { background: var(--panel); border: 1px solid var(--border); color: var
         </div>
     </div>
 
+    <!-- Correctly structured Collapsible Display Settings -->
     <div class="group" style="padding:0; overflow:hidden; border:none; background:transparent;">
         <div class="acc" id="dispAcc">
             <div class="accHead" onclick="this.parentElement.classList.toggle('open')">
@@ -1260,7 +1261,8 @@ function refreshTable(){
                     if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
-                        let b = Math.round(val / 0.8);
+                        // Logic Update: 7.8ft = 6.2 bulbs => ratio is ~0.7948
+                        let b = Math.round(val * (6.2 / 7.8));
                         if(isMinis(r.L, r.item)) {
                             b = val * 2; b = Math.ceil(b / 50) * 50; const balls = b / 50;
                             if(inputNotes) inputNotes.value = `${balls} Ball${balls > 1 ? 's' : ''}`;
@@ -1279,7 +1281,8 @@ function refreshTable(){
                     if(r.L === 'garland' || r.L === 'wreath' || r.item.kind === 'ToL') return; 
                     const val = parseFloat(e.target.value);
                     if(!isNaN(val)) {
-                        let f = Math.round(val * 0.8); 
+                        // Ratio: bulbs * (7.8 / 6.2) = ft
+                        let f = Math.round(val * (7.8 / 6.2) * 10) / 10; 
                         if(isMinis(r.L, r.item)) {
                             const balls = Math.ceil(val / 50); const exactBulbs = balls * 50;
                             f = exactBulbs / 2; 
@@ -1501,6 +1504,11 @@ function selectTool(L, variant=null){
     if(L==='tree') toolBtn['tree:'+currTreeKind]?.classList.add('active');
     else if(L==='wreath') toolBtn[currWreathSize==='32"'?'wreath32':'wreath42']?.classList.add('active');
     else toolBtn[L]?.classList.add('active');
+    
+    if(L === 'ghost_door' && data.ghostDoor) {
+        data.ghostDoor.isVisible = true; // Show door if tool reactivated
+    }
+
     if(matchMedia('(max-width:900px)').matches) toggleMenu();
     document.getElementById('imgUploadPop').style.display = 'none';
     mode='draw'; if (L === 'label') mode = 'label'; 
@@ -1750,8 +1758,8 @@ function placeCustomIcon(w, sx, sy, label, index) {
 }
 
 function placeGhostDoor(w, sx, sy) {
-    const wDoor = 60; // default start width
-    const hDoor = 132; // default start height (~6.6ft)
+    const wDoor = 60; 
+    const hDoor = 132; 
     data.ghostDoor = {
         tl: {x: w.x - wDoor/2, y: w.y - hDoor},
         tr: {x: w.x + wDoor/2, y: w.y - hDoor},
@@ -1763,7 +1771,7 @@ function placeGhostDoor(w, sx, sy) {
     };
     updatePerspectiveFromDoor();
     selectedItem = { type: 'ghostDoor', obj: data.ghostDoor };
-    mode = 'select'; // Switch to select tool so corners can be moved
+    mode = 'select'; // Switch to select tool so corners can be moved immediately
     updateModeTag();
     requestRender();
 }
@@ -1800,12 +1808,11 @@ function completeSketch() {
     if (!sketch || sketch.points.length < 2) return;
     sketch.isVisible = true;
     
-    // Auto-calculate footage on completion
+    // Auto-calculate footage on completion based on door scale
     if (settings.pixelsPerFoot > 0) {
         let totalFt = 0;
         for (let i = 0; i < sketch.points.length - 1; i++) {
             const segPx = segmentLength(sketch.points[i], sketch.points[i+1], sketch.cps?.[i]);
-            // Simple depth compensation: if line is more horizontal, use perspective factor
             const dx = Math.abs(sketch.points[i+1].x - sketch.points[i].x);
             const dy = Math.abs(sketch.points[i+1].y - sketch.points[i].y);
             const horizRatio = dx / (dx + dy + 0.1);
@@ -1813,8 +1820,9 @@ function completeSketch() {
             totalFt += (segPx / settings.pixelsPerFoot) * compensation;
         }
         sketch.ft = Math.round(totalFt * 10) / 10;
-        // Auto bulbs
-        if (isC9(sketch.layer)) sketch.bulbs = Math.round(sketch.ft / 0.8);
+        // Auto bulbs ratio update: 7.8ft = 6.2 bulbs (~0.7948 bulbs per foot)
+        const bulbRatio = 6.2 / 7.8;
+        if (isC9(sketch.layer)) sketch.bulbs = Math.round(sketch.ft * bulbRatio);
         else if (isMinis(sketch.layer)) sketch.bulbs = Math.ceil((sketch.ft * 2) / 50) * 50;
     }
 
@@ -2679,7 +2687,7 @@ function buildPayload() {
     tCtx.fillStyle = '#0f172a'; tCtx.fillRect(0,0,160,90);
     if(imgReady) {
         const thumbScale = Math.min(160/bg.width, 90/bg.height); tCtx.drawImage(bg, 0, 0, bg.width*thumbScale, bg.height*thumbScale); tCtx.strokeStyle = '#fffdf0'; tCtx.lineWidth = 2;
-        ['ridges','fascia','peaks'].forEach(L => { data[L].forEach(it => { if(it.isVisible !== false && it.points && it.points.length > 1) { tCtx.beginPath(); tCtx.moveTo(it.points[0].x * thumbScale, it.points[0].y * thumbScale); for(let i=1; i<it.points.length; i++) tCtx.lineTo(it.points[i].x * thumbScale, it.points[i].y * thumbScale); tCtx.stroke(); } }); });
+        ['ridges','fascia','peaks'].forEach(L => { data[L].forEach(it => { if(it && it.isVisible !== false && it.points && it.points.length > 1) { tCtx.beginPath(); tCtx.moveTo(it.points[0].x * thumbScale, it.points[0].y * thumbScale); for(let i=1; i<it.points.length; i++) tCtx.lineTo(it.points[i].x * thumbScale, it.points[i].y * thumbScale); tCtx.stroke(); } }); });
         thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.5);
     }
     return {
@@ -2763,8 +2771,8 @@ function captureCanvasData() {
         o.filter = imageFilter;
         if (imgReady && !imgDataUrl) { o.fillStyle = 'white'; o.fillRect(0, HEADER_H, OUT_W, MAP_H_PX); } else o.drawImage(bg, minX, minY, cropW, cropH, 0, HEADER_H, OUT_W, MAP_H_PX);
         o.filter = 'none';
-        data.cords.forEach(it => { if(it.isVisible !== false) drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
-        ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ if(it.isVisible !== false) drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
+        data.cords.forEach(it => { if(it && it.isVisible !== false) drawCord(it, getColorCode(it.col) || colorOf('cords'), 'cords'); });
+        ['shrub','windows','ridges','fascia','peaks','groundstakes','garland'].forEach(L=>{ data[L].forEach(it=>{ if(it && it.isVisible !== false) drawContinuousLine(it, getColorCode(it.col) || colorOf(L), L); }); });
         const pg = analyzePower();
         if(pg){
              pg.edges.forEach(e => {
@@ -2797,26 +2805,26 @@ function captureCanvasData() {
              pg.deadTips.forEach(nodeIdx => { const n = pg.nodes[nodeIdx]; const neighbor = pg.nodes[n.adj[0]]; if(neighbor) drawDeadEnd(n, neighbor, '#fffdf0'); });
         }
         data.wreath.forEach(w=>{
-            if (w.isVisible === false) return;
+            if (!w || w.isVisible === false) return;
             const s=toScr(w.pt); const wreathCategoryScale = settings.wreathScale || 1.0; const individualScale = w.itemScale || 1.0; const totalWreathScale = settings.iconScale * wreathCategoryScale * individualScale;
             const r=(w.size==='42"'?12.5:8.75)*scale*totalWreathScale; const wreathColor = colorOf('wreath');
             o.beginPath(); o.arc(s.x,s.y,r,0,Math.PI*2); o.fillStyle = wreathColor; o.fill(); 
             o.strokeStyle='black'; o.lineWidth=6 * totalWreathScale * scale; o.stroke(); o.strokeStyle=wreathColor; o.lineWidth=3 * totalWreathScale * scale; o.stroke();
             if(w.bow === 'top' || w.bow === 'bottom'){ const by = w.bow==='top' ? s.y - r : s.y + r; drawBow(s.x, by, scale, totalWreathScale); }
         });
-        data.bow.forEach(b=>{ if (b.isVisible === false) return; const s=toScr(b.pt); const bowCategoryScale = settings.bowScale || 1.0; const individualScale = b.itemScale || 1.0; drawBow(s.x, s.y, scale, settings.iconScale * bowCategoryScale * individualScale); }); 
+        data.bow.forEach(b=>{ if (!b || b.isVisible === false) return; const s=toScr(b.pt); const bowCategoryScale = settings.bowScale || 1.0; const individualScale = b.itemScale || 1.0; drawBow(s.x, s.y, scale, settings.iconScale * bowCategoryScale * individualScale); }); 
         data.tree.forEach(tr => {
-            if (tr.isVisible === false) return;
+            if (!tr || tr.isVisible === false) return;
             const p = toScr(tr.pt); const kind = tr.kind; let catScale = 1.0;
             if(kind === 'C9 Tree') catScale = settings.c9TreeScale || 1.0;
             else if(kind === 'ToL') catScale = settings.tolScale || 1.0;
             else catScale = settings.miniTreeScale || 1.0;
             drawTreeIcon(o, p, tr.kind, tr.size, scale, settings.iconScale * catScale * (tr.itemScale || 1.0)); 
         });
-        data.powersource.forEach(ps=>{ if(ps.isVisible === false) return; const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
-        data.threeway.forEach(tw=>{ if(tw.isVisible === false) return; const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
+        data.powersource.forEach(ps=>{ if(!ps || ps.isVisible === false) return; const s=toScr(ps.pt); const sz = 8*scale*settings.junctionScale; o.fillStyle='#ef4444'; o.fillRect(s.x-sz/2, s.y-sz/2, sz, sz); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.strokeRect(s.x-sz/2, s.y-sz/2, sz, sz); });
+        data.threeway.forEach(tw=>{ if(!tw || tw.isVisible === false) return; const s=toScr(tw.pt); const sz = 6*scale*settings.junctionScale; o.beginPath(); o.moveTo(s.x, s.y-sz); o.lineTo(s.x+sz, s.y+sz); o.lineTo(s.x-sz, s.y+sz); o.closePath(); o.fillStyle='#eab308'; o.fill(); o.strokeStyle='black'; o.lineWidth=3*scale*settings.junctionScale; o.stroke(); });
         data.custom_icon.forEach(ci => {
-            if (!ci.url || ci.isVisible === false) return;
+            if (!ci || !ci.url || ci.isVisible === false) return;
             const sTL = toScr(ci.pt); const scaledW = ci.w * ci.scale * scale; const scaledH = ci.h * ci.scale * scale;
             if (!ci.imageObj || ci.imageObj.src !== ci.url) { ci.imageObj = new Image(); ci.imageObj.src = ci.url; }
             if (ci.imageObj.complete) o.drawImage(ci.imageObj, sTL.x, sTL.y, scaledW, scaledH);
